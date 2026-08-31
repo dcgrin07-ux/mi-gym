@@ -1,0 +1,15 @@
+{
+  "short_name": "MI GYM",
+  "name": "MI GYM v3.1",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    }
+  ],
+  "start_url": "gympromax2.0.html",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "display": "standalone"
+}
