@@ -8,7 +8,7 @@
       "sizes": "192x192"
     }
   ],
-  "start_url": "gympromax2.0.html",
+  ​"start_url": "./",
   "background_color": "#0f172a",
   "theme_color": "#0f172a",
   "display": "standalone"
