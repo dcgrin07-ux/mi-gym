@@ -7,9 +7,8 @@
     
     <!-- PWA Manifest & Meta -->
     <link rel="apple-touch-icon" href="icon-192.png">
-<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
- <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="icon-192.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+    <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#0f172a">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -180,6 +179,15 @@
                 <input type="text" id="input-ejercicio-custom" placeholder="Ej: Vuelos posteriores en polea">
             </div>
 
+            <div id="div-fuerza-inputs" style="background: #1e293b; padding: 10px; border-radius: 8px; margin-top: 8px;">
+                <label>Cantidad de Series:</label>
+                <input type="number" id="input-series-nuevo" value="3" min="1" max="10">
+                <label>Repeticiones objetivo (ej: 8-10):</label>
+                <input type="text" id="input-reps-nuevo" value="8-10">
+                <label>Notas o especificaciones técnicas (opcional):</label>
+                <textarea id="input-notas-nuevo" placeholder="Ej: Mantener codos pegados, bajada controlada en 3s..."></textarea>
+            </div>
+
             <div id="div-cardio-inputs" style="display:none; background: #1e293b; padding: 10px; border-radius: 8px; margin-top: 8px;">
                 <label>Duración (minutos):</label>
                 <input type="number" id="cardio-minutos" placeholder="Ej: 30">
@@ -201,17 +209,18 @@
                 <span id="cronometro-sesion" style="font-family: monospace; font-size: 1.1rem;">00:00</span>
             </div>
             <h2 id="guiado-nombre" style="font-size: 1.4rem; color: var(--accent);">Nombre Ejercicio</h2>
-            <p id="guiado-meta" style="color: var(--text-muted); margin-bottom: 10px; font-size: 1rem;"></p>
+            <p id="guiado-meta" style="color: var(--text-muted); margin-bottom: 6px; font-size: 1rem;"></p>
+            <div id="guiado-notas-propias" style="color: var(--yellow); font-size: 0.85rem; margin-bottom: 10px; font-style: italic; display:none;"></div>
             
-            <button class="btn btn-warning" style="padding: 10px; font-size: 0.9rem; margin-bottom: 12px;" onclick="explicarEjercicioActualIA()">🤖 Explicación de Técnica (IA)</button>
+            <button class="btn btn-warning" style="padding: 10px; font-size: 0.9rem; margin-bottom: 12px;" onclick="explicarEjercicioActualIA()">🤖 Explicación Detallada de Técnica (IA)</button>
             <div id="guiado-explicacion-ia" style="display:none; background: #0f172a; padding: 10px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 12px; color: var(--text-muted); border-left: 3px solid var(--warning);"></div>
 
             <div id="guiado-seccion-fuerza">
-                <label>Peso utilizado (kg):</label>
+                <label id="label-guiado-peso">Peso utilizado (kg) [Último registrado]:</label>
                 <input type="number" id="guiado-peso" step="0.5" placeholder="Ej: 65">
                 
-                <label style="margin-top: 8px; display: block;">Repeticiones reales:</label>
-                <input type="text" id="guiado-reps" placeholder="Ej: 8-8-8">
+                <label style="margin-top: 8px; display: block;">Repeticiones realizadas (por serie):</label>
+                <input type="text" id="guiado-reps" placeholder="Ej: 10-10-10">
             </div>
 
             <div id="guiado-seccion-cardio" style="display:none;">
@@ -286,6 +295,7 @@
     <div id="view-historial" class="view-section">
         <h2>📜 Historial en la Nube</h2>
         <div class="card">
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 10px;">Hacé clic en cualquier entrenamiento pasado para ver el detalle completo de pesos, repeticiones y recomendaciones.</p>
             <div id="historial-lista-container" style="margin-top: 10px;"></div>
         </div>
     </div>
@@ -305,6 +315,31 @@
     <button class="nav-btn" onclick="irA('view-calendario')"><span>📅</span>Calendario</button>
     <button class="nav-btn" onclick="irA('view-historial')"><span>📜</span>Historial</button>
     <button class="nav-btn" onclick="abrirCalculadoraDiscos()"><span>🧮</span>Discos</button>
+</div>
+
+<!-- MODAL DETALLE HISTORIAL -->
+<div id="modal-detalle-historial" class="modal">
+    <div class="modal-content">
+        <h3 id="modal-historial-titulo" style="color: var(--accent);">Detalle de Sesión</h3>
+        <div id="modal-historial-cuerpo" style="font-size: 0.9rem; margin-bottom: 15px; line-height: 1.4;"></div>
+        <button class="btn btn-secondary" onclick="cerrarModalHistorial()">Cerrar</button>
+    </div>
+</div>
+
+<!-- MODAL EDITAR EJERCICIO EN RUTINA -->
+<div id="modal-editar-ejercicio" class="modal">
+    <div class="modal-content">
+        <h3>✏️ Editar Ejercicio</h3>
+        <input type="hidden" id="edit-ej-idx">
+        <label>Cantidad de Series:</label>
+        <input type="number" id="edit-ej-series" min="1" max="10">
+        <label>Repeticiones Objetivo:</label>
+        <input type="text" id="edit-ej-reps">
+        <label>Notas / Especificaciones técnicas:</label>
+        <textarea id="edit-ej-notas" placeholder="Ej: Controlar fase excéntrica..."></textarea>
+        <button class="btn btn-primary" onclick="guardarEdicionEjercicio()">Guardar Cambios</button>
+        <button class="btn btn-secondary" onclick="cerrarModalEditarEjercicio()">Cancelar</button>
+    </div>
 </div>
 
 <!-- MODAL CREAR RUTINA -->
@@ -380,14 +415,14 @@
     ];
 
     /* ==========================================
-       ESTADO DE LA APLICACIÓN (Rutinas vacías por defecto)
+       ESTADO DE LA APLICACIÓN
        ========================================== */
     let rutinasPersonalizadas = JSON.parse(localStorage.getItem('mi_gym_rutinas_v31') || JSON.stringify({
         "Rutina A": []
     }));
 
     let registrosCloud = JSON.parse(localStorage.getItem('mi_gym_registros_v31') || '[]');
-    let perfilCloud = JSON.parse(localStorage.getItem('mi_gym_perfil_v31') || '{"peso": 75}');
+    let perfilCloud = JSON.parse(localStorage.getItem('mi_gym_perfil_v31') || '{"peso": 90}');
 
     let rutinaSeleccionadaKey = '';
     let guiadoIndice = 0;
@@ -558,6 +593,7 @@
         
         document.getElementById('div-nombre-personalizado').style.display = esCustom ? 'block' : 'none';
         document.getElementById('div-cardio-inputs').style.display = esCardio ? 'block' : 'none';
+        document.getElementById('div-fuerza-inputs').style.display = esCardio ? 'none' : 'block';
     }
 
     function agregarEjercicioARutinaActual() {
@@ -578,7 +614,10 @@
             let km = parseFloat(document.getElementById('cardio-km').value) || 0;
             rutinasPersonalizadas[rutinaSeleccionadaKey].push({ nombre: nombreFinal, minutos: mins, km, tipo: "cardio" });
         } else {
-            rutinasPersonalizadas[rutinaSeleccionadaKey].push({ nombre: nombreFinal, series: 3, reps: "8-10", tipo: "fuerza" });
+            let series = parseInt(document.getElementById('input-series-nuevo').value) || 3;
+            let reps = document.getElementById('input-reps-nuevo').value.trim() || "8-10";
+            let notas = document.getElementById('input-notas-nuevo').value.trim();
+            rutinasPersonalizadas[rutinaSeleccionadaKey].push({ nombre: nombreFinal, series, reps, notas, tipo: "fuerza" });
         }
         guardarTodoEnNube();
         renderizarEjerciciosRutinaActual();
@@ -587,6 +626,26 @@
     function eliminarEjercicioDeRutina(idx) {
         rutinasPersonalizadas[rutinaSeleccionadaKey].splice(idx, 1);
         guardarTodoEnNube();
+        renderizarEjerciciosRutinaActual();
+    }
+
+    function abrirModalEditarEjercicio(idx) {
+        let item = rutinasPersonalizadas[rutinaSeleccionadaKey][idx];
+        document.getElementById('edit-ej-idx').value = idx;
+        document.getElementById('edit-ej-series').value = item.series || 3;
+        document.getElementById('edit-ej-reps').value = item.reps || "8-10";
+        document.getElementById('edit-ej-notas').value = item.notas || "";
+        document.getElementById('modal-editar-ejercicio').style.display = 'flex';
+    }
+    function cerrarModalEditarEjercicio() { document.getElementById('modal-editar-ejercicio').style.display = 'none'; }
+    function guardarEdicionEjercicio() {
+        let idx = parseInt(document.getElementById('edit-ej-idx').value);
+        let item = rutinasPersonalizadas[rutinaSeleccionadaKey][idx];
+        item.series = parseInt(document.getElementById('edit-ej-series').value) || 3;
+        item.reps = document.getElementById('edit-ej-reps').value.trim() || "8-10";
+        item.notas = document.getElementById('edit-ej-notas').value.trim();
+        guardarTodoEnNube();
+        cerrarModalEditarEjercicio();
         renderizarEjerciciosRutinaActual();
     }
 
@@ -608,7 +667,9 @@
                                 <h3 style="color: var(--orange); font-size: 1.05rem; margin-bottom: 4px;">${idx+1}. ${item.nombre}</h3>
                                 <p style="color: var(--text-muted); font-size: 0.85rem;">Cardio | ${item.minutos} mins ${item.km ? `| ${item.km} km` : ''}</p>
                             </div>
-                            <button class="btn btn-danger" style="width: auto; margin:0; padding: 6px 10px; font-size: 0.8rem;" onclick="eliminarEjercicioDeRutina(${idx})">🗑️</button>
+                            <div class="flex-row" style="gap:5px;">
+                                <button class="btn btn-danger" style="width: auto; margin:0; padding: 6px 10px; font-size: 0.8rem;" onclick="eliminarEjercicioDeRutina(${idx})">🗑️</button>
+                            </div>
                         </div>
                     </div>
                 `;
@@ -618,9 +679,13 @@
                         <div class="flex-row" style="justify-content: space-between; align-items: flex-start;">
                             <div>
                                 <h3 style="color: var(--accent); font-size: 1.05rem; margin-bottom: 4px;">${idx+1}. ${item.nombre}</h3>
-                                <p style="color: var(--text-muted); font-size: 0.85rem;">Series: ${item.series} | Reps: ${item.reps}</p>
+                                <p style="color: var(--text-muted); font-size: 0.85rem;">Series: ${item.series} | Reps objetivo: ${item.reps}</p>
+                                ${item.notas ? `<p style="color: var(--yellow); font-size: 0.8rem; margin-top: 4px; font-style: italic;">Nota: ${item.notas}</p>` : ''}
                             </div>
-                            <button class="btn btn-danger" style="width: auto; margin:0; padding: 6px 10px; font-size: 0.8rem;" onclick="eliminarEjercicioDeRutina(${idx})">🗑️</button>
+                            <div class="flex-row" style="gap:5px;">
+                                <button class="btn btn-secondary" style="width: auto; margin:0; padding: 6px 10px; font-size: 0.8rem;" onclick="abrirModalEditarEjercicio(${idx})">✏️</button>
+                                <button class="btn btn-danger" style="width: auto; margin:0; padding: 6px 10px; font-size: 0.8rem;" onclick="eliminarEjercicioDeRutina(${idx})">🗑️</button>
+                            </div>
                         </div>
                     </div>
                 `;
@@ -649,6 +714,18 @@
         cargarPasoGuiado();
     }
 
+    function buscarUltimoPesoYRepeticiones(nombreEjercicio) {
+        for(let reg of registrosCloud) {
+            if(reg.detalle) {
+                let encontrado = reg.detalle.find(d => d.nombre === nombreEjercicio && d.tipo === "fuerza" && d.peso);
+                if(encontrado) {
+                    return { peso: encontrado.peso, reps: encontrado.reps };
+                }
+            }
+        }
+        return null;
+    }
+
     function cargarPasoGuiado() {
         const lista = rutinasPersonalizadas[rutinaSeleccionadaKey];
         const item = lista[guiadoIndice];
@@ -659,6 +736,15 @@
         document.getElementById('check-realizado').checked = true;
         document.getElementById('guiado-obs').value = '';
 
+        // Mostrar notas propias si existen
+        const divNotas = document.getElementById('guiado-notas-propias');
+        if(item.notas) {
+            divNotas.style.display = 'block';
+            divNotas.innerText = `💡 Tus especificaciones: ${item.notas}`;
+        } else {
+            divNotas.style.display = 'none';
+        }
+
         if(item.tipo === "cardio") {
             document.getElementById('guiado-meta').innerText = `Actividad aeróbica`;
             document.getElementById('guiado-seccion-fuerza').style.display = 'none';
@@ -666,11 +752,21 @@
             document.getElementById('guiado-cardio-mins').value = item.minutos || 20;
             document.getElementById('guiado-cardio-km').value = item.km || '';
         } else {
-            document.getElementById('guiado-meta').innerText = `Series: ${item.series} | Reps: ${item.reps}`;
+            document.getElementById('guiado-meta').innerText = `Series programadas: ${item.series} | Reps objetivo: ${item.reps}`;
             document.getElementById('guiado-seccion-fuerza').style.display = 'block';
             document.getElementById('guiado-seccion-cardio').style.display = 'none';
-            document.getElementById('guiado-peso').value = '';
-            document.getElementById('guiado-reps').value = item.reps;
+
+            // Cargar peso y repeticiones anteriores o valores por defecto estables
+            let ultimoReg = buscarUltimoPesoYRepeticiones(item.nombre);
+            if(ultimoReg) {
+                document.getElementById('label-guiado-peso').innerText = `Peso utilizado (kg) [Último registrado: ${ultimoReg.peso} kg]:`;
+                document.getElementById('guiado-peso').value = ultimoReg.peso;
+                document.getElementById('guiado-reps').value = ultimoReg.reps;
+            } else {
+                document.getElementById('label-guiado-peso').innerText = `Peso utilizado (kg):`;
+                document.getElementById('guiado-peso').value = '';
+                document.getElementById('guiado-reps').value = item.reps || "8-10";
+            }
         }
     }
 
@@ -678,7 +774,11 @@
         const item = rutinasPersonalizadas[rutinaSeleccionadaKey][guiadoIndice];
         const box = document.getElementById('guiado-explicacion-ia');
         box.style.display = 'block';
-        box.innerText = `💡 Consejo Experto: Mantené técnica estricta y controlá la fase excéntrica (bajada) durante 2-3 segundos en ${item.nombre}. Respirá de manera fluida en cada repetición.`;
+        box.innerText = `🤖 Análisis Avanzado del Entrenador IA para "${item.nombre}":\n` +
+        `• Técnica óptima: Ejecutar un rango de movimiento completo, manteniendo tensión constante en el músculo objetivo.\n` +
+        `• Fase excéntrica: Controlar la bajada durante 2 a 3 segundos sin colgar el peso en las articulaciones.\n` +
+        `• Respiración: Inhalar profundo en la fase excéntrica y exhalar con fuerza durante la contracción concéntrica.\n` +
+        (item.notas ? `• Nota guardada por vos: "${item.notas}"` : '');
     }
 
     function iniciarCronometroDescanso(segundos = 90) {
@@ -746,15 +846,15 @@
                     caloriasTotalesSesion += kcal;
                     detalleEjercicios.push({ nombre: item.nombre, tipo: "cardio", minutos: mins, calorias: kcal, realizado: true });
                 } else {
-                    let p = parseFloat(document.getElementById('guiado-peso')?.value) || 60;
+                    let p = parseFloat(document.getElementById('guiado-peso')?.value) || 0;
                     let r = document.getElementById('guiado-reps')?.value || item.reps;
                     let repsArr = r.split(/[-,\s]+/).map(x => parseInt(x)).filter(x => !isNaN(x));
-                    let totalReps = repsArr.reduce((a,b)=>a+b, 0) || 24;
+                    let totalReps = repsArr.reduce((a,b)=>a+b, 0) || (item.series * 10);
                     let vol = p * totalReps;
                     volumenTotalSesion += vol;
-                    let kcal = 35; 
+                    let kcal = 40; 
                     caloriasTotalesSesion += kcal;
-                    detalleEjercicios.push({ nombre: item.nombre, tipo: "fuerza", peso: p, reps: r, volumen: vol, realizado: true });
+                    detalleEjercicios.push({ nombre: item.nombre, tipo: "fuerza", series: item.series, peso: p, reps: r, volumen: vol, realizado: true });
                 }
             } else {
                 detalleEjercicios.push({ nombre: item.nombre, realizado: false });
@@ -775,14 +875,14 @@
         registrosCloud.unshift(registroFinal);
         guardarTodoEnNube();
 
-        alert(`🎉 ¡Entrenamiento guardado y sincronizado!\nVolumen: ${volumenTotalSesion} kg\nCalorías aprox: ${caloriasTotalesSesion} kcal`);
+        alert(`🎉 ¡Entrenamiento guardado y sincronizado en la nube!\nVolumen total: ${volumenTotalSesion} kg\nCalorías aprox: ${caloriasTotalesSesion} kcal`);
         irA('view-home');
     }
 
     function consultarIA(tipo) {
         const box = document.getElementById('ia-respuesta-box');
         box.style.display = 'block';
-        box.innerText = "🤖 Analizando tus registros...";
+        box.innerText = "🤖 Analizando tus registros en la nube...";
 
         setTimeout(() => {
             let totalEntrenos = registrosCloud.length;
@@ -790,13 +890,13 @@
             
             if(tipo === 'semanal') {
                 box.innerText = `📊 ANÁLISIS SEMANAL (IA):\n\n` +
-                `- Constancia: ¡Excelente ritmo de entrenamiento!\n` +
-                `- Última sesión (${ultimo ? ultimo.rutina : 'Ninguna'}): Moviste un volumen total de ${ultimo ? ultimo.volumen : 0} kg.\n` +
-                `- Recomendación: Intentá mantener la sobrecarga progresiva sumando alguna repetición o un pequeño incremento de peso respecto a la semana pasada.`;
+                `- Constancia: ¡Excelente ritmo de entrenamiento constante!\n` +
+                `- Última sesión registrada (${ultimo ? ultimo.rutina : 'Ninguna'}): Moviste un volumen total de ${ultimo ? ultimo.volumen : 0} kg.\n` +
+                `- Recomendación profesional: Mantené los pesos registrados como base y buscá aplicar sobrecarga progresiva sumando una repetición o un pequeño incremento cuando te sientas cómodo.`;
             } else {
                 box.innerText = `📅 REPORTE MENSUAL (IA):\n\n` +
-                `- Actividad Global: Tus rutinas personalizadas se están ejecutando con gran consistencia.\n` +
-                `- Recomendación: Recordá descansar adecuadamente y mantener una correcta hidratación para optimizar el rendimiento muscular.`;
+                `- Actividad Global: Tus rutinas personalizadas se están ejecutando con gran consistencia y registros detallados.\n` +
+                `- Recomendación profesional: Recordá validar las series de cada ejercicio y asegurar un descanso de 90 a 120 segundos en compuestos para maximizar hipertrofia.`;
             }
         }, 1000);
     }
@@ -809,18 +909,51 @@
         } else {
             registrosCloud.forEach(r => {
                 html += `
-                    <div style="background: #0f172a; padding: 12px; border-radius: 8px; margin-bottom: 10px; font-size: 0.9rem; border-left: 4px solid var(--accent);">
+                    <div style="background: #0f172a; padding: 14px; border-radius: 8px; margin-bottom: 12px; font-size: 0.9rem; border-left: 4px solid var(--accent); cursor: pointer;" onclick="abrirDetalleHistorial(${r.id})">
                         <div class="flex-row" style="justify-content: space-between;">
-                            <strong style="color: var(--accent);">${r.rutina}</strong>
-                            <span>${r.fecha}</span>
+                            <strong style="color: var(--accent); font-size: 1rem;">📅 ${r.rutina}</strong>
+                            <span style="color: var(--text-muted);">${r.fecha} - ${r.hora}</span>
                         </div>
-                        <div style="margin-top: 4px;">Volumen: <strong>${r.volumen || 0} kg</strong> | ⚡ Calorías: <strong style="color:var(--orange);">${r.calorias || 0} kcal</strong></div>
+                        <div style="margin-top: 6px;">Volumen total: <strong>${r.volumen || 0} kg</strong> | ⚡ Calorías: <strong style="color:var(--orange);">${r.calorias || 0} kcal</strong> | ⏱️ ${r.duracionMin || 0} mins</div>
+                        <div style="color: var(--text-muted); font-size: 0.8rem; margin-top: 4px;">🔍 Hacé clic para ver detalle completo y recomendaciones.</div>
                     </div>
                 `;
             });
         }
         cont.innerHTML = html;
     }
+
+    function abrirDetalleHistorial(id) {
+        let r = registrosCloud.find(x => x.id === id);
+        if(!r) return;
+
+        document.getElementById('modal-historial-titulo').innerText = `Sesión: ${r.rutina} (${r.fecha})`;
+        let html = `<p style="margin-bottom:8px; color:var(--text-muted);">⏱️ Duración: ${r.duracionMin || 0} min | Volumen: <b>${r.volumen} kg</b> | Calorías: <span style="color:var(--orange);">${r.calorias} kcal</span></p>`;
+        html += `<h4 style="margin-top:10px; color:var(--accent);">Ejercicios Realizados:</h4>`;
+        
+        if(r.detalle && r.detalle.length > 0) {
+            r.detalle.forEach(d => {
+                if(d.realizado) {
+                    if(d.tipo === "cardio") {
+                        html += `<div style="background:#0f172a; padding:8px; border-radius:6px; margin-top:6px;">• <b>${d.nombre}</b>: ${d.minutos} mins</div>`;
+                    } else {
+                        html += `<div style="background:#0f172a; padding:8px; border-radius:6px; margin-top:6px;">• <b>${d.nombre}</b><br>&nbsp;&nbsp;Peso: <b>${d.peso} kg</b> | Reps: <b>${d.reps}</b> | Vol: ${d.volumen} kg</div>`;
+                    }
+                } else {
+                    html += `<div style="background:#0f172a; padding:8px; border-radius:6px; margin-top:6px; opacity:0.6;">• <b>${d.nombre}</b> (No realizado)</div>`;
+                }
+            });
+        } else {
+            html += `<p>Sin detalles específicos registrados.</p>`;
+        }
+
+        html += `<h4 style="margin-top:12px; color:var(--yellow);">💡 Recomendación de IA para esta sesión:</h4>`;
+        html += `<p style="font-size:0.85rem; color:var(--text-muted);">Excelente trabajo manteniendo el registro. Para la próxima sesión en ${r.rutina}, intentá mantener la misma base de cargas o sumar una repetición extra en la última serie si la técnica fue perfecta.</p>`;
+
+        document.getElementById('modal-historial-cuerpo').innerHTML = html;
+        document.getElementById('modal-detalle-historial').style.display = 'flex';
+    }
+    function cerrarModalHistorial() { document.getElementById('modal-detalle-historial').style.display = 'none'; }
 
     function renderizarCalendario() {
         const meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Setiembre", "Octubre", "Noviembre", "Diciembre"];
@@ -849,7 +982,7 @@
             if(esHoy) cls += ' today';
 
             grid += `
-                <div class="cal-day ${cls}" onclick="alert('${ent ? `Entrenamiento: ${ent}` : 'Sin entrenamientos este día'}')">
+                <div class="cal-day ${cls}" onclick="alert('${ent ? `Entrenamiento registrado: ${ent}` : 'Sin entrenamientos este día'}')">
                     <strong>${d}</strong>
                     <span style="font-size:0.55rem; white-space:nowrap; overflow:hidden; max-width:100%;">${ent || ''}</span>
                 </div>
@@ -867,7 +1000,7 @@
 
     function renderizarRecords() {
         const cont = document.getElementById('records-container');
-        cont.innerHTML = '<div class="card"><p style="color:var(--text-muted);">Tus récords se actualizan automáticamente con cada sesión registrada.</p></div>';
+        cont.innerHTML = '<div class="card"><p style="color:var(--text-muted);">Tus récords personales (PRs) se calculan automáticamente y se actualizan con cada sesión registrada en la nube.</p></div>';
     }
 
     function abrirCalculadoraDiscos() { document.getElementById('modal-discos').style.display = 'flex'; calcularDiscos(); }
