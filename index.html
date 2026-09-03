@@ -1,410 +1,3 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MI GYM v3.3 - Cloud & AI</title>
-    
-    <!-- PWA Manifest & Meta -->
-    <link rel="apple-touch-icon" href="icon-192.png">
-    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#0f172a">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-
-    <!-- Firebase SDKs (Compat v9) -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
-
-    <style>
-        :root {
-            --bg-color: #0f172a;
-            --card-bg: #1e293b;
-            --card-border: #334155;
-            --text-color: #f8fafc;
-            --text-muted: #94a3b8;
-            --accent: #38bdf8;
-            --accent-hover: #0ea5e9;
-            --green: #22c55e;
-            --red: #ef4444;
-            --yellow: #eab308;
-            --purple: #a855f7;
-            --orange: #f97316;
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; transition: background 0.2s, border-color 0.2s; }
-        body { background-color: var(--bg-color); color: var(--text-color); padding: 15px; padding-bottom: 90px; }
-        .container { max-width: 600px; margin: auto; animation: fadeIn 0.3s ease-in-out; }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(6px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        h1, h2, h3 { margin-bottom: 15px; }
-        .btn { display: block; width: 100%; padding: 16px; border: none; border-radius: 12px; font-size: 1.1rem; font-weight: bold; cursor: pointer; text-align: center; transition: transform 0.1s, background-color 0.2s; margin-bottom: 12px; }
-        .btn:active { transform: scale(0.98); }
-        .btn-primary { background-color: var(--accent); color: #0f172a; }
-        .btn-primary:hover { background-color: var(--accent-hover); }
-        .btn-success { background-color: var(--green); color: #0f172a; }
-        .btn-secondary { background-color: var(--card-border); color: var(--text-color); }
-        .btn-danger { background-color: var(--red); color: white; }
-        .btn-warning { background-color: var(--orange); color: #0f172a; }
-        
-        .card { background-color: var(--card-bg); border: 1px solid var(--card-border); border-radius: 16px; padding: 16px; margin-bottom: 15px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2); position: relative; overflow: hidden; }
-        
-        input, select, textarea { width: 100%; padding: 12px; background: #0f172a; border: 1px solid var(--card-border); border-radius: 8px; color: var(--text-color); font-size: 1rem; margin-top: 5px; margin-bottom: 10px; }
-        input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
-        
-        .flex-row { display: flex; gap: 10px; align-items: center; }
-
-        .view-section { display: none; }
-        .view-section.active { display: block; }
-        
-        .exercise-card { background: #1e293b; border-left: 5px solid var(--accent); }
-        
-        /* Cloud Status Indicator */
-        .cloud-badge { position: fixed; top: 10px; right: 10px; background: #0b1120; border: 1px solid var(--card-border); padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; display: flex; align-items: center; gap: 5px; z-index: 1000; }
-        .cloud-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--yellow); }
-        .cloud-dot.sync { background: var(--green); }
-        .cloud-dot.offline { background: var(--red); }
-
-        /* Dashboard Grid de Métricas */
-        .dash-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 15px; }
-        .dash-metric { background: #0f172a; border: 1px solid var(--card-border); border-radius: 12px; padding: 12px; text-align: center; }
-        .dash-metric span { display: block; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px; }
-        .dash-metric strong { font-size: 1.2rem; color: var(--accent); }
-
-        /* Calendario */
-        .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; margin-top: 10px; }
-        .cal-header { font-size: 0.75rem; color: var(--text-muted); font-weight: bold; padding-bottom: 5px; }
-        .cal-day { background: #0f172a; border: 1px solid var(--card-border); border-radius: 6px; padding: 8px 2px; font-size: 0.85rem; min-height: 40px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; cursor: pointer; }
-        .cal-day.trained { background: rgba(34, 197, 94, 0.15); border-color: var(--green); color: var(--green); font-weight: bold; }
-        .cal-day.today { border: 2px solid var(--accent); }
-
-        /* Cronómetro */
-        .timer-box { background: #0f172a; border: 2px solid var(--accent); border-radius: 12px; padding: 15px; text-align: center; margin-bottom: 15px; }
-        .timer-display { font-size: 2.2rem; font-family: monospace; font-weight: bold; color: var(--accent); margin: 10px 0; }
-
-        /* Menú Inferior Fijo */
-        .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; background: #0b1120; border-top: 1px solid var(--card-border); display: flex; justify-content: space-around; padding: 8px 0; z-index: 1000; }
-        .nav-btn { background: none; border: none; color: var(--text-muted); font-size: 0.7rem; text-align: center; cursor: pointer; flex: 1; }
-        .nav-btn.active { color: var(--accent); font-weight: bold; }
-        .nav-btn span { display: block; font-size: 1.1rem; margin-bottom: 2px; }
-
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center; padding: 20px; }
-        .modal-content { background: var(--card-bg); width: 100%; max-width: 500px; border-radius: 16px; padding: 20px; max-height: 90vh; overflow-y: auto; border: 1px solid var(--card-border); }
-    </style>
-</head>
-<body>
-
-<!-- Indicador de Estado Cloud (Firebase) -->
-<div class="cloud-badge" id="cloud-status-badge">
-    <div class="cloud-dot" id="cloud-dot"></div>
-    <span id="cloud-text">Conectando nube...</span>
-</div>
-
-<div class="container">
-
-    <!-- VISTA 1: DASHBOARD PRINCIPAL -->
-    <div id="view-home" class="view-section active">
-        <h1 style="text-align: center; margin-top: 5px; font-size: 1.8rem; color: var(--accent);">🏋️‍♂️ MI GYM <span style="font-size: 0.9rem; background: var(--card-border); padding: 2px 8px; border-radius: 6px;">v3.3</span></h1>
-        
-        <div class="card" style="background: linear-gradient(135deg, #1e293b, #0f172a);">
-            <div id="mensaje-motivacional" style="font-style: italic; color: var(--accent); margin-bottom: 12px; font-size: 0.95rem; text-align: center;">"Armá tus rutinas con pesos iniciales y entrená con total libertad."</div>
-            <div class="flex-row" style="justify-content: space-between; align-items: center; background: #0f172a; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--card-border);">
-                <div>
-                    <span style="font-size: 0.8rem; color: var(--text-muted);">PESO CORPORAL ACTUAL</span>
-                    <strong id="label-peso-corporal" style="font-size: 1.2rem;">-- kg</strong>
-                </div>
-                <button class="btn btn-secondary" style="width: auto; margin:0; padding: 8px 12px; font-size: 0.85rem;" onclick="abrirModalPesoCorporal()">✏️ Editar</button>
-            </div>
-        </div>
-
-        <div id="banner-borrador-activo" style="display:none;" class="card" style="border-color: var(--yellow); background: rgba(234, 179, 8, 0.1);">
-            <p style="color: var(--yellow); font-size: 0.9rem; margin-bottom: 8px;">⚠️ Tenés un entrenamiento en curso (Borrador activo).</p>
-            <button class="btn btn-warning" style="margin:0; padding:10px;" onclick="retomarEntrenamientoBorrador()">▶️ Retomar o Finalizar Entrenamiento</button>
-        </div>
-
-        <div class="dash-grid">
-            <div class="dash-metric">
-                <span>Último Entrenamiento</span>
-                <strong id="dash-ultimo-entreno" style="font-size: 0.95rem;">Ninguno</strong>
-            </div>
-            <div class="dash-metric">
-                <span>Entrenamientos Mes</span>
-                <strong id="dash-cant-mes">0</strong>
-            </div>
-            <div class="dash-metric">
-                <span>Volumen Total Mes</span>
-                <strong id="dash-volumen-mes">0 kg</strong>
-            </div>
-            <div class="dash-metric">
-                <span>Calorías Quemadas Mes</span>
-                <strong id="dash-calorias-mes" style="color: var(--orange);">0 kcal</strong>
-            </div>
-        </div>
-
-        <!-- Rutinas Dinámicas -->
-        <div class="card">
-            <h3>📅 Mis Rutinas</h3>
-            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 10px;">Creá tus rutinas y definí series, reps y pesos iniciales de referencia.</p>
-            <div id="lista-rutinas-home-container"></div>
-            <button class="btn btn-primary" style="margin-top: 10px;" onclick="abrirModalCrearRutina()">➕ Crear Nueva Rutina</button>
-        </div>
-
-        <div class="card">
-            <h3>🤖 Entrenador IA & Utilidades</h3>
-            <div class="flex-row" style="gap: 8px;">
-                <button class="btn btn-warning" style="margin:0; font-size:0.9rem;" onclick="irA('view-ia')">🧠 Entrenador IA</button>
-                <button class="btn btn-secondary" style="margin:0; font-size:0.9rem;" onclick="abrirCalculadoraDiscos()">🧮 Discos</button>
-                <button class="btn btn-secondary" style="margin:0; font-size:0.9rem;" onclick="irA('view-records')">🏆 Récords</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- VISTA: DETALLE DE RUTINA / EJERCICIOS DINÁMICOS -->
-    <div id="view-rutina" class="view-section">
-        <button class="btn btn-secondary" style="width: auto; padding: 8px 15px; margin-bottom: 15px;" onclick="irA('view-home')">⬅ Volver al Inicio</button>
-        <div class="flex-row" style="justify-content: space-between; align-items: center; margin-bottom: 15px;">
-            <h2 id="titulo-rutina-activa" style="margin:0;">Rutina</h2>
-            <button class="btn btn-success" style="width: auto; margin:0; padding: 10px 15px;" onclick="comenzarModoGuiado()">🏋️ Comenzar Guía</button>
-        </div>
-
-        <div class="card" style="background: #0f172a; margin-bottom: 15px;">
-            <h3 style="font-size: 0.95rem; color: var(--accent); margin-bottom: 8px;">➕ Agregar ejercicio o cardio</h3>
-            
-            <label>Seleccioná del listado o escribí uno personalizado:</label>
-            <select id="select-catalogo-agregar" onchange="verificarOpcionCatalogo()">
-                <!-- Se llena con catálogo -->
-            </select>
-            
-            <div id="div-nombre-personalizado" style="display:none; margin-top: 5px;">
-                <label>Nombre del ejercicio personalizado:</label>
-                <input type="text" id="input-ejercicio-custom" placeholder="Ej: Vuelos posteriores en polea">
-            </div>
-
-            <div id="div-fuerza-inputs" style="background: #1e293b; padding: 10px; border-radius: 8px; margin-top: 8px;">
-                <div class="flex-row" style="gap: 10px;">
-                    <div style="flex: 1;">
-                        <label>Series:</label>
-                        <input type="number" id="input-series-nuevo" value="3" min="1" max="10">
-                    </div>
-                    <div style="flex: 1;">
-                        <label>Peso ref. (kg):</label>
-                        <input type="number" id="input-peso-nuevo" step="0.5" value="0" placeholder="Ej: 60">
-                    </div>
-                </div>
-                <label>Repeticiones objetivo (ej: 8-10):</label>
-                <input type="text" id="input-reps-nuevo" value="8-10">
-                <label>Notas o descripción técnica:</label>
-                <textarea id="input-notas-nuevo" placeholder="Ej: Mantener codos a 45 grados..."></textarea>
-            </div>
-
-            <div id="div-cardio-inputs" style="display:none; background: #1e293b; padding: 10px; border-radius: 8px; margin-top: 8px;">
-                <label>Duración (minutos):</label>
-                <input type="number" id="cardio-minutos" placeholder="Ej: 30">
-                <label>Distancia (opcional, km):</label>
-                <input type="number" id="cardio-km" step="0.1" placeholder="Ej: 5.2">
-                <label>Notas de cardio:</label>
-                <textarea id="cardio-notas" placeholder="Ej: Ritmo constante..."></textarea>
-            </div>
-
-            <button class="btn btn-secondary" style="margin-top: 10px; padding: 10px;" onclick="agregarEjercicioARutinaActual()">Agregar Ejercicio a esta Rutina</button>
-        </div>
-
-        <div id="lista-ejercicios-container"></div>
-    </div>
-
-    <!-- VISTA: MODO GUIADO -->
-    <div id="view-guiado" class="view-section">
-        <div class="flex-row" style="justify-content: space-between; margin-bottom: 12px;">
-            <button class="btn btn-secondary" style="width: auto; margin:0; padding: 8px 12px; font-size: 0.85rem;" onclick="guardarBorradorYVolver()">⬅ Volver sin guardar (Borrador)</button>
-            <button class="btn btn-danger" style="width: auto; margin:0; padding: 8px 12px; font-size: 0.85rem;" onclick="descartarBorrador()">🗑️ Descartar Sesión</button>
-        </div>
-
-        <div class="card" style="border-color: var(--accent);">
-            <div class="flex-row" style="justify-content: space-between; margin-bottom: 10px;">
-                <span id="guiado-progreso" style="color: var(--accent); font-weight: bold;">Ejercicio 1 de 6</span>
-                <span id="cronometro-sesion" style="font-family: monospace; font-size: 1.1rem;">00:00</span>
-            </div>
-            <h2 id="guiado-nombre" style="font-size: 1.4rem; color: var(--accent);">Nombre Ejercicio</h2>
-            <p id="guiado-meta" style="color: var(--text-muted); margin-bottom: 6px; font-size: 1rem;"></p>
-            <div id="guiado-notas-propias" style="background: #0f172a; padding: 10px; border-radius: 8px; color: var(--yellow); font-size: 0.9rem; margin-bottom: 12px; border-left: 3px solid var(--yellow); display:none;"></div>
-            
-            <button class="btn btn-warning" style="padding: 10px; font-size: 0.9rem; margin-bottom: 12px;" onclick="explicarEjercicioActualIA()">🤖 Sugerencia Técnica IA</button>
-            <div id="guiado-explicacion-ia" style="display:none; background: #0f172a; padding: 10px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 12px; color: var(--text-muted); border-left: 3px solid var(--warning);"></div>
-
-            <div id="guiado-seccion-fuerza">
-                <label id="label-guiado-peso">Peso utilizado (kg):</label>
-                <input type="number" id="guiado-peso" step="0.5" placeholder="Ej: 65">
-                
-                <label style="margin-top: 8px; display: block;">Repeticiones realizadas (por serie):</label>
-                <input type="text" id="guiado-reps" placeholder="Ej: 10-10-10">
-            </div>
-
-            <div id="guiado-seccion-cardio" style="display:none;">
-                <label>Minutos realizados:</label>
-                <input type="number" id="guiado-cardio-mins" placeholder="Ej: 30">
-                <label>Distancia (km, opcional):</label>
-                <input type="number" id="guiado-cardio-km" step="0.1" placeholder="Ej: 5">
-            </div>
-
-            <div class="flex-row" style="margin-top: 10px; align-items: center; background: #0f172a; padding: 10px; border-radius: 8px;">
-                <input type="checkbox" id="check-realizado" checked style="width: 20px; height: 20px; margin:0;">
-                <label for="check-realizado" style="margin:0; font-weight: bold; cursor: pointer;">¿Ejercicio realizado hoy?</label>
-            </div>
-
-            <label style="margin-top: 10px; display: block;">Observaciones de la sesión:</label>
-            <input type="text" id="guiado-obs" placeholder="Ej: Muy buenas sensaciones...">
-
-            <!-- Cronómetro de Descanso -->
-            <div class="timer-box" id="timer-box-container" style="display:none; margin-top: 15px;">
-                <span style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">⏱️ Descanso entre series</span>
-                <div class="timer-display" id="display-descanso">01:30</div>
-                <div class="flex-row" style="justify-content: center; gap: 5px;">
-                    <button class="btn btn-secondary" style="width: auto; padding: 6px 10px; font-size:0.8rem;" onclick="setearDescanso(60)">60s</button>
-                    <button class="btn btn-secondary" style="width: auto; padding: 6px 10px; font-size:0.8rem;" onclick="setearDescanso(90)">90s</button>
-                    <button class="btn btn-secondary" style="width: auto; padding: 6px 10px; font-size:0.8rem;" onclick="setearDescanso(120)">120s</button>
-                    <button class="btn btn-danger" style="width: auto; padding: 6px 10px; font-size:0.8rem;" onclick="detenerDescanso()">Saltar</button>
-                </div>
-            </div>
-
-            <button class="btn btn-primary" style="background-color: var(--purple); color: white; margin-top: 12px;" onclick="iniciarCronometroDescanso()">⏱️ Iniciar Descanso (90s)</button>
-
-            <div class="flex-row" style="margin-top: 15px;">
-                <button class="btn btn-secondary" style="margin:0;" onclick="guiadoAnterior()">⬅ Anterior</button>
-                <button class="btn btn-success" style="margin:0;" onclick="guiadoSiguiente()">Siguiente ➡</button>
-            </div>
-        </div>
-        <button class="btn btn-success" style="padding: 18px; font-size: 1.2rem;" onclick="finalizarEntrenamientoGuiado()">✅ Finalizar y Guardar Actividad ☁️</button>
-    </div>
-
-    <!-- VISTA: INTELIGENCIA ARTIFICIAL -->
-    <div id="view-ia" class="view-section">
-        <button class="btn btn-secondary" style="width: auto; padding: 8px 15px; margin-bottom: 15px;" onclick="irA('view-home')">⬅ Volver</button>
-        <h2>🤖 Entrenador Personal IA</h2>
-        <div class="card">
-            <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 15px;">Tu especialista analizará tus rutinas y te dará recomendaciones profesionales.</p>
-            <div class="flex-row" style="margin-bottom: 12px;">
-                <button class="btn btn-primary" style="margin:0;" onclick="consultarIA('semanal')">📊 Análisis Semanal</button>
-                <button class="btn btn-warning" style="margin:0;" onclick="consultarIA('mensual')">📅 Análisis Mensual</button>
-            </div>
-            <div id="ia-respuesta-box" style="background: #0f172a; border: 1px solid var(--card-border); border-radius: 8px; padding: 15px; font-size: 0.95rem; line-height: 1.5; margin-top: 15px; display: none; white-space: pre-wrap;"></div>
-        </div>
-    </div>
-
-    <!-- VISTA: CALENDARIO -->
-    <div id="view-calendario" class="view-section">
-        <h2>📅 Calendario Cloud</h2>
-        <div class="card">
-            <div class="flex-row" style="justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                <button class="btn btn-secondary" style="width:auto; margin:0; padding:6px 12px;" onclick="cambiarMesCalendario(-1)">◀ Ant</button>
-                <strong id="cal-mes-anio-titulo" style="color: var(--accent); font-size: 1.1rem;">Mes Año</strong>
-                <button class="btn btn-secondary" style="width:auto; margin:0; padding:6px 12px;" onclick="cambiarMesCalendario(1)">Sig ▶</button>
-            </div>
-            <div class="cal-grid">
-                <div class="cal-header">Lun</div><div class="cal-header">Mar</div><div class="cal-header">Mié</div>
-                <div class="cal-header">Jue</div><div class="cal-header">Vie</div><div class="cal-header">Sáb</div><div class="cal-header">Dom</div>
-            </div>
-            <div class="cal-grid" id="cal-dias-grid" style="margin-top: 4px;"></div>
-        </div>
-    </div>
-
-    <!-- VISTA: HISTORIAL -->
-    <div id="view-historial" class="view-section">
-        <h2>📜 Historial en la Nube</h2>
-        <div class="card">
-            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 10px;">Hacé clic en cualquier entrenamiento pasado para ver el detalle completo.</p>
-            <div id="historial-lista-container" style="margin-top: 10px;"></div>
-        </div>
-    </div>
-
-    <!-- VISTA: RÉCORDS -->
-    <div id="view-records" class="view-section">
-        <button class="btn btn-secondary" style="width: auto; padding: 8px 15px; margin-bottom: 15px;" onclick="irA('view-home')">⬅ Volver</button>
-        <h2>🏆 Récords Personales (PRs)</h2>
-        <div id="records-container"></div>
-    </div>
-
-</div>
-
-<!-- MENÚ INFERIOR FIJO -->
-<div class="bottom-nav">
-    <button class="nav-btn active" onclick="irA('view-home')"><span>🏠</span>Inicio</button>
-    <button class="nav-btn" onclick="irA('view-calendario')"><span>📅</span>Calendario</button>
-    <button class="nav-btn" onclick="irA('view-historial')"><span>📜</span>Historial</button>
-    <button class="nav-btn" onclick="abrirCalculadoraDiscos()"><span>🧮</span>Discos</button>
-</div>
-
-<!-- MODAL DETALLE HISTORIAL -->
-<div id="modal-detalle-historial" class="modal">
-    <div class="modal-content">
-        <h3 id="modal-historial-titulo" style="color: var(--accent);">Detalle de Sesión</h3>
-        <div id="modal-historial-cuerpo" style="font-size: 0.9rem; margin-bottom: 15px; line-height: 1.4;"></div>
-        <button class="btn btn-secondary" onclick="cerrarModalHistorial()">Cerrar</button>
-    </div>
-</div>
-
-<!-- MODAL EDITAR EJERCICIO EN RUTINA -->
-<div id="modal-editar-ejercicio" class="modal">
-    <div class="modal-content">
-        <h3>✏️ Editar Ejercicio, Peso y Notas</h3>
-        <input type="hidden" id="edit-ej-idx">
-        <div class="flex-row" style="gap: 10px;">
-            <div style="flex: 1;">
-                <label>Series:</label>
-                <input type="number" id="edit-ej-series" min="1" max="10">
-            </div>
-            <div style="flex: 1;">
-                <label>Peso ref. (kg):</label>
-                <input type="number" id="edit-ej-peso" step="0.5">
-            </div>
-        </div>
-        <label>Repeticiones Objetivo:</label>
-        <input type="text" id="edit-ej-reps">
-        <label>Notas / Descripción técnica personalizada:</label>
-        <textarea id="edit-ej-notas" style="height: 100px;" placeholder="Instrucciones técnicas..."></textarea>
-        <button class="btn btn-primary" onclick="guardarEdicionEjercicio()">Guardar Cambios</button>
-        <button class="btn btn-secondary" onclick="cerrarModalEditarEjercicio()">Cancelar</button>
-    </div>
-</div>
-
-<!-- MODAL CREAR RUTINA -->
-<div id="modal-crear-rutina" class="modal">
-    <div class="modal-content">
-        <h3>➕ Crear Nueva Rutina</h3>
-        <label>Nombre de la rutina (Ej: Rutina A, Piernas):</label>
-        <input type="text" id="input-nombre-nueva-rutina" placeholder="Ej: Rutina A">
-        <button class="btn btn-primary" onclick="guardarNuevaRutinaCreada()">Crear Rutina</button>
-        <button class="btn btn-secondary" onclick="cerrarModalCrearRutina()">Cancelar</button>
-    </div>
-</div>
-
-<!-- MODAL PESO CORPORAL -->
-<div id="modal-peso-corporal" class="modal">
-    <div class="modal-content">
-        <h3>⚖️ Actualizar Peso Corporal</h3>
-        <label>Peso actual (kg):</label>
-        <input type="number" id="input-nuevo-peso-corp" step="0.1" placeholder="Ej: 75.5">
-        <button class="btn btn-primary" onclick="guardarPesoCorporalCloud()">Guardar en Nube</button>
-        <button class="btn btn-secondary" onclick="cerrarModalPesoCorporal()">Cancelar</button>
-    </div>
-</div>
-
-<!-- MODAL CALCULADORA DE DISCOS -->
-<div id="modal-discos" class="modal">
-    <div class="modal-content">
-        <h3>🧮 Calculadora de Discos</h3>
-        <label>Peso total deseado (kg):</label>
-        <input type="number" id="calc-peso-total" step="0.5" placeholder="Ej: 75" oninput="calcularDiscos()">
-        <label style="margin-top: 10px; display: block;">Peso de la barra (kg):</label>
-        <input type="number" id="calc-peso-barra" value="20" oninput="calcularDiscos()">
-        <div id="resultado-discos" style="background: #0f172a; padding: 15px; border-radius: 8px; margin-top: 15px; font-family: monospace;">Ingresá un peso...</div>
-        <button class="btn btn-secondary" style="margin-top: 15px;" onclick="cerrarCalculadoraDiscos()">Cerrar</button>
-    </div>
-</div>
-
 <script>
     /* ==========================================
        CONFIGURACIÓN FIREBASE (Cloud Firestore)
@@ -515,23 +108,30 @@
     function actualizarEstadoCloud(sincronizado, texto) {
         const dot = document.getElementById('cloud-dot');
         const txt = document.getElementById('cloud-text');
-        dot.className = sincronizado ? "cloud-dot sync" : "cloud-dot offline";
-        txt.innerText = texto;
+        if (dot && txt) {
+            dot.className = sincronizado ? "cloud-dot sync" : "cloud-dot offline";
+            txt.innerText = texto;
+        }
     }
 
     function irA(viewId) {
         document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
-        document.getElementById(viewId).classList.add('active');
+        const targetView = document.getElementById(viewId);
+        if (targetView) targetView.classList.add('active');
+        
         document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
         
         if(viewId === 'view-home') {
-            document.querySelectorAll('.nav-btn')[0].classList.add('active');
+            const navBtn = document.querySelectorAll('.nav-btn')[0];
+            if (navBtn) navBtn.classList.add('active');
             actualizarDashboard();
         } else if(viewId === 'view-calendario') {
-            document.querySelectorAll('.nav-btn')[1].classList.add('active');
+            const navBtn = document.querySelectorAll('.nav-btn')[1];
+            if (navBtn) navBtn.classList.add('active');
             renderizarCalendario();
         } else if(viewId === 'view-historial') {
-            document.querySelectorAll('.nav-btn')[2].classList.add('active');
+            const navBtn = document.querySelectorAll('.nav-btn')[2];
+            if (navBtn) navBtn.classList.add('active');
             renderizarHistorial();
         } else if(viewId === 'view-records') {
             renderizarRecords();
@@ -540,46 +140,54 @@
     }
 
     function actualizarDashboard() {
-        document.getElementById('label-peso-corporal').innerText = `${perfilCloud.peso || '--'} kg`;
+        const pesoCorp = document.getElementById('label-peso-corporal');
+        if (pesoCorp) pesoCorp.innerText = `${perfilCloud.peso || '--'} kg`;
         
-        // Mostrar alerta si hay borrador
         const bannerBorrador = document.getElementById('banner-borrador-activo');
-        if(borradorSesion) {
-            bannerBorrador.style.display = 'block';
-        } else {
-            bannerBorrador.style.display = 'none';
+        if(bannerBorrador) {
+            bannerBorrador.style.display = borradorSesion ? 'block' : 'none';
         }
 
-        if(registrosCloud.length > 0) {
-            let ultimo = registrosCloud[0];
-            document.getElementById('dash-ultimo-entreno').innerText = `${ultimo.fecha} (${ultimo.rutina})`;
-        } else {
-            document.getElementById('dash-ultimo-entreno').innerText = 'Ninguno';
+        const ultimoEntreno = document.getElementById('dash-ultimo-entreno');
+        if (ultimoEntreno) {
+            if(registrosCloud.length > 0) {
+                let ultimo = registrosCloud[0];
+                ultimoEntreno.innerText = `${ultimo.fecha} (${ultimo.rutina})`;
+            } else {
+                ultimoEntreno.innerText = 'Ninguno';
+            }
         }
 
         let mesActualStr = String(new Date().getMonth() + 1).padStart(2, '0');
         let anioActualStr = String(new Date().getFullYear());
         
         let regsMes = registrosCloud.filter(r => {
+            if (!r.fecha) return false;
             let p = r.fecha.split('/');
             return p[1] === mesActualStr && p[2] === anioActualStr;
         });
 
         let diasUnicos = new Set(regsMes.map(r => r.fecha)).size;
-        document.getElementById('dash-cant-mes').innerText = diasUnicos;
+        const cantMes = document.getElementById('dash-cant-mes');
+        if (cantMes) cantMes.innerText = diasUnicos;
 
         let volMes = regsMes.reduce((acc, r) => acc + (r.volumen || 0), 0);
-        document.getElementById('dash-volumen-mes').innerText = `${volMes.toLocaleString()} kg`;
+        const volMesEl = document.getElementById('dash-volumen-mes');
+        if (volMesEl) volMesEl.innerText = `${volMes.toLocaleString()} kg`;
 
         let kcalMes = regsMes.reduce((acc, r) => acc + (r.calorias || 0), 0);
-        document.getElementById('dash-calorias-mes').innerText = `${kcalMes.toLocaleString()} kcal`;
+        const kcalMesEl = document.getElementById('dash-calorias-mes');
+        if (kcalMesEl) kcalMesEl.innerText = `${kcalMes.toLocaleString()} kcal`;
 
         const cont = document.getElementById('lista-rutinas-home-container');
+        if (!cont) return;
+        
         let html = '';
         Object.keys(rutinasPersonalizadas).forEach(key => {
+            let cantEjercicios = Array.isArray(rutinasPersonalizadas[key]) ? rutinasPersonalizadas[key].length : 0;
             html += `
                 <div class="flex-row" style="margin-bottom: 8px;">
-                    <button class="btn btn-primary" style="margin:0; flex:1;" onclick="seleccionarRutina('${key}')">📅 ${key} (${rutinasPersonalizadas[key].length} ejercicios)</button>
+                    <button class="btn btn-primary" style="margin:0; flex:1;" onclick="seleccionarRutina('${key}')">📅 ${key} (${cantEjercicios} ejercicios)</button>
                     <button class="btn btn-danger" style="width: auto; margin:0; padding: 12px 14px;" onclick="eliminarRutina('${key}')">🗑️</button>
                 </div>
             `;
@@ -587,18 +195,32 @@
         cont.innerHTML = html || '<p style="color:var(--text-muted); font-size:0.9rem;">No hay rutinas creadas todavía.</p>';
     }
 
-    function abrirModalCrearRutina() { document.getElementById('input-nombre-nueva-rutina').value = ''; document.getElementById('modal-crear-rutina').style.display = 'flex'; }
-    function cerrarModalCrearRutina() { document.getElementById('modal-crear-rutina').style.display = 'none'; }
+    function abrirModalCrearRutina() { 
+        const input = document.getElementById('input-nombre-nueva-rutina');
+        if (input) input.value = ''; 
+        const modal = document.getElementById('modal-crear-rutina');
+        if (modal) modal.style.display = 'flex'; 
+    }
+    
+    function cerrarModalCrearRutina() { 
+        const modal = document.getElementById('modal-crear-rutina');
+        if (modal) modal.style.display = 'none'; 
+    }
     
     function guardarNuevaRutinaCreada() {
-        let nombre = document.getElementById('input-nombre-nueva-rutina').value.trim();
-        if(nombre) {
+        let inputNombre = document.getElementById('input-nombre-nueva-rutina');
+        if (!inputNombre) return;
+        let nombre = inputNombre.value.trim();
+        
+        if(nombre !== "") {
             if(!rutinasPersonalizadas[nombre]) {
                 rutinasPersonalizadas[nombre] = [];
                 guardarTodoEnNube();
             }
             cerrarModalCrearRutina();
             actualizarDashboard();
+        } else {
+            alert("Por favor, ingresá un nombre válido para la rutina.");
         }
     }
 
@@ -612,34 +234,50 @@
 
     function seleccionarRutina(key) {
         rutinaSeleccionadaKey = key;
-        document.getElementById('titulo-rutina-activa').innerText = key;
+        if (!Array.isArray(rutinasPersonalizadas[rutinaSeleccionadaKey])) {
+            rutinasPersonalizadas[rutinaSeleccionadaKey] = [];
+        }
+        
+        const tituloRutina = document.getElementById('titulo-rutina-activa');
+        if (tituloRutina) tituloRutina.innerText = key;
         
         const sel = document.getElementById('select-catalogo-agregar');
-        let h = '';
-        catalogoEjercicios.forEach(e => h += `<option value="${e}">${e}</option>`);
-        sel.innerHTML = h;
-        verificarOpcionCatalogo();
+        if (sel) {
+            let h = '';
+            catalogoEjercicios.forEach(e => h += `<option value="${e}">${e}</option>`);
+            sel.innerHTML = h;
+            verificarOpcionCatalogo();
+        }
 
         renderizarEjerciciosRutinaActual();
         irA('view-rutina');
     }
 
     function verificarOpcionCatalogo() {
-        let val = document.getElementById('select-catalogo-agregar').value;
+        const sel = document.getElementById('select-catalogo-agregar');
+        if (!sel) return;
+        let val = sel.value;
         let esCustom = val.includes("➕ OTRO");
         let esCardio = val.includes("🚶‍♂️") || val.includes("🏃‍♂️") || val.includes("🚴‍♂️") || val.includes("🏊‍♂️");
         
-        document.getElementById('div-nombre-personalizado').style.display = esCustom ? 'block' : 'none';
-        document.getElementById('div-cardio-inputs').style.display = esCardio ? 'block' : 'none';
-        document.getElementById('div-fuerza-inputs').style.display = esCardio ? 'none' : 'block';
+        const divCustom = document.getElementById('div-nombre-personalizado');
+        const divCardio = document.getElementById('div-cardio-inputs');
+        const divFuerza = document.getElementById('div-fuerza-inputs');
+
+        if (divCustom) divCustom.style.display = esCustom ? 'block' : 'none';
+        if (divCardio) divCardio.style.display = esCardio ? 'block' : 'none';
+        if (divFuerza) divFuerza.style.display = esCardio ? 'none' : 'block';
     }
 
     function agregarEjercicioARutinaActual() {
-        let selVal = document.getElementById('select-catalogo-agregar').value;
+        const sel = document.getElementById('select-catalogo-agregar');
+        if (!sel) return;
+        let selVal = sel.value;
         let nombreFinal = "";
 
         if(selVal.includes("➕ OTRO")) {
-            nombreFinal = document.getElementById('input-ejercicio-custom').value.trim().toUpperCase();
+            let inputCustom = document.getElementById('input-ejercicio-custom');
+            nombreFinal = inputCustom ? inputCustom.value.trim().toUpperCase() : "";
             if(!nombreFinal) { alert("Ingresá un nombre para el ejercicio."); return; }
         } else {
             nombreFinal = selVal;
@@ -647,16 +285,20 @@
 
         let esCardio = nombreFinal.includes("🚶‍♂️") || nombreFinal.includes("🏃‍♂️") || nombreFinal.includes("🚴‍♂️") || nombreFinal.includes("🏊‍♂️");
         
+        if(!Array.isArray(rutinasPersonalizadas[rutinaSeleccionadaKey])) {
+            rutinasPersonalizadas[rutinaSeleccionadaKey] = [];
+        }
+
         if(esCardio) {
-            let mins = parseInt(document.getElementById('cardio-minutos').value) || 20;
-            let km = parseFloat(document.getElementById('cardio-km').value) || 0;
-            let notas = document.getElementById('cardio-notas').value.trim();
+            let mins = parseInt(document.getElementById('cardio-minutos')?.value) || 20;
+            let km = parseFloat(document.getElementById('cardio-km')?.value) || 0;
+            let notas = document.getElementById('cardio-notas')?.value.trim() || "";
             rutinasPersonalizadas[rutinaSeleccionadaKey].push({ nombre: nombreFinal, minutos: mins, km, notas, tipo: "cardio" });
         } else {
-            let series = parseInt(document.getElementById('input-series-nuevo').value) || 3;
-            let pesoRef = parseFloat(document.getElementById('input-peso-nuevo').value) || 0;
-            let reps = document.getElementById('input-reps-nuevo').value.trim() || "8-10";
-            let notas = document.getElementById('input-notas-nuevo').value.trim();
+            let series = parseInt(document.getElementById('input-series-nuevo')?.value) || 3;
+            let pesoRef = parseFloat(document.getElementById('input-peso-nuevo')?.value) || 0;
+            let reps = document.getElementById('input-reps-nuevo')?.value.trim() || "8-10";
+            let notas = document.getElementById('input-notas-nuevo')?.value.trim() || "";
             rutinasPersonalizadas[rutinaSeleccionadaKey].push({ nombre: nombreFinal, series, pesoRef, reps, notas, tipo: "fuerza" });
         }
         guardarTodoEnNube();
@@ -664,28 +306,49 @@
     }
 
     function eliminarEjercicioDeRutina(idx) {
-        rutinasPersonalizadas[rutinaSeleccionadaKey].splice(idx, 1);
-        guardarTodoEnNube();
-        renderizarEjerciciosRutinaActual();
+        if (Array.isArray(rutinasPersonalizadas[rutinaSeleccionadaKey])) {
+            rutinasPersonalizadas[rutinaSeleccionadaKey].splice(idx, 1);
+            guardarTodoEnNube();
+            renderizarEjerciciosRutinaActual();
+        }
     }
 
     function abrirModalEditarEjercicio(idx) {
-        let item = rutinasPersonalizadas[rutinaSeleccionadaKey][idx];
-        document.getElementById('edit-ej-idx').value = idx;
-        document.getElementById('edit-ej-series').value = item.series || 3;
-        document.getElementById('edit-ej-peso').value = item.pesoRef || 0;
-        document.getElementById('edit-ej-reps').value = item.reps || "8-10";
-        document.getElementById('edit-ej-notas').value = item.notas || "";
-        document.getElementById('modal-editar-ejercicio').style.display = 'flex';
+        let item = rutinasPersonalizadas[rutinaSeleccionadaKey]?.[idx];
+        if (!item) return;
+        
+        const idxEl = document.getElementById('edit-ej-idx');
+        const seriesEl = document.getElementById('edit-ej-series');
+        const pesoEl = document.getElementById('edit-ej-peso');
+        const repsEl = document.getElementById('edit-ej-reps');
+        const notasEl = document.getElementById('edit-ej-notas');
+        const modal = document.getElementById('modal-editar-ejercicio');
+
+        if (idxEl) idxEl.value = idx;
+        if (seriesEl) seriesEl.value = item.series || 3;
+        if (pesoEl) pesoEl.value = item.pesoRef || 0;
+        if (repsEl) repsEl.value = item.reps || "8-10";
+        if (notasEl) notasEl.value = item.notas || "";
+        if (modal) modal.style.display = 'flex';
     }
-    function cerrarModalEditarEjercicio() { document.getElementById('modal-editar-ejercicio').style.display = 'none'; }
+    
+    function cerrarModalEditarEjercicio() { 
+        const modal = document.getElementById('modal-editar-ejercicio');
+        if (modal) modal.style.display = 'none'; 
+    }
+    
     function guardarEdicionEjercicio() {
-        let idx = parseInt(document.getElementById('edit-ej-idx').value);
-        let item = rutinasPersonalizadas[rutinaSeleccionadaKey][idx];
-        item.series = parseInt(document.getElementById('edit-ej-series').value) || 3;
-        item.pesoRef = parseFloat(document.getElementById('edit-ej-peso').value) || 0;
-        item.reps = document.getElementById('edit-ej-reps').value.trim() || "8-10";
-        item.notas = document.getElementById('edit-ej-notas').value.trim();
+        let idxInput = document.getElementById('edit-ej-idx');
+        if (!idxInput) return;
+        let idx = parseInt(idxInput.value);
+        let item = rutinasPersonalizadas[rutinaSeleccionadaKey]?.[idx];
+        if (!item) return;
+
+        item.series = parseInt(document.getElementById('edit-ej-series')?.value) || 3;
+        item.pesoRef = parseFloat(document.getElementById('edit-ej-peso')?.value) || 0;
+        item.reps = document.getElementById('edit-ej-reps')?.value.trim() || "8-10";
+        item.notas = document.getElementById('edit-ej-notas')?.value.trim() || "";
+        
         guardarTodoEnNube();
         cerrarModalEditarEjercicio();
         renderizarEjerciciosRutinaActual();
@@ -693,6 +356,7 @@
 
     function renderizarEjerciciosRutinaActual() {
         const cont = document.getElementById('lista-ejercicios-container');
+        if (!cont) return;
         const lista = rutinasPersonalizadas[rutinaSeleccionadaKey] || [];
         let html = '';
         
@@ -745,7 +409,6 @@
             return;
         }
         
-        // Iniciar nuevo borrador limpio
         borradorSesion = {
             rutinaKey: rutinaSeleccionadaKey,
             indice: 0,
@@ -802,40 +465,56 @@
             segundosSesion++;
             let m = Math.floor(segundosSesion / 60);
             let s = segundosSesion % 60;
-            document.getElementById('cronometro-sesion').innerText = `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+            const crono = document.getElementById('cronometro-sesion');
+            if (crono) crono.innerText = `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
         }, 1000);
     }
 
     function cargarPasoGuiado() {
         const lista = rutinasPersonalizadas[rutinaSeleccionadaKey];
+        if (!lista || !lista[guiadoIndice]) return;
         const item = lista[guiadoIndice];
         
-        document.getElementById('guiado-progreso').innerText = `Ejercicio ${guiadoIndice + 1} de ${lista.length}`;
-        document.getElementById('guiado-nombre').innerText = item.nombre;
-        document.getElementById('guiado-explicacion-ia').style.display = 'none';
-        document.getElementById('check-realizado').checked = true;
-        document.getElementById('guiado-obs').value = '';
+        const prog = document.getElementById('guiado-progreso');
+        const nom = document.getElementById('guiado-nombre');
+        const expIa = document.getElementById('guiado-explicacion-ia');
+        const check = document.getElementById('check-realizado');
+        const obs = document.getElementById('guiado-obs');
+
+        if (prog) prog.innerText = `Ejercicio ${guiadoIndice + 1} de ${lista.length}`;
+        if (nom) nom.innerText = item.nombre;
+        if (expIa) expIa.style.display = 'none';
+        if (check) check.checked = true;
+        if (obs) obs.value = '';
 
         const divNotas = document.getElementById('guiado-notas-propias');
-        if(item.notas) {
-            divNotas.style.display = 'block';
-            divNotas.innerText = `📝 Notas técnicas guardadas:\n${item.notas}`;
-        } else {
-            divNotas.style.display = 'none';
+        if (divNotas) {
+            if(item.notas) {
+                divNotas.style.display = 'block';
+                divNotas.innerText = `📝 Notas técnicas guardadas:\n${item.notas}`;
+            } else {
+                divNotas.style.display = 'none';
+            }
         }
 
-        if(item.tipo === "cardio") {
-            document.getElementById('guiado-meta').innerText = `Actividad aeróbica`;
-            document.getElementById('guiado-seccion-fuerza').style.display = 'none';
-            document.getElementById('guiado-seccion-cardio').style.display = 'block';
-            document.getElementById('guiado-cardio-mins').value = item.minutos || 20;
-            document.getElementById('guiado-cardio-km').value = item.km || '';
-        } else {
-            document.getElementById('guiado-meta').innerText = `Series programadas: ${item.series} | Reps objetivo: ${item.reps}`;
-            document.getElementById('guiado-seccion-fuerza').style.display = 'block';
-            document.getElementById('guiado-seccion-cardio').style.display = 'none';
+        const secFuerza = document.getElementById('guiado-seccion-fuerza');
+        const secCardio = document.getElementById('guiado-seccion-cardio');
+        const meta = document.getElementById('guiado-meta');
 
-            // Cargar peso de referencia preestablecido o último registrado
+        if(item.tipo === "cardio") {
+            if (meta) meta.innerText = `Actividad aeróbica`;
+            if (secFuerza) secFuerza.style.display = 'none';
+            if (secCardio) secCardio.style.display = 'block';
+            
+            const cardMins = document.getElementById('guiado-cardio-mins');
+            const cardKm = document.getElementById('guiado-cardio-km');
+            if (cardMins) cardMins.value = item.minutos || 20;
+            if (cardKm) cardKm.value = item.km || '';
+        } else {
+            if (meta) meta.innerText = `Series programadas: ${item.series} | Reps objetivo: ${item.reps}`;
+            if (secFuerza) secFuerza.style.display = 'block';
+            if (secCardio) secCardio.style.display = 'none';
+
             let pesoSugerido = item.pesoRef || 0;
             for(let reg of registrosCloud) {
                 if(reg.detalle) {
@@ -844,15 +523,21 @@
                 }
             }
 
-            document.getElementById('label-guiado-peso').innerText = `Peso utilizado (kg):`;
-            document.getElementById('guiado-peso').value = pesoSugerido;
-            document.getElementById('guiado-reps').value = item.reps || "8-10";
+            const lblPeso = document.getElementById('label-guiado-peso');
+            const gPeso = document.getElementById('guiado-peso');
+            const gReps = document.getElementById('guiado-reps');
+
+            if (lblPeso) lblPeso.innerText = `Peso utilizado (kg):`;
+            if (gPeso) gPeso.value = pesoSugerido;
+            if (gReps) gReps.value = item.reps || "8-10";
         }
     }
 
     function explicarEjercicioActualIA() {
-        const item = rutinasPersonalizadas[rutinaSeleccionadaKey][guiadoIndice];
+        const item = rutinasPersonalizadas[rutinaSeleccionadaKey]?.[guiadoIndice];
+        if (!item) return;
         const box = document.getElementById('guiado-explicacion-ia');
+        if (!box) return;
         box.style.display = 'block';
         box.innerText = `🤖 Sugerencia Técnica IA para "${item.nombre}":\n` +
         `• Enfoque: Mantener control absoluto en la fase excéntrica y máxima contracción.\n` +
@@ -861,7 +546,8 @@
 
     function iniciarCronometroDescanso(segundos = 90) {
         segundosDescansoRestantes = segundos;
-        document.getElementById('timer-box-container').style.display = 'block';
+        const timerContainer = document.getElementById('timer-box-container');
+        if (timerContainer) timerContainer.style.display = 'block';
         if(descansoInterval) clearInterval(descansoInterval);
         
         actualizarDisplayDescanso();
@@ -871,16 +557,27 @@
             if(segundosDescansoRestantes <= 0) {
                 clearInterval(descansoInterval);
                 alert("⏱️ ¡Descanso finalizado!");
-                document.getElementById('timer-box-container').style.display = 'none';
+                if (timerContainer) timerContainer.style.display = 'none';
             }
         }, 1000);
     }
-    function setearDescanso(s) { if(descansoInterval) clearInterval(descansoInterval); iniciarCronometroDescanso(s); }
-    function detenerDescanso() { if(descansoInterval) clearInterval(descansoInterval); document.getElementById('timer-box-container').style.display = 'none'; }
+    
+    function setearDescanso(s) { 
+        if(descansoInterval) clearInterval(descansoInterval); 
+        iniciarCronometroDescanso(s); 
+    }
+    
+    function detenerDescanso() { 
+        if(descansoInterval) clearInterval(descansoInterval); 
+        const timerContainer = document.getElementById('timer-box-container');
+        if (timerContainer) timerContainer.style.display = 'none'; 
+    }
+    
     function actualizarDisplayDescanso() {
         let m = Math.floor(segundosDescansoRestantes / 60);
         let s = segundosDescansoRestantes % 60;
-        document.getElementById('display-descanso').innerText = `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+        const disp = document.getElementById('display-descanso');
+        if (disp) disp.innerText = `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
     }
 
     function guiadoSiguiente() {
@@ -896,7 +593,10 @@
     }
 
     function guiadoAnterior() {
-        if(guiadoIndice > 0) { guiadoIndice--; cargarPasoGuiado(); }
+        if(guiadoIndice > 0) { 
+            guiadoIndice--; 
+            cargarPasoGuiado(); 
+        }
     }
 
     function guardarPasoActualBorradorParcial() {
@@ -904,8 +604,10 @@
         if(!borradorSesion.progresoEjercicios) borradorSesion.progresoEjercicios = [];
         
         const lista = rutinasPersonalizadas[rutinaSeleccionadaKey];
+        if (!lista || !lista[guiadoIndice]) return;
         let item = lista[guiadoIndice];
-        let realizado = document.getElementById('check-realizado').checked;
+        let realizadoCheck = document.getElementById('check-realizado');
+        let realizado = realizadoCheck ? realizadoCheck.checked : true;
 
         if(item.tipo === "cardio") {
             let mins = parseInt(document.getElementById('guiado-cardio-mins')?.value) || item.minutos || 20;
@@ -923,7 +625,7 @@
         if(cronometroSesionInterval) clearInterval(cronometroSesionInterval);
         if(descansoInterval) clearInterval(descansoInterval);
 
-        const lista = rutinasPersonalizadas[rutinaSeleccionadaKey];
+        const lista = rutinasPersonalizadas[rutinaSeleccionadaKey] || [];
         let ahora = new Date();
         let fechaStr = ahora.toLocaleDateString();
         let horaStr = ahora.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
@@ -945,7 +647,7 @@
                 } else {
                     let p = datosProgreso?.peso || item.pesoRef || 0;
                     let r = datosProgreso?.reps || item.reps;
-                    let repsArr = r.split(/[-,\s]+/).map(x => parseInt(x)).filter(x => !isNaN(x));
+                    let repsArr = String(r).split(/[-,\s]+/).map(x => parseInt(x)).filter(x => !isNaN(x));
                     let totalReps = repsArr.reduce((a,b)=>a+b, 0) || (item.series * 10);
                     let vol = p * totalReps;
                     volumenTotalSesion += vol;
@@ -970,7 +672,7 @@
         };
 
         registrosCloud.unshift(registroFinal);
-        borradorSesion = null; // Borrar borrador al finalizar con éxito
+        borradorSesion = null;
         guardarTodoEnNube();
 
         alert(`🎉 ¡Entrenamiento guardado y sincronizado en la nube!\nVolumen total: ${volumenTotalSesion} kg\nCalorías aprox: ${caloriasTotalesSesion} kcal`);
@@ -979,6 +681,7 @@
 
     function consultarIA(tipo) {
         const box = document.getElementById('ia-respuesta-box');
+        if (!box) return;
         box.style.display = 'block';
         box.innerText = "🤖 Analizando tus registros en la nube...";
 
@@ -1001,6 +704,7 @@
 
     function renderizarHistorial() {
         const cont = document.getElementById('historial-lista-container');
+        if (!cont) return;
         let html = '';
         if(registrosCloud.length === 0) {
             html = '<p style="color:var(--text-muted);">No hay entrenamientos guardados todavía.</p>';
@@ -1025,7 +729,11 @@
         let r = registrosCloud.find(x => x.id === id);
         if(!r) return;
 
-        document.getElementById('modal-historial-titulo').innerText = `Sesión: ${r.rutina} (${r.fecha})`;
+        const tituloModal = document.getElementById('modal-historial-titulo');
+        const cuerpoModal = document.getElementById('modal-historial-cuerpo');
+        const modalDetalle = document.getElementById('modal-detalle-historial');
+
+        if (tituloModal) tituloModal.innerText = `Sesión: ${r.rutina} (${r.fecha})`;
         let html = `<p style="margin-bottom:8px; color:var(--text-muted);">⏱️ Duración: ${r.duracionMin || 0} min | Volumen: <b>${r.volumen} kg</b> | Calorías: <span style="color:var(--orange);">${r.calorias} kcal</span></p>`;
         html += `<h4 style="margin-top:10px; color:var(--accent);">Ejercicios Realizados:</h4>`;
         
@@ -1045,14 +753,19 @@
             html += `<p>Sin detalles específicos registrados.</p>`;
         }
 
-        document.getElementById('modal-historial-cuerpo').innerHTML = html;
-        document.getElementById('modal-detalle-historial').style.display = 'flex';
+        if (cuerpoModal) cuerpoModal.innerHTML = html;
+        if (modalDetalle) modalDetalle.style.display = 'flex';
     }
-    function cerrarModalHistorial() { document.getElementById('modal-detalle-historial').style.display = 'none'; }
+    
+    function cerrarModalHistorial() { 
+        const modalDetalle = document.getElementById('modal-detalle-historial');
+        if (modalDetalle) modalDetalle.style.display = 'none'; 
+    }
 
     function renderizarCalendario() {
         const meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Setiembre", "Octubre", "Noviembre", "Diciembre"];
-        document.getElementById('cal-mes-anio-titulo').innerText = `${meses[calMesActual]} ${calAnioActual}`;
+        const mesAnioTitulo = document.getElementById('cal-mes-anio-titulo');
+        if (mesAnioTitulo) mesAnioTitulo.innerText = `${meses[calMesActual]} ${calAnioActual}`;
 
         let primerDia = new Date(calAnioActual, calMesActual, 1).getDay();
         primerDia = primerDia === 0 ? 6 : primerDia - 1;
@@ -1060,6 +773,7 @@
 
         let diasEntrenados = {};
         registrosCloud.forEach(r => {
+            if (!r.fecha) return;
             let p = r.fecha.split('/');
             if(p.length === 3 && parseInt(p[1]) === (calMesActual + 1) && parseInt(p[2]) === calAnioActual) {
                 diasEntrenados[parseInt(p[0])] = r.rutina;
@@ -1083,7 +797,8 @@
                 </div>
             `;
         }
-        document.getElementById('cal-dias-grid').innerHTML = grid;
+        const diasGrid = document.getElementById('cal-dias-grid');
+        if (diasGrid) diasGrid.innerHTML = grid;
     }
 
     function cambiarMesCalendario(dir) {
@@ -1095,15 +810,29 @@
 
     function renderizarRecords() {
         const cont = document.getElementById('records-container');
-        cont.innerHTML = '<div class="card"><p style="color:var(--text-muted);">Tus récords personales (PRs) se calculan automáticamente y se actualizan con cada sesión registrada en la nube.</p></div>';
+        if (cont) cont.innerHTML = '<div class="card"><p style="color:var(--text-muted);">Tus récords personales (PRs) se calculan automáticamente y se actualizan con cada sesión registrada en la nube.</p></div>';
     }
 
-    function abrirCalculadoraDiscos() { document.getElementById('modal-discos').style.display = 'flex'; calcularDiscos(); }
-    function cerrarCalculadoraDiscos() { document.getElementById('modal-discos').style.display = 'none'; }
+    function abrirCalculadoraDiscos() { 
+        const modal = document.getElementById('modal-discos');
+        if (modal) modal.style.display = 'flex'; 
+        calcularDiscos(); 
+    }
+    
+    function cerrarCalculadoraDiscos() { 
+        const modal = document.getElementById('modal-discos');
+        if (modal) modal.style.display = 'none'; 
+    }
+    
     function calcularDiscos() {
-        const total = parseFloat(document.getElementById('calc-peso-total').value);
-        const barra = parseFloat(document.getElementById('calc-peso-barra').value);
+        const totalInput = document.getElementById('calc-peso-total');
+        const barraInput = document.getElementById('calc-peso-barra');
         const container = document.getElementById('resultado-discos');
+        if (!totalInput || !barraInput || !container) return;
+
+        const total = parseFloat(totalInput.value);
+        const barra = parseFloat(barraInput.value);
+        
         if(isNaN(total) || isNaN(barra) || total < barra) { container.innerHTML = "Peso inválido."; return; }
         let resto = (total - barra) / 2;
         if(resto <= 0) { container.innerHTML = "Solo la barra."; return; }
@@ -1115,10 +844,22 @@
         container.innerHTML = res;
     }
 
-    function abrirModalPesoCorporal() { document.getElementById('input-nuevo-peso-corp').value = perfilCloud.peso || ''; document.getElementById('modal-peso-corporal').style.display = 'flex'; }
-    function cerrarModalPesoCorporal() { document.getElementById('modal-peso-corporal').style.display = 'none'; }
+    function abrirModalPesoCorporal() { 
+        const pesoCorpInput = document.getElementById('input-nuevo-peso-corp');
+        const modalPeso = document.getElementById('modal-peso-corporal');
+        if (pesoCorpInput) pesoCorpInput.value = perfilCloud.peso || ''; 
+        if (modalPeso) modalPeso.style.display = 'flex'; 
+    }
+    
+    function cerrarModalPesoCorporal() { 
+        const modalPeso = document.getElementById('modal-peso-corporal');
+        if (modalPeso) modalPeso.style.display = 'none'; 
+    }
+    
     function guardarPesoCorporalCloud() {
-        let p = parseFloat(document.getElementById('input-nuevo-peso-corp').value);
+        let inputPeso = document.getElementById('input-nuevo-peso-corp');
+        if (!inputPeso) return;
+        let p = parseFloat(inputPeso.value);
         if(!isNaN(p)) {
             perfilCloud.peso = p;
             guardarTodoEnNube();
@@ -1129,5 +870,3 @@
 
     sincronizarConNubeAlIniciar();
 </script>
-</body>
-</html>
