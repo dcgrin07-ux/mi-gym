@@ -322,6 +322,13 @@
                 </div>
             </div>
 
+            <!-- Zona Segura / Botón de Reseteo General -->
+            <div class="card" style="border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.03);">
+                <h3 style="font-size: 0.9rem; color: var(--danger); margin-bottom: 6px;">⚠️ Zona de Ajustes / Fábrica</h3>
+                <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 10px;">¿Necesitás reiniciar toda la app desde cero? Cuenta con protección contra borrados accidentales.</p>
+                <button class="btn btn-danger" style="font-size: 0.85rem; margin:0;" onclick="solicitarReiniciarFabricaSeguro()">🔄 Reiniciar app a Cero (Seguro)</button>
+            </div>
+
         </div>
 
         <!-- ================= VISTA DETALLE RUTINA ================= -->
@@ -399,6 +406,7 @@
                 <h2 id="guiado-nombre" style="font-size: 1.35rem; color: var(--accent); margin-bottom: 6px;">Nombre Ejercicio</h2>
                 <p id="guiado-meta" style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 12px;"></p>
 
+                <!-- Especificaciones / Notas técnicas visibles también en Modo Guiado -->
                 <div id="guiado-notas-propias" style="display:none; background: rgba(234, 179, 8, 0.1); border: 1px solid var(--yellow); padding: 10px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 12px; color: var(--yellow);"></div>
 
                 <!-- Controles Fuerza -->
@@ -619,13 +627,13 @@
         /* ==========================================
            ESTADO DE LA APLICACIÓN
            ========================================== */
-        let rutinasPersonalizadas = JSON.parse(localStorage.getItem('mi_gym_rutinas_v34') || JSON.stringify({
+        let rutinasPersonalizadas = JSON.parse(localStorage.getItem('mi_gym_rutinas_v35') || JSON.stringify({
             "Rutina A": []
         }));
 
-        let registrosCloud = JSON.parse(localStorage.getItem('mi_gym_registros_v34') || '[]');
-        let perfilCloud = JSON.parse(localStorage.getItem('mi_gym_perfil_v34') || '{"peso": 90}');
-        let borradorSesion = JSON.parse(localStorage.getItem('mi_gym_borrador_v34') || 'null');
+        let registrosCloud = JSON.parse(localStorage.getItem('mi_gym_registros_v35') || '[]');
+        let perfilCloud = JSON.parse(localStorage.getItem('mi_gym_perfil_v35') || '{"peso": 90}');
+        let borradorSesion = JSON.parse(localStorage.getItem('mi_gym_borrador_v35') || 'null');
 
         let rutinaSeleccionadaKey = '';
         let guiadoIndice = 0;
@@ -683,10 +691,10 @@
         }
 
         function guardarLocal() {
-            localStorage.setItem('mi_gym_rutinas_v34', JSON.stringify(rutinasPersonalizadas));
-            localStorage.setItem('mi_gym_registros_v34', JSON.stringify(registrosCloud));
-            localStorage.setItem('mi_gym_perfil_v34', JSON.stringify(perfilCloud));
-            localStorage.setItem('mi_gym_borrador_v34', JSON.stringify(borradorSesion));
+            localStorage.setItem('mi_gym_rutinas_v35', JSON.stringify(rutinasPersonalizadas));
+            localStorage.setItem('mi_gym_registros_v35', JSON.stringify(registrosCloud));
+            localStorage.setItem('mi_gym_perfil_v35', JSON.stringify(perfilCloud));
+            localStorage.setItem('mi_gym_borrador_v35', JSON.stringify(borradorSesion));
         }
 
         function actualizarEstadoCloud(sincronizado, texto) {
@@ -805,6 +813,44 @@
             if(homeCalMesActual > 11) { homeCalMesActual = 0; homeCalAnioActual++; }
             if(homeCalMesActual < 0) { homeCalMesActual = 11; homeCalAnioActual--; }
             renderizarHomeCalendario();
+        }
+
+        /* ==========================================
+           FUNCIÓN DE RESETEO SEGURO A CERO (FABRICA)
+           ========================================== */
+        async function solicitarReiniciarFabricaSeguro() {
+            let confirmacion1 = confirm("⚠️ ATENCIÓN: Estás a punto de borrar TODAS tus rutinas, historial de entrenamientos y configuraciones guardadas. ¿Querés continuar?");
+            if(!confirmacion1) return;
+
+            let palabraClave = prompt("Para confirmar que querés reiniciar la aplicación a cero, escribí la palabra: BORRAR");
+            if(palabraClave !== "BORRAR") {
+                alert("Operación cancelada. No se borró ningún dato.");
+                return;
+            }
+
+            // Borrado completo seguro
+            rutinasPersonalizadas = { "Rutina A": [] };
+            registrosCloud = [];
+            perfilCloud = { peso: 90 };
+            borradorSesion = null;
+            
+            guardarLocal();
+            
+            if(usarseNube && dbCloud) {
+                try {
+                    await dbCloud.collection("usuarios").doc("usuario_principal").set({
+                        rutinas: rutinasPersonalizadas,
+                        registros: registrosCloud,
+                        perfil: perfilCloud
+                    });
+                } catch(e) {
+                    console.log("Error al limpiar nube:", e);
+                }
+            }
+
+            alert("🔄 La aplicación ha sido restablecida a cero exitosamente.");
+            actualizarDashboard();
+            irA('view-home');
         }
 
         function abrirModalCrearRutina() { 
@@ -1097,6 +1143,7 @@
             if (nom) nom.innerText = item.nombre;
             if (check) check.checked = true;
 
+            // Mostrar especificaciones/notas técnicas en el modo guiado
             const divNotas = document.getElementById('guiado-notas-propias');
             if (divNotas) {
                 if(item.notas) {
@@ -1142,7 +1189,6 @@
                 if (gReps) gReps.value = item.reps || "8-10";
             }
             
-            // Garantizar que el temporizador de descanso comience OCULTO al cambiar de ejercicio
             detenerDescanso();
         }
 
