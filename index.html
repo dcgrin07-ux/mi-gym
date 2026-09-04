@@ -435,12 +435,8 @@
                     <label for="check-realizado" style="margin:0; color:var(--text-main); font-size:0.9rem;">Ejercicio realizado en esta sesión</label>
                 </div>
 
-                <!-- Botón IA consejo puntual -->
-                <button class="btn btn-secondary" style="font-size: 0.85rem; margin-bottom: 10px;" onclick="explicarEjercicioActualIA()">🤖 Tip técnico de IA</button>
-                <div id="guiado-explicacion-ia" style="display:none; background: var(--bg-input); padding: 10px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 12px;"></div>
-
                 <!-- Temporizador de descanso -->
-                <div id="timer-box-container" style="display:none; background: var(--bg-input); padding: 12px; border-radius: 8px; text-align: center; margin-bottom: 12px;">
+                <div id="timer-box-container" style="background: var(--bg-input); padding: 12px; border-radius: 8px; text-align: center; margin-bottom: 12px;">
                     <span style="font-size: 0.8rem; color: var(--text-muted);">⏱️ Descanso sugerido</span>
                     <h3 id="display-descanso" style="font-size: 1.5rem; color: var(--accent); margin: 4px 0;">01:30</h3>
                     <div class="flex-row" style="justify-content: center; gap: 6px;">
@@ -535,8 +531,8 @@
             <input type="number" id="edit-ej-peso" step="0.5">
             <label>Reps Objetivo</label>
             <input type="text" id="edit-ej-reps">
-            <label>Notas técnicas / Instrucciones</label>
-            <textarea id="edit-ej-notas" rows="2" style="resize:none;"></textarea>
+            <label>Notas técnicas / Instrucciones (Especificaciones)</label>
+            <textarea id="edit-ej-notas" rows="3" placeholder="Escribe aquí las pautas técnicas, postura, regulaciones o notas del ejercicio..." style="resize:none;"></textarea>
             <div class="flex-row">
                 <button class="btn btn-secondary" onclick="cerrarModalEditarEjercicio()">Cancelar</button>
                 <button class="btn btn-primary" onclick="guardarEdicionEjercicio()">Actualizar</button>
@@ -636,11 +632,6 @@
         let segundosDescansoRestantes = 90;
         let calAnioActual = new Date().getFullYear();
         let calMesActual = new Date().getMonth();
-
-        // Simulación o endpoint de IA para especificaciones técnicas opcionales (Parche 1)
-        async function obtenerEspecificacionesDeIA(nombreEjercicio) {
-            return `Pautas técnicas sugeridas por IA para ${nombreEjercicio}: Mantén una ejecución controlada, respira de forma sincronizada y asegúrate de completar el rango completo de movimiento sin compensar con otros grupos musculares.`;
-        }
 
         async function sincronizarConNubeAlIniciar() {
             if(!usarseNube || !dbCloud) {
@@ -758,7 +749,7 @@
             const cantMes = document.getElementById('dash-cant-mes');
             if (cantMes) cantMes.innerText = diasUnicos;
 
-            let volMes = regsMes.reduce((acc, r) => acc + (r.volumen || 0), 0);
+            let volMes = regsMes.reduce((acc, r) => acc + (r.volumenTotal || 0), 0);
             const volMesEl = document.getElementById('dash-volumen-mes');
             if (volMesEl) volMesEl.innerText = `${volMes.toLocaleString()} kg`;
 
@@ -879,7 +870,7 @@
             if(esCardio) {
                 let mins = parseInt(document.getElementById('cardio-minutos')?.value) || 20;
                 let km = parseFloat(document.getElementById('cardio-km')?.value) || 0;
-                let notas = document.getElementById('cardio-notas')?.value.trim() || "";
+                let notas = document.getElementById('input-notas-nuevo')?.value.trim() || "";
                 rutinasPersonalizadas[rutinaSeleccionadaKey].push({ id: Date.now() + Math.random(), nombre: nombreFinal, minutos: mins, km, notas, tipo: "cardio" });
             } else {
                 let series = parseInt(document.getElementById('input-series-nuevo')?.value) || 3;
@@ -1064,19 +1055,17 @@
             
             const prog = document.getElementById('guiado-progreso');
             const nom = document.getElementById('guiado-nombre');
-            const expIa = document.getElementById('guiado-explicacion-ia');
             const check = document.getElementById('check-realizado');
 
             if (prog) prog.innerText = `Ejercicio ${guiadoIndice + 1} de ${lista.length}`;
             if (nom) nom.innerText = item.nombre;
-            if (expIa) expIa.style.display = 'none';
             if (check) check.checked = true;
 
             const divNotas = document.getElementById('guiado-notas-propias');
             if (divNotas) {
                 if(item.notas) {
                     divNotas.style.display = 'block';
-                    divNotas.innerText = `📝 Notas técnicas guardadas:\n${item.notas}`;
+                    divNotas.innerText = `📝 Especificaciones / Notas:\n${item.notas}`;
                 } else {
                     divNotas.style.display = 'none';
                 }
@@ -1116,17 +1105,9 @@
                 if (gPeso) gPeso.value = pesoSugerido;
                 if (gReps) gReps.value = item.reps || "8-10";
             }
-        }
-
-        function explicarEjercicioActualIA() {
-            const item = rutinasPersonalizadas[rutinaSeleccionadaKey]?.[guiadoIndice];
-            if (!item) return;
-            const box = document.getElementById('guiado-explicacion-ia');
-            if (!box) return;
-            box.style.display = 'block';
-            box.innerText = `🤖 Sugerencia Técnica IA para "${item.nombre}":\n` +
-            `• Enfoque: Mantener control absoluto en la fase excéntrica y máxima contracción.\n` +
-            (item.notas ? `• Tus notas actuales: "${item.notas}"` : '• Tip: Podés editar este ejercicio para agregar tus propias instrucciones.');
+            
+            // Asegurar que el cronómetro de descanso inicie automáticamente al pasar al ejercicio
+            iniciarCronometroDescanso(90);
         }
 
         function iniciarCronometroDescanso(segundos = 90) {
@@ -1142,7 +1123,6 @@
                 if(segundosDescansoRestantes <= 0) {
                     clearInterval(descansoInterval);
                     alert("⏱️ ¡Descanso finalizado!");
-                    if (timerContainer) timerContainer.style.display = 'none';
                 }
             }, 1000);
         }
@@ -1170,7 +1150,6 @@
             guiadoIndice++;
             const lista = rutinasPersonalizadas[rutinaSeleccionadaKey];
             if(guiadoIndice < lista.length) {
-                detenerDescanso();
                 cargarPasoGuiado();
             } else {
                 finalizarEntrenamientoGuiado();
@@ -1201,7 +1180,6 @@
                 let p = parseFloat(document.getElementById('guiado-peso')?.value) || 0;
                 let r = document.getElementById('guiado-reps')?.value || item.reps;
                 
-                // Mapeo adaptado con el Parche 2 para asegurar series estructuradas con { peso, reps }
                 let seriesArray = [];
                 let cantSeries = item.series || 3;
                 for (let i = 0; i < cantSeries; i++) {
@@ -1218,20 +1196,19 @@
             guardarProgresoActualBorrador();
         }
 
-        // Función integrada con el Parche 2 para finalizar y mapear correctamente los datos de la sesión activa
+        // Función integrada con el mapeo correcto de datos para calcular el volumen y evitar ceros
         const finalizarEntrenamientoGuiado = async () => {
             guardarPasoActualBorradorParcial();
             if(cronometroSesionInterval) clearInterval(cronometroSesionInterval);
             if(descansoInterval) clearInterval(descansoInterval);
 
-            const lista = rutinasPersonalizadas[rutinaSeleccionadaKey] || [];
             let ahora = new Date();
             let fechaStr = ahora.toLocaleDateString();
             let horaStr = ahora.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 
             let ejerciciosRealizados = [];
             if (borradorSesion && borradorSesion.progresoEjercicios) {
-                borradorSesion.progresoEjercicios.forEach((prog, idx) => {
+                borradorSesion.progresoEjercicios.forEach((prog) => {
                     if (prog && prog.realizado) {
                         if (prog.tipo === "cardio") {
                             ejerciciosRealizados.push({
@@ -1307,7 +1284,7 @@
                 if(tipo === 'semanal') {
                     box.innerText = `📊 ANÁLISIS SEMANAL (IA):\n\n` +
                     `- Constancia: ¡Excelente ritmo de entrenamiento constante!\n` +
-                    `- Última sesión registrada (${ultimo ? ultimo.rutina : 'Ninguna'}): Volumen total de ${ultimo ? ultimo.volumenTotal || ultimo.volumen : 0} kg.\n` +
+                    `- Última sesión registrada (${ultimo ? ultimo.rutina : 'Ninguna'}): Volumen total de ${ultimo ? (ultimo.volumenTotal !== undefined ? ultimo.volumenTotal : ultimo.volumen) : 0} kg.\n` +
                     `- Recomendación profesional: Aprovechá los pesos de referencia y notas detalladas para asegurar una progresión de cargas constante.`;
                 } else {
                     box.innerText = `📅 REPORTE MENSUAL (IA):\n\n` +
