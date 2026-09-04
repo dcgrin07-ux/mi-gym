@@ -351,19 +351,12 @@
                 </div>
 
                 <div id="div-fuerza-inputs" style="margin-top: 10px;">
-                    <div class="flex-row">
-                        <div style="flex:1;">
-                            <label>Series</label>
-                            <input type="number" id="input-series-nuevo" value="3">
-                        </div>
-                        <div style="flex:1;">
-                            <label>Peso Ref (kg)</label>
-                            <input type="number" id="input-peso-nuevo" value="0" step="0.5">
-                        </div>
-                        <div style="flex:1;">
-                            <label>Reps objetivo</label>
-                            <input type="text" id="input-reps-nuevo" value="8-10">
-                        </div>
+                    <label>Cantidad de Series</label>
+                    <input type="number" id="input-series-nuevo" value="3" min="1" max="10" onchange="generarInputsSeriesNuevo()">
+                    
+                    <label style="margin-top: 10px;">Detalle por serie (Peso y Reps):</label>
+                    <div id="contenedor-series-nuevo" style="background: var(--bg-input); padding: 10px; border-radius: 8px; margin-bottom: 10px;">
+                        <!-- Generado dinámicamente -->
                     </div>
                 </div>
 
@@ -409,17 +402,11 @@
                 <!-- Especificaciones / Notas técnicas visibles también en Modo Guiado -->
                 <div id="guiado-notas-propias" style="display:none; background: rgba(234, 179, 8, 0.1); border: 1px solid var(--yellow); padding: 10px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 12px; color: var(--yellow);"></div>
 
-                <!-- Controles Fuerza -->
+                <!-- Controles Fuerza por Series Individuales -->
                 <div id="guiado-seccion-fuerza">
-                    <div class="flex-row" style="margin-bottom: 10px;">
-                        <div style="flex:1;">
-                            <label id="label-guiado-peso">Peso utilizado (kg):</label>
-                            <input type="number" id="guiado-peso" step="0.5">
-                        </div>
-                        <div style="flex:1;">
-                            <label>Reps realizadas:</label>
-                            <input type="text" id="guiado-reps">
-                        </div>
+                    <label style="margin-bottom: 6px; color: var(--accent);">Progreso por Serie (Peso y Reps):</label>
+                    <div id="guiado-series-inputs-container" style="background: var(--bg-input); padding: 10px; border-radius: 8px; margin-bottom: 12px;">
+                        <!-- Se genera dinámicamente según las series configuradas -->
                     </div>
                 </div>
 
@@ -442,7 +429,7 @@
                     <label for="check-realizado" style="margin:0; color:var(--text-main); font-size:0.9rem;">Ejercicio realizado en esta sesión</label>
                 </div>
 
-                <!-- Temporizador de descanso (OCULTO por defecto hasta que se active) -->
+                <!-- Temporizador de descanso -->
                 <div id="timer-box-container" style="display:none; background: var(--bg-input); padding: 12px; border-radius: 8px; text-align: center; margin-bottom: 12px; border: 1px dashed var(--accent);">
                     <span style="font-size: 0.8rem; color: var(--text-muted);">⏱️ Temporizador de Descanso</span>
                     <h3 id="display-descanso" style="font-size: 1.5rem; color: var(--accent); margin: 4px 0;">01:30</h3>
@@ -493,14 +480,6 @@
             </div>
         </div>
 
-        <!-- ================= VISTA RECORDS ================= -->
-        <div id="view-records" class="view-section">
-            <div class="card">
-                <h3 style="font-size: 1rem; margin-bottom: 12px; color: var(--accent);">🏆 Récords Personales (PRs)</h3>
-                <div id="records-container"></div>
-            </div>
-        </div>
-
     </div>
 
     <!-- Navegación Inferior -->
@@ -534,16 +513,18 @@
     <!-- Modal Editar Ejercicio -->
     <div id="modal-editar-ejercicio" class="modal">
         <div class="modal-content">
-            <h3 style="color: var(--accent); margin-bottom: 10px;">Editar Ejercicio / Especificaciones</h3>
+            <h3 style="color: var(--accent); margin-bottom: 10px;">Editar Ejercicio / Progresión</h3>
             <input type="hidden" id="edit-ej-idx">
-            <label>Series</label>
-            <input type="number" id="edit-ej-series">
-            <label>Peso de Referencia (kg)</label>
-            <input type="number" id="edit-ej-peso" step="0.5">
-            <label>Reps Objetivo</label>
-            <input type="text" id="edit-ej-reps">
-            <label>Especificaciones / Notas técnicas (Carga Manual)</label>
-            <textarea id="edit-ej-notas" rows="3" placeholder="Escribe aquí las pautas técnicas, postura, regulaciones..." style="resize:none;"></textarea>
+            
+            <label>Cantidad de Series</label>
+            <input type="number" id="edit-ej-series-cant" min="1" max="10" onchange="generarInputsSeriesEdicion()">
+            
+            <label style="margin-top: 6px;">Series (Peso y Reps individual):</label>
+            <div id="edit-contenedor-series" style="background: var(--bg-input); padding: 8px; border-radius: 6px; margin-bottom: 10px;"></div>
+
+            <label>Especificaciones / Notas técnicas</label>
+            <textarea id="edit-ej-notas" rows="3" placeholder="Pautas técnicas, postura..." style="resize:none;"></textarea>
+            
             <div class="flex-row">
                 <button class="btn btn-secondary" onclick="cerrarModalEditarEjercicio()">Cancelar</button>
                 <button class="btn btn-primary" onclick="guardarEdicionEjercicio()">Actualizar</button>
@@ -588,9 +569,6 @@
 
     <!-- ================= SCRIPT COMPLETO INTEGRADO ================= -->
     <script>
-        /* ==========================================
-           CONFIGURACIÓN FIREBASE (Cloud Firestore)
-           ========================================== */
         const firebaseConfig = {
             apiKey: "AIzaSyA3N-mLUaTF9jUshNosUiWpso0-934H_fo",
             authDomain: "mygymlacima.firebaseapp.com",
@@ -611,9 +589,6 @@
             console.log("Firebase no configurado o modo offline local:", e);
         }
 
-        /* ==========================================
-           CATÁLOGO DE EJERCICIOS + OPCIÓN PERSONALIZADA
-           ========================================== */
         const catalogoEjercicios = [
             "PRESS PLANO", "PRESS INCLINADO MANC", "CROSSOVER CON BANCO", "FLEXIONES",
             "PRESS MILITAR", "VUELO LATERAL", "SENTADILLA / HACK", "BÚLGARAS",
@@ -624,16 +599,13 @@
             "➕ OTRO (Escribir nombre personalizado)..."
         ];
 
-        /* ==========================================
-           ESTADO DE LA APLICACIÓN
-           ========================================== */
-        let rutinasPersonalizadas = JSON.parse(localStorage.getItem('mi_gym_rutinas_v35') || JSON.stringify({
+        let rutinasPersonalizadas = JSON.parse(localStorage.getItem('mi_gym_rutinas_v36') || JSON.stringify({
             "Rutina A": []
         }));
 
-        let registrosCloud = JSON.parse(localStorage.getItem('mi_gym_registros_v35') || '[]');
-        let perfilCloud = JSON.parse(localStorage.getItem('mi_gym_perfil_v35') || '{"peso": 90}');
-        let borradorSesion = JSON.parse(localStorage.getItem('mi_gym_borrador_v35') || 'null');
+        let registrosCloud = JSON.parse(localStorage.getItem('mi_gym_registros_v36') || '[]');
+        let perfilCloud = JSON.parse(localStorage.getItem('mi_gym_perfil_v36') || '{"peso": 90}');
+        let borradorSesion = JSON.parse(localStorage.getItem('mi_gym_borrador_v36') || 'null');
 
         let rutinaSeleccionadaKey = '';
         let guiadoIndice = 0;
@@ -691,10 +663,10 @@
         }
 
         function guardarLocal() {
-            localStorage.setItem('mi_gym_rutinas_v35', JSON.stringify(rutinasPersonalizadas));
-            localStorage.setItem('mi_gym_registros_v35', JSON.stringify(registrosCloud));
-            localStorage.setItem('mi_gym_perfil_v35', JSON.stringify(perfilCloud));
-            localStorage.setItem('mi_gym_borrador_v35', JSON.stringify(borradorSesion));
+            localStorage.setItem('mi_gym_rutinas_v36', JSON.stringify(rutinasPersonalizadas));
+            localStorage.setItem('mi_gym_registros_v36', JSON.stringify(registrosCloud));
+            localStorage.setItem('mi_gym_perfil_v36', JSON.stringify(perfilCloud));
+            localStorage.setItem('mi_gym_borrador_v36', JSON.stringify(borradorSesion));
         }
 
         function actualizarEstadoCloud(sincronizado, texto) {
@@ -725,8 +697,6 @@
                 const navBtn = document.querySelectorAll('.nav-btn')[2];
                 if (navBtn) navBtn.classList.add('active');
                 renderizarHistorial();
-            } else if(viewId === 'view-records') {
-                renderizarRecords();
             }
             window.scrollTo(0,0);
         }
@@ -815,9 +785,6 @@
             renderizarHomeCalendario();
         }
 
-        /* ==========================================
-           FUNCIÓN DE RESETEO SEGURO A CERO (FABRICA)
-           ========================================== */
         async function solicitarReiniciarFabricaSeguro() {
             let confirmacion1 = confirm("⚠️ ATENCIÓN: Estás a punto de borrar TODAS tus rutinas, historial de entrenamientos y configuraciones guardadas. ¿Querés continuar?");
             if(!confirmacion1) return;
@@ -828,7 +795,6 @@
                 return;
             }
 
-            // Borrado completo seguro
             rutinasPersonalizadas = { "Rutina A": [] };
             registrosCloud = [];
             perfilCloud = { peso: 90 };
@@ -907,6 +873,7 @@
                 verificarOpcionCatalogo();
             }
 
+            generarInputsSeriesNuevo();
             renderizarEjerciciosRutinaActual();
             irA('view-rutina');
         }
@@ -925,6 +892,25 @@
             if (divCustom) divCustom.style.display = esCustom ? 'block' : 'none';
             if (divCardio) divCardio.style.display = esCardio ? 'block' : 'none';
             if (divFuerza) divFuerza.style.display = esCardio ? 'none' : 'block';
+        }
+
+        // Generador dinámico de inputs por serie al crear ejercicio
+        function generarInputsSeriesNuevo() {
+            const cant = parseInt(document.getElementById('input-series-nuevo')?.value) || 3;
+            const contenedor = document.getElementById('contenedor-series-nuevo');
+            if (!contenedor) return;
+
+            let html = '';
+            for (let i = 1; i <= cant; i++) {
+                html += `
+                    <div class="flex-row" style="margin-bottom: 6px; align-items: center;">
+                        <span style="font-size: 0.85rem; width: 65px; color: var(--accent);">Serie ${i}:</span>
+                        <input type="number" placeholder="Peso (kg)" id="nuevo-serie-peso-${i}" step="0.5" value="0" style="margin:0; padding: 6px; font-size:0.9rem;">
+                        <input type="text" placeholder="Reps (ej: 10)" id="nuevo-serie-reps-${i}" value="10" style="margin:0; padding: 6px; font-size:0.9rem;">
+                    </div>
+                `;
+            }
+            contenedor.innerHTML = html;
         }
 
         function agregarEjercicioARutinaActual() {
@@ -954,10 +940,21 @@
                 let km = parseFloat(document.getElementById('cardio-km')?.value) || 0;
                 rutinasPersonalizadas[rutinaSeleccionadaKey].push({ id: Date.now() + Math.random(), nombre: nombreFinal, minutos: mins, km, notas: notasManuales, tipo: "cardio" });
             } else {
-                let series = parseInt(document.getElementById('input-series-nuevo')?.value) || 3;
-                let pesoRef = parseFloat(document.getElementById('input-peso-nuevo')?.value) || 0;
-                let reps = document.getElementById('input-reps-nuevo')?.value.trim() || "8-10";
-                rutinasPersonalizadas[rutinaSeleccionadaKey].push({ id: Date.now() + Math.random(), nombre: nombreFinal, series, pesoRef, reps, notas: notasManuales, tipo: "fuerza" });
+                let cantSeries = parseInt(document.getElementById('input-series-nuevo')?.value) || 3;
+                let seriesArray = [];
+                for (let i = 1; i <= cantSeries; i++) {
+                    let p = parseFloat(document.getElementById(`nuevo-serie-peso-${i}`)?.value) || 0;
+                    let r = document.getElementById(`nuevo-serie-reps-${i}`)?.value || "10";
+                    seriesArray.push({ peso: p, reps: r });
+                }
+
+                rutinasPersonalizadas[rutinaSeleccionadaKey].push({ 
+                    id: Date.now() + Math.random(), 
+                    nombre: nombreFinal, 
+                    seriesConfig: seriesArray, 
+                    notas: notasManuales, 
+                    tipo: "fuerza" 
+                });
             }
             guardarTodoEnNube();
             renderizarEjerciciosRutinaActual();
@@ -976,18 +973,41 @@
             if (!item) return;
             
             const idxEl = document.getElementById('edit-ej-idx');
-            const seriesEl = document.getElementById('edit-ej-series');
-            const pesoEl = document.getElementById('edit-ej-peso');
-            const repsEl = document.getElementById('edit-ej-reps');
+            const cantSeriesEl = document.getElementById('edit-ej-series-cant');
             const notasEl = document.getElementById('edit-ej-notas');
             const modal = document.getElementById('modal-editar-ejercicio');
 
             if (idxEl) idxEl.value = idx;
-            if (seriesEl) seriesEl.value = item.series || 3;
-            if (pesoEl) pesoEl.value = item.pesoRef || 0;
-            if (repsEl) repsEl.value = item.reps || "8-10";
+            let cantSeries = item.seriesConfig ? item.seriesConfig.length : 3;
+            if (cantSeriesEl) cantSeriesEl.value = cantSeries;
             if (notasEl) notasEl.value = item.notas || "";
+
+            generarInputsSeriesEdicion(item.seriesConfig);
             if (modal) modal.style.display = 'flex';
+        }
+
+        function generarInputsSeriesEdicion(seriesPrevias = null) {
+            const cant = parseInt(document.getElementById('edit-ej-series-cant')?.value) || 3;
+            const contenedor = document.getElementById('edit-contenedor-series');
+            if (!contenedor) return;
+
+            let html = '';
+            for (let i = 1; i <= cant; i++) {
+                let pesoPrevio = 0;
+                let repsPrevio = "10";
+                if (seriesPrevias && seriesPrevias[i-1]) {
+                    pesoPrevio = seriesPrevias[i-1].peso !== undefined ? seriesPrevias[i-1].peso : 0;
+                    repsPrevio = seriesPrevias[i-1].reps !== undefined ? seriesPrevias[i-1].reps : "10";
+                }
+                html += `
+                    <div class="flex-row" style="margin-bottom: 6px; align-items: center;">
+                        <span style="font-size: 0.85rem; width: 65px; color: var(--accent);">Serie ${i}:</span>
+                        <input type="number" placeholder="Peso (kg)" id="edit-serie-peso-${i}" step="0.5" value="${pesoPrevio}" style="margin:0; padding: 6px; font-size:0.9rem;">
+                        <input type="text" placeholder="Reps" id="edit-serie-reps-${i}" value="${repsPrevio}" style="margin:0; padding: 6px; font-size:0.9rem;">
+                    </div>
+                `;
+            }
+            contenedor.innerHTML = html;
         }
         
         function cerrarModalEditarEjercicio() { 
@@ -1002,9 +1022,15 @@
             let item = rutinasPersonalizadas[rutinaSeleccionadaKey]?.[idx];
             if (!item) return;
 
-            item.series = parseInt(document.getElementById('edit-ej-series')?.value) || 3;
-            item.pesoRef = parseFloat(document.getElementById('edit-ej-peso')?.value) || 0;
-            item.reps = document.getElementById('edit-ej-reps')?.value.trim() || "8-10";
+            let cantSeries = parseInt(document.getElementById('edit-ej-series-cant')?.value) || 3;
+            let seriesArray = [];
+            for (let i = 1; i <= cantSeries; i++) {
+                let p = parseFloat(document.getElementById(`edit-serie-peso-${i}`)?.value) || 0;
+                let r = document.getElementById(`edit-serie-reps-${i}`)?.value || "10";
+                seriesArray.push({ peso: p, reps: r });
+            }
+
+            item.seriesConfig = seriesArray;
             item.notas = document.getElementById('edit-ej-notas')?.value.trim() || "";
             
             guardarTodoEnNube();
@@ -1040,12 +1066,19 @@
                         </div>
                     `;
                 } else {
+                    let resumenSeries = "";
+                    if (item.seriesConfig && item.seriesConfig.length > 0) {
+                        resumenSeries = item.seriesConfig.map((s, i) => `S${i+1}: ${s.peso}kg (${s.reps})`).join(' | ');
+                    } else {
+                        resumenSeries = `Series configuradas`;
+                    }
+
                     html += `
                         <div class="card exercise-card" style="margin-bottom: 8px; padding: 12px;">
                             <div class="flex-row" style="justify-content: space-between; align-items: flex-start;">
                                 <div>
                                     <h3 style="color: var(--accent); font-size: 1.05rem; margin-bottom: 4px;">${idx+1}. ${item.nombre}</h3>
-                                    <p style="color: var(--text-muted); font-size: 0.85rem;">Series: ${item.series} | Peso ref: <b>${item.pesoRef || 0} kg</b> | Reps: ${item.reps}</p>
+                                    <p style="color: var(--text-muted); font-size: 0.85rem; line-height: 1.4;">${resumenSeries}</p>
                                     ${item.notas ? `<p style="color: var(--yellow); font-size: 0.85rem; margin-top: 6px; font-style: italic; white-space: pre-wrap;">📝 ${item.notas}</p>` : ''}
                                 </div>
                                 <div class="flex-row" style="gap:5px;">
@@ -1143,7 +1176,6 @@
             if (nom) nom.innerText = item.nombre;
             if (check) check.checked = true;
 
-            // Mostrar especificaciones/notas técnicas en el modo guiado
             const divNotas = document.getElementById('guiado-notas-propias');
             if (divNotas) {
                 if(item.notas) {
@@ -1168,25 +1200,24 @@
                 if (cardMins) cardMins.value = item.minutos || 20;
                 if (cardKm) cardKm.value = item.km || '';
             } else {
-                if (meta) meta.innerText = `Series programadas: ${item.series} | Reps objetivo: ${item.reps}`;
+                if (meta) meta.innerText = `Progresión de peso e intensidad por serie`;
                 if (secFuerza) secFuerza.style.display = 'block';
                 if (secCardio) secCardio.style.display = 'none';
 
-                let pesoSugerido = item.pesoRef || 0;
-                for(let reg of registrosCloud) {
-                    if(reg.detalle) {
-                        let encontrado = reg.detalle.find(d => d.nombre === item.nombre && d.tipo === "fuerza" && d.peso);
-                        if(encontrado) { pesoSugerido = encontrado.peso; break; }
-                    }
-                }
-
-                const lblPeso = document.getElementById('label-guiado-peso');
-                const gPeso = document.getElementById('guiado-peso');
-                const gReps = document.getElementById('guiado-reps');
-
-                if (lblPeso) lblPeso.innerText = `Peso utilizado (kg):`;
-                if (gPeso) gPeso.value = pesoSugerido;
-                if (gReps) gReps.value = item.reps || "8-10";
+                let seriesConfig = item.seriesConfig || [{peso: 0, reps: "10"}, {peso: 0, reps: "10"}, {peso: 0, reps: "10"}];
+                
+                let containerSeriesGuiado = document.getElementById('guiado-series-inputs-container');
+                let htmlSeries = '';
+                seriesConfig.forEach((sc, i) => {
+                    htmlSeries += `
+                        <div class="flex-row" style="margin-bottom: 6px; align-items: center;">
+                            <span style="font-size: 0.85rem; width: 65px; color: var(--accent);">Serie ${i+1}:</span>
+                            <input type="number" placeholder="Peso (kg)" id="guiado-serie-peso-${i}" step="0.5" value="${sc.peso}" style="margin:0; padding: 6px; font-size:0.9rem;">
+                            <input type="text" placeholder="Reps" id="guiado-serie-reps-${i}" value="${sc.reps}" style="margin:0; padding: 6px; font-size:0.9rem;">
+                        </div>
+                    `;
+                });
+                if (containerSeriesGuiado) containerSeriesGuiado.innerHTML = htmlSeries;
             }
             
             detenerDescanso();
@@ -1259,14 +1290,13 @@
                 let mins = parseInt(document.getElementById('guiado-cardio-mins')?.value) || item.minutos || 20;
                 borradorSesion.progresoEjercicios[guiadoIndice] = { nombre: item.nombre, tipo: "cardio", minutos: mins, realizado };
             } else {
-                let p = parseFloat(document.getElementById('guiado-peso')?.value) || 0;
-                let r = document.getElementById('guiado-reps')?.value || item.reps;
-                
+                let seriesConfig = item.seriesConfig || [{peso: 0, reps: "10"}];
                 let seriesArray = [];
-                let cantSeries = item.series || 3;
-                for (let i = 0; i < cantSeries; i++) {
-                    seriesArray.push({ peso: Number(p), reps: Number(r) || 10 });
-                }
+                seriesConfig.forEach((_, i) => {
+                    let p = parseFloat(document.getElementById(`guiado-serie-peso-${i}`)?.value) || 0;
+                    let r = document.getElementById(`guiado-serie-reps-${i}`)?.value || "10";
+                    seriesArray.push({ peso: p, reps: r });
+                });
 
                 borradorSesion.progresoEjercicios[guiadoIndice] = { 
                     nombre: item.nombre, 
@@ -1303,7 +1333,7 @@
                             ejerciciosRealizados.push({
                                 nombre: prog.nombre,
                                 tipo: "fuerza",
-                                series: prog.series || [{ peso: 0, reps: 10 }],
+                                series: prog.series || [{ peso: 0, reps: "10" }],
                                 realizado: true
                             });
                         }
@@ -1319,7 +1349,7 @@
                 duracionMin: Math.floor(segundosSesion / 60),
                 volumenTotal: ejerciciosRealizados.reduce((acc, ex) => {
                     if (ex.tipo === "cardio") return acc;
-                    const totalSeries = (ex.series || []).reduce((sAcc, s) => sAcc + (Number(s.peso) * Number(s.reps)), 0);
+                    const totalSeries = (ex.series || []).reduce((sAcc, s) => sAcc + (Number(s.peso) * Number(s.reps || 0)), 0);
                     return acc + totalSeries;
                 }, 0),
                 calorias: ejerciciosRealizados.reduce((acc, ex) => {
@@ -1330,15 +1360,12 @@
                     if (ex.tipo === "cardio") {
                         return { nombre: ex.nombre, tipo: "cardio", minutos: ex.minutos, calorias: (ex.minutos || 20) * 9, realizado: true };
                     }
-                    let volEx = (ex.series || []).reduce((sAcc, s) => sAcc + (Number(s.peso) * Number(s.reps)), 0);
-                    let repsStr = (ex.series || []).map(s => s.reps).join(', ');
-                    let pesoProm = (ex.series || []).length > 0 ? (ex.series[0].peso || 0) : 0;
+                    let volEx = (ex.series || []).reduce((sAcc, s) => sAcc + (Number(s.peso) * Number(s.reps || 0)), 0);
+                    let resumenSeriesStr = (ex.series || []).map((s, idx) => `S${idx+1}: ${s.peso}kgx${s.reps}`).join(' | ');
                     return {
                         nombre: ex.nombre,
                         tipo: "fuerza",
-                        series: ex.series.length,
-                        peso: pesoProm,
-                        reps: repsStr,
+                        seriesResumen: resumenSeriesStr,
                         volumen: volEx,
                         realizado: true
                     };
@@ -1363,16 +1390,10 @@
                 let totalEntrenos = registrosCloud.length;
                 let ultimo = totalEntrenos > 0 ? registrosCloud[0] : null;
                 
-                if(tipo === 'semanal') {
-                    box.innerText = `📊 ANÁLISIS SEMANAL (IA):\n\n` +
-                    `- Constancia: ¡Excelente ritmo de entrenamiento constante!\n` +
-                    `- Última sesión registrada (${ultimo ? ultimo.rutina : 'Ninguna'}): Volumen total de ${ultimo ? (ultimo.volumenTotal !== undefined ? ultimo.volumenTotal : ultimo.volumen) : 0} kg.\n` +
-                    `- Recomendación profesional: Aprovechá los pesos de referencia y notas detalladas para asegurar una progresión de cargas constante.`;
-                } else {
-                    box.innerText = `📅 REPORTE MENSUAL (IA):\n\n` +
-                    `- Actividad Global: Tus rutinas con pesos personalizados se están ejecutando con gran consistencia.\n` +
-                    `- Recomendación profesional: Recordá validar las series y asegurar un descanso de 90 a 120 segundos para maximizar rendimiento.`;
-                }
+                box.innerText = `📊 ANÁLISIS DE PROGRESIÓN (IA):\n\n` +
+                `- Constancia: ¡Excelente ritmo y uso de cargas individuales por serie!\n` +
+                `- Última sesión registrada (${ultimo ? ultimo.rutina : 'Ninguna'}): Volumen total de ${ultimo ? (ultimo.volumenTotal || 0) : 0} kg.\n` +
+                `- Recomendación profesional: Sigue aplicando sobrecarga progresiva en tus series pesadas.`;
             }, 1000);
         }
 
@@ -1419,7 +1440,7 @@
                         if(d.tipo === "cardio") {
                             html += `<div style="background:#0f172a; padding:8px; border-radius:6px; margin-top:6px;">• <b>${d.nombre}</b>: ${d.minutos} mins</div>`;
                         } else {
-                            html += `<div style="background:#0f172a; padding:8px; border-radius:6px; margin-top:6px;">• <b>${d.nombre}</b><br>&nbsp;&nbsp;Peso: <b>${d.peso} kg</b> | Reps: <b>${d.reps}</b> | Vol: ${d.volumen || 0} kg</div>`;
+                            html += `<div style="background:#0f172a; padding:8px; border-radius:6px; margin-top:6px;">• <b>${d.nombre}</b><br>&nbsp;&nbsp;${d.seriesResumen || ''} | Vol: ${d.volumen || 0} kg</div>`;
                         }
                     } else {
                         html += `<div style="background:#0f172a; padding:8px; border-radius:6px; margin-top:6px; opacity:0.6;">• <b>${d.nombre}</b> (No realizado)</div>`;
@@ -1482,11 +1503,6 @@
             if(calMesActual > 11) { calMesActual = 0; calAnioActual++; }
             if(calMesActual < 0) { calMesActual = 11; calAnioActual--; }
             renderizarCalendario();
-        }
-
-        function renderizarRecords() {
-            const cont = document.getElementById('records-container');
-            if (cont) cont.innerHTML = '<div class="card"><p style="color:var(--text-muted);">Tus récords personales (PRs) se calculan automáticamente y se actualizan con cada sesión registrada en la nube.</p></div>';
         }
 
         function abrirCalculadoraDiscos() { 
