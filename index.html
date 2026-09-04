@@ -579,7 +579,7 @@
         </div>
     </div>
 
-    <!-- ================= SCRIPT COMPLETO CORREGIDO ================= -->
+    <!-- ================= SCRIPT COMPLETO INTEGRADO ================= -->
     <script>
         /* ==========================================
            CONFIGURACIÓN FIREBASE (Cloud Firestore)
@@ -636,6 +636,11 @@
         let segundosDescansoRestantes = 90;
         let calAnioActual = new Date().getFullYear();
         let calMesActual = new Date().getMonth();
+
+        // Simulación o endpoint de IA para especificaciones técnicas opcionales (Parche 1)
+        async function obtenerEspecificacionesDeIA(nombreEjercicio) {
+            return `Pautas técnicas sugeridas por IA para ${nombreEjercicio}: Mantén una ejecución controlada, respira de forma sincronizada y asegúrate de completar el rango completo de movimiento sin compensar con otros grupos musculares.`;
+        }
 
         async function sincronizarConNubeAlIniciar() {
             if(!usarseNube || !dbCloud) {
@@ -875,13 +880,13 @@
                 let mins = parseInt(document.getElementById('cardio-minutos')?.value) || 20;
                 let km = parseFloat(document.getElementById('cardio-km')?.value) || 0;
                 let notas = document.getElementById('cardio-notas')?.value.trim() || "";
-                rutinasPersonalizadas[rutinaSeleccionadaKey].push({ nombre: nombreFinal, minutos: mins, km, notas, tipo: "cardio" });
+                rutinasPersonalizadas[rutinaSeleccionadaKey].push({ id: Date.now() + Math.random(), nombre: nombreFinal, minutos: mins, km, notas, tipo: "cardio" });
             } else {
                 let series = parseInt(document.getElementById('input-series-nuevo')?.value) || 3;
                 let pesoRef = parseFloat(document.getElementById('input-peso-nuevo')?.value) || 0;
                 let reps = document.getElementById('input-reps-nuevo')?.value.trim() || "8-10";
                 let notas = document.getElementById('input-notas-nuevo')?.value.trim() || "";
-                rutinasPersonalizadas[rutinaSeleccionadaKey].push({ nombre: nombreFinal, series, pesoRef, reps, notas, tipo: "fuerza" });
+                rutinasPersonalizadas[rutinaSeleccionadaKey].push({ id: Date.now() + Math.random(), nombre: nombreFinal, series, pesoRef, reps, notas, tipo: "fuerza" });
             }
             guardarTodoEnNube();
             renderizarEjerciciosRutinaActual();
@@ -1195,12 +1200,26 @@
             } else {
                 let p = parseFloat(document.getElementById('guiado-peso')?.value) || 0;
                 let r = document.getElementById('guiado-reps')?.value || item.reps;
-                borradorSesion.progresoEjercicios[guiadoIndice] = { nombre: item.nombre, tipo: "fuerza", series: item.series, peso: p, reps: r, realizado };
+                
+                // Mapeo adaptado con el Parche 2 para asegurar series estructuradas con { peso, reps }
+                let seriesArray = [];
+                let cantSeries = item.series || 3;
+                for (let i = 0; i < cantSeries; i++) {
+                    seriesArray.push({ peso: Number(p), reps: Number(r) || 10 });
+                }
+
+                borradorSesion.progresoEjercicios[guiadoIndice] = { 
+                    nombre: item.nombre, 
+                    tipo: "fuerza", 
+                    series: seriesArray, 
+                    realizado 
+                };
             }
             guardarProgresoActualBorrador();
         }
 
-        function finalizarEntrenamientoGuiado() {
+        // Función integrada con el Parche 2 para finalizar y mapear correctamente los datos de la sesión activa
+        const finalizarEntrenamientoGuiado = async () => {
             guardarPasoActualBorradorParcial();
             if(cronometroSesionInterval) clearInterval(cronometroSesionInterval);
             if(descansoInterval) clearInterval(descansoInterval);
@@ -1210,54 +1229,70 @@
             let fechaStr = ahora.toLocaleDateString();
             let horaStr = ahora.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 
-            let volumenTotalSesion = 0;
-            let caloriasTotalesSesion = 0;
-            let detalleEjercicios = [];
-
-            lista.forEach((item, idx) => {
-                let datosProgreso = borradorSesion?.progresoEjercicios?.[idx];
-                let realizado = datosProgreso ? datosProgreso.realizado : true;
-
-                if(realizado) {
-                    if(item.tipo === "cardio") {
-                        let mins = datosProgreso?.minutos || item.minutos || 20;
-                        let kcal = mins * 9;
-                        caloriasTotalesSesion += kcal;
-                        detalleEjercicios.push({ nombre: item.nombre, tipo: "cardio", minutos: mins, calorias: kcal, realizado: true });
-                    } else {
-                        let p = datosProgreso?.peso || item.pesoRef || 0;
-                        let r = datosProgreso?.reps || item.reps;
-                        let repsArr = String(r).split(/[-,\s]+/).map(x => parseInt(x)).filter(x => !isNaN(x));
-                        let totalReps = repsArr.reduce((a,b)=>a+b, 0) || (item.series * 10);
-                        let vol = p * totalReps;
-                        volumenTotalSesion += vol;
-                        let kcal = 40; 
-                        caloriasTotalesSesion += kcal;
-                        detalleEjercicios.push({ nombre: item.nombre, tipo: "fuerza", series: item.series, peso: p, reps: r, volumen: vol, realizado: true });
+            let ejerciciosRealizados = [];
+            if (borradorSesion && borradorSesion.progresoEjercicios) {
+                borradorSesion.progresoEjercicios.forEach((prog, idx) => {
+                    if (prog && prog.realizado) {
+                        if (prog.tipo === "cardio") {
+                            ejerciciosRealizados.push({
+                                nombre: prog.nombre,
+                                tipo: "cardio",
+                                minutos: prog.minutos,
+                                realizado: true
+                            });
+                        } else {
+                            ejerciciosRealizados.push({
+                                nombre: prog.nombre,
+                                tipo: "fuerza",
+                                series: prog.series || [{ peso: 0, reps: 10 }],
+                                realizado: true
+                            });
+                        }
                     }
-                } else {
-                    detalleEjercicios.push({ nombre: item.nombre, realizado: false });
-                }
-            });
+                });
+            }
 
-            let registroFinal = {
+            const resumenSesion = {
                 id: Date.now(),
                 fecha: fechaStr,
                 hora: horaStr,
                 rutina: rutinaSeleccionadaKey,
-                volumen: volumenTotalSesion,
-                calorias: caloriasTotalesSesion,
                 duracionMin: Math.floor(segundosSesion / 60),
-                detalle: detalleEjercicios
+                volumenTotal: ejerciciosRealizados.reduce((acc, ex) => {
+                    if (ex.tipo === "cardio") return acc;
+                    const totalSeries = (ex.series || []).reduce((sAcc, s) => sAcc + (Number(s.peso) * Number(s.reps)), 0);
+                    return acc + totalSeries;
+                }, 0),
+                calorias: ejerciciosRealizados.reduce((acc, ex) => {
+                    if (ex.tipo === "cardio") return acc + ((ex.minutos || 20) * 9);
+                    return acc + 40;
+                }, 0),
+                detalle: ejerciciosRealizados.map(ex => {
+                    if (ex.tipo === "cardio") {
+                        return { nombre: ex.nombre, tipo: "cardio", minutos: ex.minutos, calorias: (ex.minutos || 20) * 9, realizado: true };
+                    }
+                    let volEx = (ex.series || []).reduce((sAcc, s) => sAcc + (Number(s.peso) * Number(s.reps)), 0);
+                    let repsStr = (ex.series || []).map(s => s.reps).join(', ');
+                    let pesoProm = (ex.series || []).length > 0 ? (ex.series[0].peso || 0) : 0;
+                    return {
+                        nombre: ex.nombre,
+                        tipo: "fuerza",
+                        series: ex.series.length,
+                        peso: pesoProm,
+                        reps: repsStr,
+                        volumen: volEx,
+                        realizado: true
+                    };
+                })
             };
 
-            registrosCloud.unshift(registroFinal);
+            registrosCloud.unshift(resumenSesion);
             borradorSesion = null;
             guardarTodoEnNube();
 
-            alert(`🎉 ¡Entrenamiento guardado y sincronizado en la nube!\nVolumen total: ${volumenTotalSesion} kg\nCalorías aprox: ${caloriasTotalesSesion} kcal`);
+            alert(`🎉 ¡Entrenamiento guardado y sincronizado en la nube!\nVolumen total: ${resumenSesion.volumenTotal} kg\nCalorías aprox: ${resumenSesion.calorias} kcal`);
             irA('view-home');
-        }
+        };
 
         function consultarIA(tipo) {
             const box = document.getElementById('ia-respuesta-box');
@@ -1272,7 +1307,7 @@
                 if(tipo === 'semanal') {
                     box.innerText = `📊 ANÁLISIS SEMANAL (IA):\n\n` +
                     `- Constancia: ¡Excelente ritmo de entrenamiento constante!\n` +
-                    `- Última sesión registrada (${ultimo ? ultimo.rutina : 'Ninguna'}): Volumen total de ${ultimo ? ultimo.volumen : 0} kg.\n` +
+                    `- Última sesión registrada (${ultimo ? ultimo.rutina : 'Ninguna'}): Volumen total de ${ultimo ? ultimo.volumenTotal || ultimo.volumen : 0} kg.\n` +
                     `- Recomendación profesional: Aprovechá los pesos de referencia y notas detalladas para asegurar una progresión de cargas constante.`;
                 } else {
                     box.innerText = `📅 REPORTE MENSUAL (IA):\n\n` +
@@ -1290,13 +1325,14 @@
                 html = '<p style="color:var(--text-muted);">No hay entrenamientos guardados todavía.</p>';
             } else {
                 registrosCloud.forEach(r => {
+                    let volMostrado = r.volumenTotal !== undefined ? r.volumenTotal : (r.volumen || 0);
                     html += `
                         <div style="background: #0f172a; padding: 14px; border-radius: 8px; margin-bottom: 12px; font-size: 0.9rem; border-left: 4px solid var(--accent); cursor: pointer;" onclick="abrirDetalleHistorial(${r.id})">
                             <div class="flex-row" style="justify-content: space-between;">
                                 <strong style="color: var(--accent); font-size: 1rem;">📅 ${r.rutina}</strong>
                                 <span style="color: var(--text-muted);">${r.fecha} - ${r.hora}</span>
                             </div>
-                            <div style="margin-top: 6px;">Volumen total: <strong>${r.volumen || 0} kg</strong> | ⚡ Calorías: <strong style="color:var(--orange);">${r.calorias || 0} kcal</strong> | ⏱️ ${r.duracionMin || 0} mins</div>
+                            <div style="margin-top: 6px;">Volumen total: <strong>${volMostrado} kg</strong> | ⚡ Calorías: <strong style="color:var(--orange);">${r.calorias || 0} kcal</strong> | ⏱️ ${r.duracionMin || 0} mins</div>
                             <div style="color: var(--text-muted); font-size: 0.8rem; margin-top: 4px;">🔍 Hacé clic para ver detalle completo.</div>
                         </div>
                     `;
@@ -1314,7 +1350,8 @@
             const modalDetalle = document.getElementById('modal-detalle-historial');
 
             if (tituloModal) tituloModal.innerText = `Sesión: ${r.rutina} (${r.fecha})`;
-            let html = `<p style="margin-bottom:8px; color:var(--text-muted);">⏱️ Duración: ${r.duracionMin || 0} min | Volumen: <b>${r.volumen} kg</b> | Calorías: <span style="color:var(--orange);">${r.calorias} kcal</span></p>`;
+            let volMostrado = r.volumenTotal !== undefined ? r.volumenTotal : (r.volumen || 0);
+            let html = `<p style="margin-bottom:8px; color:var(--text-muted);">⏱️ Duración: ${r.duracionMin || 0} min | Volumen: <b>${volMostrado} kg</b> | Calorías: <span style="color:var(--orange);">${r.calorias} kcal</span></p>`;
             html += `<h4 style="margin-top:10px; color:var(--accent);">Ejercicios Realizados:</h4>`;
             
             if(r.detalle && r.detalle.length > 0) {
@@ -1323,7 +1360,7 @@
                         if(d.tipo === "cardio") {
                             html += `<div style="background:#0f172a; padding:8px; border-radius:6px; margin-top:6px;">• <b>${d.nombre}</b>: ${d.minutos} mins</div>`;
                         } else {
-                            html += `<div style="background:#0f172a; padding:8px; border-radius:6px; margin-top:6px;">• <b>${d.nombre}</b><br>&nbsp;&nbsp;Peso: <b>${d.peso} kg</b> | Reps: <b>${d.reps}</b> | Vol: ${d.volumen} kg</div>`;
+                            html += `<div style="background:#0f172a; padding:8px; border-radius:6px; margin-top:6px;">• <b>${d.nombre}</b><br>&nbsp;&nbsp;Peso: <b>${d.peso} kg</b> | Reps: <b>${d.reps}</b> | Vol: ${d.volumen || 0} kg</div>`;
                         }
                     } else {
                         html += `<div style="background:#0f172a; padding:8px; border-radius:6px; margin-top:6px; opacity:0.6;">• <b>${d.nombre}</b> (No realizado)</div>`;
