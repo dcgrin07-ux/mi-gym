@@ -233,6 +233,7 @@
             align-items: center;
             font-size: 0.85rem;
             border: 1px solid transparent;
+            cursor: pointer;
         }
         .cal-day.trained {
             border-color: var(--accent);
@@ -277,27 +278,25 @@
                 </div>
             </div>
 
-            <!-- Dashboard Estadísticas -->
+            <!-- Dashboard / Calendario Integrado en Home -->
             <div class="card">
-                <h3 style="font-size: 1rem; margin-bottom: 12px; color: var(--accent);">📊 Resumen del Mes</h3>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
-                    <div style="background: var(--bg-input); padding: 10px; border-radius: 8px;">
-                        <span style="font-size: 0.75rem; color: var(--text-muted);">Días entrenados</span>
-                        <h4 id="dash-cant-mes" style="font-size: 1.2rem;">0</h4>
-                    </div>
-                    <div style="background: var(--bg-input); padding: 10px; border-radius: 8px;">
-                        <span style="font-size: 0.75rem; color: var(--text-muted);">Volumen movido</span>
-                        <h4 id="dash-volumen-mes" style="font-size: 1.2rem; color: var(--success);">0 kg</h4>
-                    </div>
+                <div class="flex-row" style="justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <button class="btn btn-secondary" style="width: auto; margin:0; padding: 4px 10px; font-size: 0.8rem;" onclick="cambiarMesHomeCalendario(-1)">◀</button>
+                    <h3 id="home-cal-mes-titulo" style="font-size: 0.95rem; color: var(--accent);">Mes Año</h3>
+                    <button class="btn btn-secondary" style="width: auto; margin:0; padding: 4px 10px; font-size: 0.8rem;" onclick="cambiarMesHomeCalendario(1)">▶</button>
                 </div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                    <div style="background: var(--bg-input); padding: 10px; border-radius: 8px;">
-                        <span style="font-size: 0.75rem; color: var(--text-muted);">Calorías aprox.</span>
-                        <h4 id="dash-calorias-mes" style="font-size: 1.2rem; color: var(--orange);">0 kcal</h4>
+                <div class="cal-grid" style="margin-bottom: 4px;">
+                    <div class="cal-header">L</div><div class="cal-header">M</div><div class="cal-header">X</div><div class="cal-header">J</div><div class="cal-header">V</div><div class="cal-header">S</div><div class="cal-header">D</div>
+                </div>
+                <div id="home-cal-grid" class="cal-grid"></div>
+                <div style="margin-top: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                    <div style="background: var(--bg-input); padding: 8px; border-radius: 6px; text-align: center;">
+                        <span style="font-size: 0.7rem; color: var(--text-muted);">Entrenos del Mes</span>
+                        <h4 id="home-stat-dias" style="font-size: 1.1rem; color: var(--accent);">0</h4>
                     </div>
-                    <div style="background: var(--bg-input); padding: 10px; border-radius: 8px;">
-                        <span style="font-size: 0.75rem; color: var(--text-muted);">Último entreno</span>
-                        <h4 id="dash-ultimo-entreno" style="font-size: 0.9rem; margin-top:2px;">Ninguno</h4>
+                    <div style="background: var(--bg-input); padding: 8px; border-radius: 6px; text-align: center;">
+                        <span style="font-size: 0.7rem; color: var(--text-muted);">Calorías Acumuladas</span>
+                        <h4 id="home-stat-kcal" style="font-size: 1.1rem; color: var(--orange);">0 kcal</h4>
                     </div>
                 </div>
             </div>
@@ -375,7 +374,7 @@
                 </div>
 
                 <div style="margin-top: 10px;">
-                    <label>Notas técnicas o instrucciones (opcional):</label>
+                    <label>Notas técnicas o instrucciones (Especificaciones):</label>
                     <textarea id="input-notas-nuevo" placeholder="Ej: Mantener codos fijos, pausa de 1 seg arriba..." rows="2" style="resize:none;"></textarea>
                 </div>
 
@@ -435,9 +434,9 @@
                     <label for="check-realizado" style="margin:0; color:var(--text-main); font-size:0.9rem;">Ejercicio realizado en esta sesión</label>
                 </div>
 
-                <!-- Temporizador de descanso -->
-                <div id="timer-box-container" style="background: var(--bg-input); padding: 12px; border-radius: 8px; text-align: center; margin-bottom: 12px;">
-                    <span style="font-size: 0.8rem; color: var(--text-muted);">⏱️ Descanso sugerido</span>
+                <!-- Temporizador de descanso (OCULTO por defecto hasta que se active) -->
+                <div id="timer-box-container" style="display:none; background: var(--bg-input); padding: 12px; border-radius: 8px; text-align: center; margin-bottom: 12px; border: 1px dashed var(--accent);">
+                    <span style="font-size: 0.8rem; color: var(--text-muted);">⏱️ Temporizador de Descanso</span>
                     <h3 id="display-descanso" style="font-size: 1.5rem; color: var(--accent); margin: 4px 0;">01:30</h3>
                     <div class="flex-row" style="justify-content: center; gap: 6px;">
                         <button class="btn btn-secondary" style="width: auto; padding: 4px 8px; font-size:0.75rem; margin:0;" onclick="setearDescanso(60)">1 min</button>
@@ -447,9 +446,13 @@
                     </div>
                 </div>
 
+                <div class="flex-row" style="gap: 8px; margin-bottom: 8px;">
+                    <button class="btn btn-primary" style="background: var(--success); color:#fff; margin:0;" onclick="iniciarCronometroDescanso(90)">⏱️ Iniciar Descanso (1:30)</button>
+                </div>
+
                 <div class="flex-row">
                     <button class="btn btn-secondary" onclick="guiadoAnterior()">⬅ Anterior</button>
-                    <button class="btn btn-primary" onclick="iniciarCronometroDescanso(90); setTimeout(guiadoSiguiente, 300)">Siguiente ➡</button>
+                    <button class="btn btn-primary" onclick="detenerDescanso(); guiadoSiguiente()">Siguiente ➡</button>
                 </div>
             </div>
 
@@ -523,7 +526,7 @@
     <!-- Modal Editar Ejercicio -->
     <div id="modal-editar-ejercicio" class="modal">
         <div class="modal-content">
-            <h3 style="color: var(--accent); margin-bottom: 10px;">Editar Ejercicio</h3>
+            <h3 style="color: var(--accent); margin-bottom: 10px;">Editar Ejercicio / Especificaciones</h3>
             <input type="hidden" id="edit-ej-idx">
             <label>Series</label>
             <input type="number" id="edit-ej-series">
@@ -531,8 +534,8 @@
             <input type="number" id="edit-ej-peso" step="0.5">
             <label>Reps Objetivo</label>
             <input type="text" id="edit-ej-reps">
-            <label>Notas técnicas / Instrucciones (Especificaciones)</label>
-            <textarea id="edit-ej-notas" rows="3" placeholder="Escribe aquí las pautas técnicas, postura, regulaciones o notas del ejercicio..." style="resize:none;"></textarea>
+            <label>Especificaciones / Notas técnicas (Carga Manual)</label>
+            <textarea id="edit-ej-notas" rows="3" placeholder="Escribe aquí las pautas técnicas, postura, regulaciones..." style="resize:none;"></textarea>
             <div class="flex-row">
                 <button class="btn btn-secondary" onclick="cerrarModalEditarEjercicio()">Cancelar</button>
                 <button class="btn btn-primary" onclick="guardarEdicionEjercicio()">Actualizar</button>
@@ -616,13 +619,13 @@
         /* ==========================================
            ESTADO DE LA APLICACIÓN
            ========================================== */
-        let rutinasPersonalizadas = JSON.parse(localStorage.getItem('mi_gym_rutinas_v33') || JSON.stringify({
+        let rutinasPersonalizadas = JSON.parse(localStorage.getItem('mi_gym_rutinas_v34') || JSON.stringify({
             "Rutina A": []
         }));
 
-        let registrosCloud = JSON.parse(localStorage.getItem('mi_gym_registros_v33') || '[]');
-        let perfilCloud = JSON.parse(localStorage.getItem('mi_gym_perfil_v33') || '{"peso": 90}');
-        let borradorSesion = JSON.parse(localStorage.getItem('mi_gym_borrador_v33') || 'null');
+        let registrosCloud = JSON.parse(localStorage.getItem('mi_gym_registros_v34') || '[]');
+        let perfilCloud = JSON.parse(localStorage.getItem('mi_gym_perfil_v34') || '{"peso": 90}');
+        let borradorSesion = JSON.parse(localStorage.getItem('mi_gym_borrador_v34') || 'null');
 
         let rutinaSeleccionadaKey = '';
         let guiadoIndice = 0;
@@ -630,8 +633,11 @@
         let segundosSesion = 0;
         let descansoInterval = null;
         let segundosDescansoRestantes = 90;
+        
         let calAnioActual = new Date().getFullYear();
         let calMesActual = new Date().getMonth();
+        let homeCalAnioActual = new Date().getFullYear();
+        let homeCalMesActual = new Date().getMonth();
 
         async function sincronizarConNubeAlIniciar() {
             if(!usarseNube || !dbCloud) {
@@ -677,10 +683,10 @@
         }
 
         function guardarLocal() {
-            localStorage.setItem('mi_gym_rutinas_v33', JSON.stringify(rutinasPersonalizadas));
-            localStorage.setItem('mi_gym_registros_v33', JSON.stringify(registrosCloud));
-            localStorage.setItem('mi_gym_perfil_v33', JSON.stringify(perfilCloud));
-            localStorage.setItem('mi_gym_borrador_v33', JSON.stringify(borradorSesion));
+            localStorage.setItem('mi_gym_rutinas_v34', JSON.stringify(rutinasPersonalizadas));
+            localStorage.setItem('mi_gym_registros_v34', JSON.stringify(registrosCloud));
+            localStorage.setItem('mi_gym_perfil_v34', JSON.stringify(perfilCloud));
+            localStorage.setItem('mi_gym_borrador_v34', JSON.stringify(borradorSesion));
         }
 
         function actualizarEstadoCloud(sincronizado, texto) {
@@ -726,36 +732,7 @@
                 bannerBorrador.style.display = borradorSesion ? 'block' : 'none';
             }
 
-            const ultimoEntreno = document.getElementById('dash-ultimo-entreno');
-            if (ultimoEntreno) {
-                if(registrosCloud.length > 0) {
-                    let ultimo = registrosCloud[0];
-                    ultimoEntreno.innerText = `${ultimo.fecha} (${ultimo.rutina})`;
-                } else {
-                    ultimoEntreno.innerText = 'Ninguno';
-                }
-            }
-
-            let mesActualStr = String(new Date().getMonth() + 1).padStart(2, '0');
-            let anioActualStr = String(new Date().getFullYear());
-            
-            let regsMes = registrosCloud.filter(r => {
-                if (!r.fecha) return false;
-                let p = r.fecha.split('/');
-                return p[1] === mesActualStr && p[2] === anioActualStr;
-            });
-
-            let diasUnicos = new Set(regsMes.map(r => r.fecha)).size;
-            const cantMes = document.getElementById('dash-cant-mes');
-            if (cantMes) cantMes.innerText = diasUnicos;
-
-            let volMes = regsMes.reduce((acc, r) => acc + (r.volumenTotal || 0), 0);
-            const volMesEl = document.getElementById('dash-volumen-mes');
-            if (volMesEl) volMesEl.innerText = `${volMes.toLocaleString()} kg`;
-
-            let kcalMes = regsMes.reduce((acc, r) => acc + (r.calorias || 0), 0);
-            const kcalMesEl = document.getElementById('dash-calorias-mes');
-            if (kcalMesEl) kcalMesEl.innerText = `${kcalMes.toLocaleString()} kcal`;
+            renderizarHomeCalendario();
 
             const cont = document.getElementById('lista-rutinas-home-container');
             if (!cont) return;
@@ -771,6 +748,63 @@
                 `;
             });
             cont.innerHTML = html || '<p style="color:var(--text-muted); font-size:0.9rem;">No hay rutinas creadas todavía.</p>';
+        }
+
+        function renderizarHomeCalendario() {
+            const meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Setiembre", "Octubre", "Noviembre", "Diciembre"];
+            const titulo = document.getElementById('home-cal-mes-titulo');
+            if (titulo) titulo.innerText = `${meses[homeCalMesActual]} ${homeCalAnioActual}`;
+
+            let primerDia = new Date(homeCalAnioActual, homeCalMesActual, 1).getDay();
+            primerDia = primerDia === 0 ? 6 : primerDia - 1;
+            let totalDias = new Date(homeCalAnioActual, homeCalMesActual + 1, 0).getDate();
+
+            let diasEntrenados = {};
+            let cantMes = 0;
+            let kcalMes = 0;
+
+            registrosCloud.forEach(r => {
+                if (!r.fecha) return;
+                let p = r.fecha.split('/');
+                if(p.length === 3 && parseInt(p[1]) === (homeCalMesActual + 1) && parseInt(p[2]) === homeCalAnioActual) {
+                    let dNum = parseInt(p[0]);
+                    diasEntrenados[dNum] = r.rutina;
+                    cantMes++;
+                    kcalMes += (r.calorias || 0);
+                }
+            });
+
+            const statDias = document.getElementById('home-stat-dias');
+            const statKcal = document.getElementById('home-stat-kcal');
+            if (statDias) statDias.innerText = Object.keys(diasEntrenados).length;
+            if (statKcal) statKcal.innerText = `${kcalMes.toLocaleString()} kcal`;
+
+            let grid = '';
+            for(let i=0; i<primerDia; i++) grid += `<div class="cal-day" style="opacity:0; border:none; cursor:default;"></div>`;
+            
+            let hoy = new Date();
+            for(let d=1; d<=totalDias; d++) {
+                let ent = diasEntrenados[d];
+                let esHoy = (d === hoy.getDate() && homeCalMesActual === hoy.getMonth() && homeCalAnioActual === hoy.getFullYear());
+                let cls = ent ? 'trained' : '';
+                if(esHoy) cls += ' today';
+
+                grid += `
+                    <div class="cal-day ${cls}" onclick="alert('${ent ? `Entrenamiento registrado: ${ent} (Día ${d})` : `Día ${d}: Sin entrenamientos`}')">
+                        <strong style="font-size:0.8rem;">${d}</strong>
+                        ${ent ? '<span style="font-size:0.5rem; color:var(--accent);">✔</span>' : ''}
+                    </div>
+                `;
+            }
+            const gridEl = document.getElementById('home-cal-grid');
+            if (gridEl) gridEl.innerHTML = grid;
+        }
+
+        function cambiarMesHomeCalendario(dir) {
+            homeCalMesActual += dir;
+            if(homeCalMesActual > 11) { homeCalMesActual = 0; homeCalAnioActual++; }
+            if(homeCalMesActual < 0) { homeCalMesActual = 11; homeCalAnioActual--; }
+            renderizarHomeCalendario();
         }
 
         function abrirModalCrearRutina() { 
@@ -867,17 +901,17 @@
                 rutinasPersonalizadas[rutinaSeleccionadaKey] = [];
             }
 
+            let notasManuales = document.getElementById('input-notas-nuevo')?.value.trim() || "";
+
             if(esCardio) {
                 let mins = parseInt(document.getElementById('cardio-minutos')?.value) || 20;
                 let km = parseFloat(document.getElementById('cardio-km')?.value) || 0;
-                let notas = document.getElementById('input-notas-nuevo')?.value.trim() || "";
-                rutinasPersonalizadas[rutinaSeleccionadaKey].push({ id: Date.now() + Math.random(), nombre: nombreFinal, minutos: mins, km, notas, tipo: "cardio" });
+                rutinasPersonalizadas[rutinaSeleccionadaKey].push({ id: Date.now() + Math.random(), nombre: nombreFinal, minutos: mins, km, notas: notasManuales, tipo: "cardio" });
             } else {
                 let series = parseInt(document.getElementById('input-series-nuevo')?.value) || 3;
                 let pesoRef = parseFloat(document.getElementById('input-peso-nuevo')?.value) || 0;
                 let reps = document.getElementById('input-reps-nuevo')?.value.trim() || "8-10";
-                let notas = document.getElementById('input-notas-nuevo')?.value.trim() || "";
-                rutinasPersonalizadas[rutinaSeleccionadaKey].push({ id: Date.now() + Math.random(), nombre: nombreFinal, series, pesoRef, reps, notas, tipo: "fuerza" });
+                rutinasPersonalizadas[rutinaSeleccionadaKey].push({ id: Date.now() + Math.random(), nombre: nombreFinal, series, pesoRef, reps, notas: notasManuales, tipo: "fuerza" });
             }
             guardarTodoEnNube();
             renderizarEjerciciosRutinaActual();
@@ -1017,6 +1051,7 @@
             guardarProgresoActualBorrador();
             if(cronometroSesionInterval) clearInterval(cronometroSesionInterval);
             if(descansoInterval) clearInterval(descansoInterval);
+            detenerDescanso();
             irA('view-home');
         }
 
@@ -1026,6 +1061,7 @@
                 guardarLocal();
                 if(cronometroSesionInterval) clearInterval(cronometroSesionInterval);
                 if(descansoInterval) clearInterval(descansoInterval);
+                detenerDescanso();
                 irA('view-home');
             }
         }
@@ -1106,8 +1142,8 @@
                 if (gReps) gReps.value = item.reps || "8-10";
             }
             
-            // Asegurar que el cronómetro de descanso inicie automáticamente al pasar al ejercicio
-            iniciarCronometroDescanso(90);
+            // Garantizar que el temporizador de descanso comience OCULTO al cambiar de ejercicio
+            detenerDescanso();
         }
 
         function iniciarCronometroDescanso(segundos = 90) {
@@ -1196,11 +1232,11 @@
             guardarProgresoActualBorrador();
         }
 
-        // Función integrada con el mapeo correcto de datos para calcular el volumen y evitar ceros
         const finalizarEntrenamientoGuiado = async () => {
             guardarPasoActualBorradorParcial();
             if(cronometroSesionInterval) clearInterval(cronometroSesionInterval);
             if(descansoInterval) clearInterval(descansoInterval);
+            detenerDescanso();
 
             let ahora = new Date();
             let fechaStr = ahora.toLocaleDateString();
@@ -1375,7 +1411,7 @@
             });
 
             let grid = '';
-            for(let i=0; i<primerDia; i++) grid += `<div class="cal-day" style="opacity:0; border:none;"></div>`;
+            for(let i=0; i<primerDia; i++) grid += `<div class="cal-day" style="opacity:0; border:none; cursor:default;"></div>`;
             
             let hoy = new Date();
             for(let d=1; d<=totalDias; d++) {
