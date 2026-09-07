@@ -245,7 +245,7 @@ color: var(--accent);
 }
 </style>
 </head>
-<body onload="sincronizarConNubeAlIniciar()"> 
+<body> 
 
 <header>
 <h1>🏋️‍♂️ Mi Gym La Cima</h1>
@@ -567,7 +567,7 @@ color: var(--accent);
 </div>
 </div> 
 
-<!-- ================= SCRIPT COMPLETO INTEGRADO ================= -->
+<!-- ================= SCRIPT COMPLETO INTEGRADO Y CORREGIDO ================= -->
 <script>
 const firebaseConfig = {
 apiKey: "AIzaSyA3N-mLUaTF9jUshNosUiWpso0-934H_fo",
@@ -719,12 +719,27 @@ let html = '';
 Object.keys(rutinasPersonalizadas).forEach(key => {
 let cantEjercicios = Array.isArray(rutinasPersonalizadas[key]) ? rutinasPersonalizadas[key].length : 0;
 html += `<div class="flex-row" style="margin-bottom: 8px;"> 
-  <button class="btn btn-primary" style="margin:0; flex:1;" onclick="seleccionarRutina('${key}')">📅 ${key} (${cantEjercicios} ejercicios)</button>
-  <button class="btn btn-danger" style="width: auto; margin:0; padding: 12px 14px;" onclick="eliminarRutina('${key}')">🗑️</button> 
+<button class="btn btn-primary" style="margin:0; flex:1;" onclick="seleccionarRutina('${key}')">📅 ${key} (${cantEjercicios} ejercicios)</button>
+<button class="btn btn-danger" style="width: auto; margin:0; padding: 12px 14px;" onclick="eliminarRutina('${key}')">🗑️</button> 
 </div>`;
 });
 cont.innerHTML = html || '<p style="color:var(--text-muted); font-size:0.9rem;">No hay rutinas creadas todavía.</p>';
 } 
+
+// --- CALENDARIO HOME Y VISTA CALENDARIO CORREGIDOS ---
+function parsearFechaRegistro(fechaStr) {
+if (!fechaStr) return null;
+if (fechaStr.includes('/')) {
+let p = fechaStr.split('/');
+if (p.length === 3) return { d: parseInt(p[0]), m: parseInt(p[1]) - 1, y: parseInt(p[2]) };
+} else if (fechaStr.includes('-')) {
+let p = fechaStr.split('-');
+if (p.length === 3) return { d: parseInt(p[2]), m: parseInt(p[1]) - 1, y: parseInt(p[0]) };
+}
+let dObj = new Date(fechaStr);
+if (!isNaN(dObj)) return { d: dObj.getDate(), m: dObj.getMonth(), y: dObj.getFullYear() };
+return null;
+}
 
 function renderizarHomeCalendario() {
 const meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Setiembre", "Octubre", "Noviembre", "Diciembre"];
@@ -740,11 +755,9 @@ let cantMes = 0;
 let kcalMes = 0; 
 
 registrosCloud.forEach(r => {
-if (!r.fecha) return;
-let p = r.fecha.split('/');
-if(p.length === 3 && parseInt(p[1]) === (homeCalMesActual + 1) && parseInt(p[2]) === homeCalAnioActual) {
-let dNum = parseInt(p[0]);
-diasEntrenados[dNum] = r.rutina;
+let fData = parsearFechaRegistro(r.fecha);
+if (fData && fData.m === homeCalMesActual && fData.y === homeCalAnioActual) {
+diasEntrenados[fData.d] = r.rutina;
 cantMes++;
 kcalMes += (r.calorias || 0);
 }
@@ -765,9 +778,9 @@ let esHoy = (d === hoy.getDate() && homeCalMesActual === hoy.getMonth() && homeC
 let cls = ent ? 'trained' : '';
 if(esHoy) cls += ' today'; 
 
-grid += `<div class="cal-day ${cls}" onclick="alert('${ent ? "Entrenamiento registrado: " + ent : "Día " + d + ": Sin entrenamientos"}')"> 
-  <strong style="font-size:0.8rem;">${d}</strong>
-  ${ent ? '<span style="font-size:0.5rem; color:var(--accent);">✔</span>' : ''} 
+grid += `<div class="cal-day ${cls}" onclick="alert('${ent ? `Entrenamiento registrado el ${d}: ${ent}` : `Día ${d}: Sin entrenamientos`}')"> 
+<strong style="font-size:0.8rem;">${d}</strong>
+${ent ? '<span style="font-size:0.5rem; color:var(--accent);">✔</span>' : ''} 
 </div>`;
 }
 const gridEl = document.getElementById('home-cal-grid');
@@ -780,6 +793,120 @@ if(homeCalMesActual > 11) { homeCalMesActual = 0; homeCalAnioActual++; }
 if(homeCalMesActual < 0) { homeCalMesActual = 11; homeCalAnioActual--; }
 renderizarHomeCalendario();
 } 
+
+function renderizarCalendario() {
+const meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Setiembre", "Octubre", "Noviembre", "Diciembre"];
+const titulo = document.getElementById('cal-mes-anio-titulo');
+if (titulo) titulo.innerText = `${meses[calMesActual]} ${calAnioActual}`;
+
+let primerDia = new Date(calAnioActual, calMesActual, 1).getDay();
+primerDia = primerDia === 0 ? 6 : primerDia - 1;
+let totalDias = new Date(calAnioActual, calMesActual + 1, 0).getDate();
+
+let diasEntrenados = {};
+registrosCloud.forEach(r => {
+let fData = parsearFechaRegistro(r.fecha);
+if (fData && fData.m === calMesActual && fData.y === calAnioActual) {
+diasEntrenados[fData.d] = r.rutina;
+}
+});
+
+let grid = '';
+for(let i=0; i<primerDia; i++) grid += `<div class="cal-day" style="opacity:0; border:none; cursor:default;"></div>`;
+
+let hoy = new Date();
+for(let d=1; d<=totalDias; d++) {
+let ent = diasEntrenados[d];
+let esHoy = (d === hoy.getDate() && calMesActual === hoy.getMonth() && calAnioActual === hoy.getFullYear());
+let cls = ent ? 'trained' : '';
+if(esHoy) cls += ' today';
+
+grid += `<div class="cal-day ${cls}" onclick="alert('${ent ? `Entrenamiento: ${ent} (${d}/${calMesActual+1}/${calAnioActual})` : `Sin actividad el ${d}`}')">
+<strong style="font-size:0.85rem;">${d}</strong>
+${ent ? '<span style="font-size:0.6rem; color:var(--accent);">✔</span>' : ''}
+</div>`;
+}
+const gridEl = document.getElementById('cal-dias-grid');
+if (gridEl) gridEl.innerHTML = grid;
+}
+
+function cambiarMesCalendario(dir) {
+calMesActual += dir;
+if(calMesActual > 11) { calMesActual = 0; calAnioActual++; }
+if(calMesActual < 0) { calMesActual = 11; calAnioActual--; }
+renderizarCalendario();
+}
+
+// --- RENDERIZAR HISTORIAL COMPLETO Y CORREGIDO ---
+function renderizarHistorial() {
+const cont = document.getElementById('historial-lista-container');
+if (!cont) return;
+
+if (!registrosCloud || registrosCloud.length === 0) {
+cont.innerHTML = '<p style="color:var(--text-muted); font-size:0.9rem;">No hay entrenamientos registrados todavía.</p>';
+return;
+}
+
+let html = '';
+let copiaRegs = [...registrosCloud].reverse();
+
+copiaRegs.forEach((reg, idx) => {
+let fechaStr = reg.fecha || 'Fecha desconocida';
+let rutinaNombre = reg.rutina || 'Entrenamiento libre';
+let duracion = reg.duracion ? `⏱️ ${Math.floor(reg.duracion / 60)} min` : '';
+let kcal = reg.calorias ? `🔥 ${reg.calorias} kcal` : '';
+
+html += `<div class="card" style="margin-bottom: 12px; border-left: 3px solid var(--accent);">
+<div class="flex-row" style="justify-content: space-between; margin-bottom: 6px;">
+<h4 style="color: var(--accent); font-size: 1rem;">${rutinaNombre}</h4>
+<span style="font-size: 0.75rem; color: var(--text-muted);">${fechaStr}</span>
+</div>
+<p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 8px;">${duracion} ${kcal ? ' | ' + kcal : ''}</p>
+<button class="btn btn-secondary" style="font-size: 0.8rem; padding: 6px; margin:0;" onclick="abrirDetalleHistorial(${registrosCloud.length - 1 - idx})">Ver detalle de ejercicios</button>
+</div>`;
+});
+
+cont.innerHTML = html;
+}
+
+function abrirDetalleHistorial(idx) {
+let reg = registrosCloud[idx];
+if (!reg) return;
+
+const modalTitulo = document.getElementById('modal-historial-titulo');
+const modalCuerpo = document.getElementById('modal-detalle-historial');
+const modalCuerpoTexto = document.getElementById('modal-historial-cuerpo');
+
+if (modalTitulo) modalTitulo.innerText = reg.rutina || 'Detalle de Sesión';
+
+let html = `<p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 10px;">Fecha: ${reg.fecha}</p>`;
+if (reg.ejercicios && Array.isArray(reg.ejercicios)) {
+reg.ejercicios.forEach(e => {
+html += `<div style="background: var(--bg-input); padding: 8px; border-radius: 6px; margin-bottom: 6px;">
+<strong style="color: var(--accent); font-size: 0.9rem;">${e.nombre}</strong>`;
+if (e.tipo === 'cardio') {
+html += `<p style="font-size: 0.85rem; color: var(--text-muted);">Cardio: ${e.minutos} mins ${e.km ? ' - ' + e.km + ' km' : ''}</p>`;
+} else if (e.seriesRealizadas && Array.isArray(e.seriesRealizadas)) {
+html += `<div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">`;
+e.seriesRealizadas.forEach((s, sIdx) => {
+html += `<div>Serie ${sIdx+1}: ${s.peso} kg x ${s.reps} reps</div>`;
+});
+html += `</div>`;
+}
+html += `</div>`;
+});
+} else {
+html += `<p style="font-size: 0.85rem; color: var(--text-muted);">Sin detalles de ejercicios guardados.</p>`;
+}
+
+if (modalCuerpoTexto) modalCuerpoTexto.innerHTML = html;
+if (modalCuerpo) modalCuerpo.style.display = 'flex';
+}
+
+function cerrarModalHistorial() {
+const modal = document.getElementById('modal-detalle-historial');
+if (modal) modal.style.display = 'none';
+}
 
 async function solicitarReiniciarFabricaSeguro() {
 let confirmacion1 = confirm("⚠️ ATENCIÓN: Estás a punto de borrar TODAS tus rutinas, historial de entrenamientos y configuraciones guardadas. ¿Querés continuar?");
@@ -898,9 +1025,9 @@ if (!contenedor) return;
 let html = '';
 for (let i = 1; i <= cant; i++) {
 html += `<div class="flex-row" style="margin-bottom: 6px; align-items: center;"> 
-  <span style="font-size: 0.85rem; width: 65px; color: var(--accent);">Serie ${i}:</span>
-  <input type="number" placeholder="Peso (kg)" id="nuevo-serie-peso-${i}" step="0.5" value="0" style="margin:0; padding: 6px; font-size:0.9rem;"> 
-  <input type="text" placeholder="Reps" id="nuevo-serie-reps-${i}" value="10" style="margin:0; padding: 6px; font-size:0.9rem;">
+<span style="font-size: 0.85rem; width: 65px; color: var(--accent);">Serie ${i}:</span>
+<input type="number" placeholder="Peso (kg)" id="nuevo-serie-peso-${i}" step="0.5" value="0" style="margin:0; padding: 6px; font-size:0.9rem;"> 
+<input type="text" placeholder="Reps (ej: 10)" id="nuevo-serie-reps-${i}" value="10" style="margin:0; padding: 6px; font-size:0.9rem;">
 </div>`;
 }
 contenedor.innerHTML = html;
@@ -993,9 +1120,9 @@ pesoPrevio = seriesPrevias[i-1].peso !== undefined ? seriesPrevias[i-1].peso : 0
 repsPrevio = seriesPrevias[i-1].reps !== undefined ? seriesPrevias[i-1].reps : "10";
 }
 html += `<div class="flex-row" style="margin-bottom: 6px; align-items: center;"> 
-  <span style="font-size: 0.85rem; width: 65px; color: var(--accent);">Serie ${i}:</span>
-  <input type="number" placeholder="Peso (kg)" id="edit-serie-peso-${i}" value="${pesoPrevio}" step="0.5" style="margin:0; padding: 6px; font-size:0.9rem;">
-  <input type="text" placeholder="Reps" id="edit-serie-reps-${i}" value="${repsPrevio}" style="margin:0; padding: 6px; font-size:0.9rem;">
+<span style="font-size: 0.85rem; width: 65px; color: var(--accent);">Serie ${i}:</span>
+<input type="number" placeholder="Peso (kg)" id="edit-serie-peso-${i}" value="${pesoPrevio}" step="0.5" style="margin:0; padding: 6px; font-size:0.9rem;">
+<input type="text" placeholder="Reps" id="edit-serie-reps-${i}" value="${repsPrevio}" style="margin:0; padding: 6px; font-size:0.9rem;">
 </div>`;
 }
 contenedor.innerHTML = html;
@@ -1042,68 +1169,47 @@ html = '<p style="color:var(--text-muted); font-size:0.9rem;">Esta rutina está 
 lista.forEach((item, idx) => {
 if(item.tipo === "cardio") {
 html += `<div class="card exercise-card" style="margin-bottom: 8px; padding: 12px;"> 
-  <div class="flex-row" style="justify-content: space-between; align-items: flex-start;"> 
-    <div> 
-      <h3 style="color: var(--orange); font-size: 1.05rem; margin-bottom: 4px;">${idx+1}. ${item.nombre}</h3> 
-      <p style="color: var(--text-muted); font-size: 0.85rem;">Cardio | ${item.minutos} mins ${item.km ? '| ' + item.km + ' km' : ''}</p> 
-      ${item.notas ? `<p style="color: var(--yellow); font-size: 0.85rem; margin-top: 6px; font-style: italic; white-space: pre-wrap;">📝 ${item.notas}</p>` : ''} 
-    </div> 
-    <div class="flex-row" style="gap:5px;"> 
-      <button class="btn btn-secondary" style="width: auto; margin:0; padding: 6px 10px; font-size: 0.8rem;" onclick="abrirModalEditarEjercicio(${idx})">✏️</button>
-      <button class="btn btn-danger" style="width: auto; margin:0; padding: 6px 10px; font-size: 0.8rem;" onclick="eliminarEjercicioDeRutina(${idx})">🗑️</button> 
-    </div> 
-  </div> 
+<div class="flex-row" style="justify-content: space-between; align-items: flex-start;"> 
+<div> 
+<h3 style="color: var(--orange); font-size: 1.05rem; margin-bottom: 4px;">${idx+1}. ${item.nombre}</h3> 
+<p style="color: var(--text-muted); font-size: 0.85rem;">Cardio | ${item.minutos} mins ${item.km ? ' - ' + item.km + ' km' : ''}</p> 
+${item.notas ? `<p style="color: var(--yellow); font-size: 0.85rem; margin-top: 6px; font-style: italic; white-space: pre-wrap;">📝 ${item.notas}</p>` : ''} 
+</div> 
+<div class="flex-row" style="gap:5px;"> 
+<button class="btn btn-secondary" style="width: auto; margin:0; padding: 6px 10px; font-size: 0.8rem;" onclick="abrirModalEditarEjercicio(${idx})">✏️</button>
+<button class="btn btn-danger" style="width: auto; margin:0; padding: 6px 10px; font-size: 0.8rem;" onclick="eliminarEjercicioDeRutina(${idx})">🗑️</button> 
+</div> 
+</div> 
 </div>`; 
 } else { 
 let resumenSeries = ""; 
 if (item.seriesConfig && item.seriesConfig.length > 0) { 
-resumenSeries = item.seriesConfig.map((s, i) => `S${i+1}: ${s.peso}kgx${s.reps}`).join(' | '); 
+resumenSeries = item.seriesConfig.map((s, i) => `S${i+1}: ${s.peso}kg (${s.reps})`).join(' | '); 
 } else { 
-resumenSeries = "Sin series configuradas";
+resumenSeries = "Series configuradas";
 } 
 
 html += `<div class="card exercise-card" style="margin-bottom: 8px; padding: 12px;"> 
-  <div class="flex-row" style="justify-content: space-between; align-items: flex-start;"> 
-    <div> 
-      <h3 style="color: var(--accent); font-size: 1.05rem; margin-bottom: 4px;">${idx+1}. ${item.nombre}</h3> 
-      <p style="color: var(--text-muted); font-size: 0.85rem; line-height: 1.4;">${resumenSeries}</p>
-      ${item.notas ? `<p style="color: var(--yellow); font-size: 0.85rem; margin-top: 6px; font-style: italic; white-space: pre-wrap;">📝 ${item.notas}</p>` : ''} 
-    </div> 
-    <div class="flex-row" style="gap:5px;"> 
-      <button class="btn btn-secondary" style="width: auto; margin:0; padding: 6px 10px; font-size: 0.8rem;" onclick="abrirModalEditarEjercicio(${idx})">✏️</button>
-      <button class="btn btn-danger" style="width: auto; margin:0; padding: 6px 10px; font-size: 0.8rem;" onclick="eliminarEjercicioDeRutina(${idx})">🗑️</button> 
-    </div> 
-  </div> 
+<div class="flex-row" style="justify-content: space-between; align-items: flex-start;"> 
+<div> 
+<h3 style="color: var(--accent); font-size: 1.05rem; margin-bottom: 4px;">${idx+1}. ${item.nombre}</h3> 
+<p style="color: var(--text-muted); font-size: 0.85rem; line-height: 1.4;">${resumenSeries}</p>
+${item.notas ? `<p style="color: var(--yellow); font-size: 0.85rem; margin-top: 6px; font-style: italic; white-space: pre-wrap;">📝 ${item.notas}</p>` : ''} 
+</div> 
+<div class="flex-row" style="gap:5px;"> 
+<button class="btn btn-secondary" style="width: auto; margin:0; padding: 6px 10px; font-size: 0.8rem;" onclick="abrirModalEditarEjercicio(${idx})">✏️</button>
+<button class="btn btn-danger" style="width: auto; margin:0; padding: 6px 10px; font-size: 0.8rem;" onclick="eliminarEjercicioDeRutina(${idx})">🗑️</button> 
+</div> 
+</div> 
 </div>`;
 }
 });
 cont.innerHTML = html;
 }
 
-// Funciones complementarias para modales adicionales (Historial, Discos, Peso y Modo Guiado genéricas)
-function abrirCalculadoraDiscos() { document.getElementById('modal-discos').style.display = 'flex'; calcularDiscos(); }
-function cerrarCalculadoraDiscos() { document.getElementById('modal-discos').style.display = 'none'; }
-function calcularDiscos() {
-let total = parseFloat(document.getElementById('calc-peso-total').value) || 0;
-let barra = parseFloat(document.getElementById('calc-peso-barra').value) || 20;
-let res = document.getElementById('resultado-discos');
-if(total <= barra) { res.innerText = "El peso total debe ser mayor al peso de la barra."; return; }
-let porLado = (total - barra) / 2;
-res.innerText = `Necesitás ${porLado} kg por cada lado de la barra.`;
-}
-
-function abrirModalPesoCorporal() { document.getElementById('modal-peso-corporal').style.display = 'flex'; document.getElementById('input-nuevo-peso-corp').value = perfilCloud.peso || ''; }
-function cerrarModalPesoCorporal() { document.getElementById('modal-peso-corporal').style.display = 'none'; }
-function guardarPesoCorporalCloud() {
-let p = parseFloat(document.getElementById('input-nuevo-peso-corp').value);
-if(p) { perfilCloud.peso = p; guardarTodoEnNube(); actualizarDashboard(); }
-cerrarModalPesoCorporal();
-}
-
-function comenzarModoGuiado() { alert("Modo guiado iniciado para: " + rutinaSeleccionadaKey); }
-function renderizarCalendario() {}
-function renderizarHistorial() {}
-function consultarIA() { alert("Función de análisis con IA disponible próximamente."); }
+window.onload = function() {
+sincronizarConNubeAlIniciar();
+};
 </script>
 </body>
 </html>
