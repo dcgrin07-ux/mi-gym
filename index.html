@@ -284,6 +284,10 @@ color: var(--accent);
             <h2 style="color: var(--accent); font-size: 1.2rem;">Panel de Control - Propietario</h2>
             <button class="btn btn-danger" style="width: auto; margin:0; padding: 6px 12px; font-size: 0.85rem;" onclick="logoutSession()">Cerrar Sesión</button>
         </div>
+        
+        <!-- NUEVO BOTÓN PARA ENTRAR A TUS RUTINAS COMO ADMIN -->
+        <button class="btn btn-primary" style="margin-bottom: 12px;" onclick="entrarComoAdminApp()">🏋️‍♂️ Ir a mis Rutinas y Entrenamientos</button>
+
         <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">Gestión de usuarios y autorizaciones de acceso:</p>
         <div style="overflow-x: auto;">
             <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
@@ -713,7 +717,7 @@ auth.onAuthStateChanged(async (user) => {
                     autorizado: false,
                     creado: firebase.firestore.FieldValue.serverTimestamp()
                 });
-                document.getElementById('pending-screen').classList.remove('hidden');
+                document.getElementById('pending-screen').classList.add('hidden');
             }
         } catch (e) {
             console.error("Error verificando permisos de usuario:", e);
@@ -761,6 +765,12 @@ async function setUserAuthStatus(uid, status) {
     }
 }
 
+function entrarComoAdminApp() {
+    document.getElementById('admin-screen').classList.add('hidden');
+    document.getElementById('app-main-wrapper').classList.remove('hidden');
+    sincronizarConNubeAlIniciar();
+}
+
 // -------------------------------------------------------------
 // LÓGICA PRINCIPAL DE TUS RUTINAS Y ENTRENAMIENTOS
 // -------------------------------------------------------------
@@ -796,41 +806,47 @@ let homeCalAnioActual = new Date().getFullYear();
 let homeCalMesActual = new Date().getMonth(); 
 
 async function sincronizarConNubeAlIniciar() {
-try {
-actualizarEstadoCloud(false, "Sincronizando...");
-let docRef = dbCloud.collection("datos_gym").doc("usuario_principal");
-let doc = await docRef.get();
-if(doc.exists) {
-let data = doc.data();
-if(data.rutinas) rutinasPersonalizadas = data.rutinas;
-if(data.registros) registrosCloud = data.registros;
-if(data.perfil) perfilCloud = data.perfil;
-guardarLocal();
-} else {
-await docRef.set({ rutinas: rutinasPersonalizadas, registros: registrosCloud, perfil: perfilCloud });
+    const user = auth.currentUser;
+    if (!user) return;
+    try {
+        actualizarEstadoCloud(false, "Sincronizando...");
+        let docRef = dbCloud.collection("datos_gym").doc(user.uid);
+        let doc = await docRef.get();
+        if(doc.exists) {
+            let data = doc.data();
+            if(data.rutinas) rutinasPersonalizadas = data.rutinas;
+            if(data.registros) registrosCloud = data.registros;
+            if(data.perfil) perfilCloud = data.perfil;
+            guardarLocal();
+        } else {
+            rutinasPersonalizadas = { "Rutina A": [] };
+            registrosCloud = [];
+            await docRef.set({ rutinas: rutinasPersonalizadas, registros: registrosCloud, perfil: perfilCloud });
+        }
+        actualizarEstadoCloud(true, "☁️ Sincronizado");
+        actualizarDashboard();
+    } catch(err) {
+        actualizarEstadoCloud(false, "⚠️ Modo Local");
+        actualizarDashboard();
+    }
 }
-actualizarEstadoCloud(true, "☁️ Sincronizado");
-actualizarDashboard();
-} catch(err) {
-actualizarEstadoCloud(false, "⚠️ Modo Local");
-actualizarDashboard();
-}
-} 
 
 async function guardarTodoEnNube() {
-guardarLocal();
-try {
-actualizarEstadoCloud(false, "Guardando...");
-await dbCloud.collection("datos_gym").doc("usuario_principal").set({
-rutinas: rutinasPersonalizadas,
-registros: registrosCloud,
-perfil: perfilCloud
-});
-actualizarEstadoCloud(true, "☁️ Nube Actualizada");
-} catch(e) {
-actualizarEstadoCloud(false, "⚠️ Error de red");
+    guardarLocal();
+    const user = auth.currentUser;
+    if (!user) return;
+    try {
+        actualizarEstadoCloud(false, "Guardando...");
+        await dbCloud.collection("datos_gym").doc(user.uid).set({
+            rutinas: rutinasPersonalizadas,
+            registros: registrosCloud,
+            perfil: perfilCloud
+        });
+        actualizarEstadoCloud(true, "☁️ Nube Actualizada");
+    } catch(e) {
+        actualizarEstadoCloud(false, "⚠️ Error de red");
+    }
 }
-} 
 
 function guardarLocal() {
 localStorage.setItem('mi_gym_rutinas_v36', JSON.stringify(rutinasPersonalizadas));
