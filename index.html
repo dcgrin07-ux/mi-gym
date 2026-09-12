@@ -675,7 +675,7 @@ text-align: right;
 </div>
 </div>
 
-<!-- ================= SCRIPT COMPLETO INTEGRADO CON IA INTERACTIVA SOFÍA ================= -->
+<!-- ================= SCRIPT COMPLETO INTEGRADO Y CORREGIDO ================= -->
 <script>
 const firebaseConfig = {
 apiKey: "AIzaSyA3N-mLUaTF9jUshNosUiWpso0-934H_fo",
@@ -705,10 +705,14 @@ document.getElementById('auth-error').classList.add('hidden');
 
 async function handleAuthSubmit(event) {
 event.preventDefault();
-const email = document.getElementById('auth-email').value;
-const password = document.getElementById('auth-password').value;
+const emailInput = document.getElementById('auth-email');
+const passwordInput = document.getElementById('auth-password');
 const errorDiv = document.getElementById('auth-error');
 errorDiv.classList.add('hidden');
+
+if (!emailInput || !passwordInput) return;
+const email = emailInput.value.trim();
+const password = passwordInput.value;
 
 try {
 if (isRegisteringMode) {
@@ -724,6 +728,7 @@ alert('¡Registro exitoso! Tu cuenta quedó pendiente de aprobación por el admi
 await auth.signInWithEmailAndPassword(email, password);
 }
 } catch (error) {
+console.error("Error de autenticación:", error);
 errorDiv.innerText = error.message;
 errorDiv.classList.remove('hidden');
 }
