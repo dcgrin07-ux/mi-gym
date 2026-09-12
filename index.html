@@ -285,7 +285,6 @@ color: var(--accent);
             <button class="btn btn-danger" style="width: auto; margin:0; padding: 6px 12px; font-size: 0.85rem;" onclick="logoutSession()">Cerrar Sesión</button>
         </div>
         
-        <!-- NUEVO BOTÓN PARA ENTRAR A TUS RUTINAS COMO ADMIN -->
         <button class="btn btn-primary" style="margin-bottom: 12px;" onclick="entrarComoAdminApp()">🏋️‍♂️ Ir a mis Rutinas y Entrenamientos</button>
 
         <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">Gestión de usuarios y autorizaciones de acceso:</p>
@@ -632,7 +631,7 @@ color: var(--accent);
 </div>
 </div> 
 
-<!-- ================= SCRIPT COMPLETO INTEGRADO Y PROTEGIDO ================= -->
+<!-- ================= SCRIPT COMPLETO INTEGRADO, AISLADO POR UID Y SEGURO (V2) ================= -->
 <script>
 const firebaseConfig = {
 apiKey: "AIzaSyA3N-mLUaTF9jUshNosUiWpso0-934H_fo",
@@ -646,7 +645,9 @@ appId: "1:398491160791:web:91346182b9c06588d6e092"
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const dbCloud = firebase.firestore();
-const usarseNube = true;
+
+const APP_VERSION = "2.0";
+const DATA_VERSION = 2;
 
 let isRegisteringMode = false;
 
@@ -710,7 +711,6 @@ auth.onAuthStateChanged(async (user) => {
                     document.getElementById('pending-screen').classList.remove('hidden');
                 }
             } else {
-                // Crear documento por defecto si no existía en Firestore
                 await dbCloud.collection('usuarios').doc(user.uid).set({
                     email: user.email,
                     rol: 'cliente',
@@ -739,7 +739,7 @@ async function loadAdminUsersTable() {
         }
         snapshot.forEach(doc => {
             const data = doc.data();
-            if (data.rol === 'admin') return; // Ocultar al admin principal
+            if (data.rol === 'admin') return;
             const tr = document.createElement('tr');
             tr.style.borderBottom = '1px solid var(--border)';
             tr.innerHTML = `
@@ -772,8 +772,17 @@ function entrarComoAdminApp() {
 }
 
 // -------------------------------------------------------------
-// LÓGICA PRINCIPAL DE TUS RUTINAS Y ENTRENAMIENTOS
+// LÓGICA DE ALMACENAMIENTO AISLADO POR UID (ETAPA 1)
 // -------------------------------------------------------------
+function obtenerClavesLocales(uid) {
+    if (!uid) return null;
+    return {
+        rutinas: `mi_gym_${uid}_rutinas_v2`,
+        registros: `mi_gym_${uid}_registros_v2`,
+        perfil: `mi_gym_${uid}_perfil_v2`,
+        borrador: `mi_gym_${uid}_borrador_v2`
+    };
+}
 
 const catalogoEjercicios = [
 "PRESS PLANO", "PRESS INCLINADO MANC", "CROSSOVER CON BANCO", "FLEXIONES",
@@ -785,13 +794,10 @@ const catalogoEjercicios = [
 "➕ OTRO (Escribir nombre personalizado)..."
 ]; 
 
-let rutinasPersonalizadas = JSON.parse(localStorage.getItem('mi_gym_rutinas_v36') || JSON.stringify({
-"Rutina A": []
-})); 
-
-let registrosCloud = JSON.parse(localStorage.getItem('mi_gym_registros_v36') || '[]');
-let perfilCloud = JSON.parse(localStorage.getItem('mi_gym_perfil_v36') || '{"peso": 90}');
-let borradorSesion = JSON.parse(localStorage.getItem('mi_gym_borrador_v36') || 'null'); 
+let rutinasPersonalizadas = { "Rutina A": [] };
+let registrosCloud = [];
+let perfilCloud = { peso: 90 };
+let borradorSesion = null; 
 
 let rutinaSeleccionadaKey = '';
 let guiadoIndice = 0;
@@ -808,24 +814,53 @@ let homeCalMesActual = new Date().getMonth();
 async function sincronizarConNubeAlIniciar() {
     const user = auth.currentUser;
     if (!user) return;
+    const uid = user.uid;
+    const claves = obtenerClavesLocales(uid);
+    let docRef = dbCloud.collection("datos_gym").doc(uid);
+
     try {
         actualizarEstadoCloud(false, "Sincronizando...");
-        let docRef = dbCloud.collection("datos_gym").doc(user.uid);
         let doc = await docRef.get();
-        if(doc.exists) {
-            let data = doc.data();
-            if(data.rutinas) rutinasPersonalizadas = data.rutinas;
-            if(data.registros) registrosCloud = data.registros;
-            if(data.perfil) perfilCloud = data.perfil;
-            guardarLocal();
+        
+        if (doc.exists) {
+            let nubeData = doc.data();
+            if (nubeData) {
+                if (nubeData.rutinas) {
+                    rutinasPersonalizadas = nubeData.rutinas;
+                    localStorage.setItem(claves.rutinas, JSON.stringify(rutinasPersonalizadas));
+                }
+                if (nubeData.registrosCloud || nubeData.registros) {
+                    registrosCloud = nubeData.registrosCloud || nubeData.registros;
+                    localStorage.setItem(claves.registros, JSON.stringify(registrosCloud));
+                }
+                if (nubeData.perfil) {
+                    perfilCloud = nubeData.perfil;
+                    localStorage.setItem(claves.perfil, JSON.stringify(perfilCloud));
+                }
+            }
         } else {
             rutinasPersonalizadas = { "Rutina A": [] };
             registrosCloud = [];
-            await docRef.set({ rutinas: rutinasPersonalizadas, registros: registrosCloud, perfil: perfilCloud });
+            perfilCloud = { peso: 90 };
+            await guardarTodoEnNube();
         }
+
+        let borradorGuardado = localStorage.getItem(claves.borrador);
+        borradorSesion = borradorGuardado ? JSON.parse(borradorGuardado) : null;
+
         actualizarEstadoCloud(true, "☁️ Sincronizado");
         actualizarDashboard();
     } catch(err) {
+        console.error("Error crítico al conectar con Firestore. Operando en modo offline seguro:", err);
+        let rutinasLocales = localStorage.getItem(claves.rutinas);
+        if (rutinasLocales) rutinasPersonalizadas = JSON.parse(rutinasLocales);
+        let regsLocales = localStorage.getItem(claves.registros);
+        if (regsLocales) registrosCloud = JSON.parse(regsLocales);
+        let perfilLocal = localStorage.getItem(claves.perfil);
+        if (perfilLocal) perfilCloud = JSON.parse(perfilLocal);
+        let borradorLocal = localStorage.getItem(claves.borrador);
+        if (borradorLocal) borradorSesion = JSON.parse(borradorLocal);
+
         actualizarEstadoCloud(false, "⚠️ Modo Local");
         actualizarDashboard();
     }
@@ -835,25 +870,41 @@ async function guardarTodoEnNube() {
     guardarLocal();
     const user = auth.currentUser;
     if (!user) return;
+    const uid = user.uid;
+
     try {
         actualizarEstadoCloud(false, "Guardando...");
-        await dbCloud.collection("datos_gym").doc(user.uid).set({
+        const payloadData = {
+            dataVersion: DATA_VERSION,
             rutinas: rutinasPersonalizadas,
-            registros: registrosCloud,
-            perfil: perfilCloud
-        });
+            registrosCloud: registrosCloud,
+            perfil: perfilCloud,
+            ultimaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        await dbCloud.collection("datos_gym").doc(uid).set(payloadData, { merge: true });
         actualizarEstadoCloud(true, "☁️ Nube Actualizada");
     } catch(e) {
+        console.error("Error al guardar en Firestore:", e);
         actualizarEstadoCloud(false, "⚠️ Error de red");
     }
 }
 
 function guardarLocal() {
-localStorage.setItem('mi_gym_rutinas_v36', JSON.stringify(rutinasPersonalizadas));
-localStorage.setItem('mi_gym_registros_v36', JSON.stringify(registrosCloud));
-localStorage.setItem('mi_gym_perfil_v36', JSON.stringify(perfilCloud));
-localStorage.setItem('mi_gym_borrador_v36', JSON.stringify(borradorSesion));
-} 
+    const user = auth.currentUser;
+    if (!user) return;
+    const claves = obtenerClavesLocales(user.uid);
+    if (!claves) return;
+
+    localStorage.setItem(claves.rutinas, JSON.stringify(rutinasPersonalizadas));
+    localStorage.setItem(claves.registros, JSON.stringify(registrosCloud));
+    localStorage.setItem(claves.perfil, JSON.stringify(perfilCloud));
+    if (borradorSesion) {
+        localStorage.setItem(claves.borrador, JSON.stringify(borradorSesion));
+    } else {
+        localStorage.removeItem(claves.borrador);
+    }
+}
 
 function actualizarEstadoCloud(sincronizado, texto) {
 const dot = document.getElementById('cloud-dot');
@@ -1254,7 +1305,7 @@ cont.innerHTML = html;
 }
 
 // -------------------------------------------------------------
-// MODO GUIADO Y CRONÓMETROS
+// MODO GUIADO Y CAPTURA DETALLADA DE SERIES (V2)
 // -------------------------------------------------------------
 function comenzarModoGuiado() {
 let lista = rutinasPersonalizadas[rutinaSeleccionadaKey];
@@ -1417,12 +1468,46 @@ detenerDescanso();
 let hoyStr = new Date().toLocaleDateString('es-ES');
 let kcalEstimadas = Math.round(segundosSesion * 0.12);
 
+let listaEjerciciosRutina = rutinasPersonalizadas[rutinaSeleccionadaKey] || [];
+let ejerciciosRegistradosDetalle = listaEjerciciosRutina.map((item, idx) => {
+    if (item.tipo === "cardio") {
+        let minsRealizados = parseFloat(document.getElementById('guiado-cardio-mins')?.value) || item.minutos;
+        let kmRealizados = parseFloat(document.getElementById('guiado-cardio-km')?.value) || item.km;
+        return {
+            nombre: item.nombre,
+            tipo: "cardio",
+            minutos: minsRealizados,
+            km: kmRealizados,
+            notas: item.notas || ""
+        };
+    } else {
+        let seriesDetalleArray = [];
+        (item.seriesConfig || []).forEach((s, sIdx) => {
+            let pesoReal = parseFloat(document.getElementById(`g-peso-${sIdx}`)?.value) || s.peso;
+            let repsReal = document.getElementById(`g-reps-${sIdx}`)?.value || s.reps;
+            seriesDetalleArray.push({
+                serie: sIdx + 1,
+                peso: pesoReal,
+                reps: repsReal
+            });
+        });
+        return {
+            nombre: item.nombre,
+            tipo: "fuerza",
+            series: seriesDetalleArray,
+            notas: item.notas || ""
+        };
+    }
+});
+
 registrosCloud.push({
-id: Date.now(),
-fecha: hoyStr,
-rutina: rutinaSeleccionadaKey,
-tiempoSegundos: segundosSesion,
-calorias: kcalEstimadas
+    id: Date.now(),
+    fecha: hoyStr,
+    rutina: rutinaSeleccionadaKey,
+    tiempoSegundos: segundosSesion,
+    calorias: kcalEstimadas,
+    dataVersion: DATA_VERSION,
+    ejerciciosDetalle: ejerciciosRegistradosDetalle
 });
 
 borradorSesion = null;
@@ -1432,7 +1517,7 @@ irA('view-home');
 }
 
 // -------------------------------------------------------------
-// HISTORIAL Y CALENDARIO GENERAL
+// HISTORIAL Y CALENDARIO GENERAL (COMPATIBLE V1 Y V2)
 // -------------------------------------------------------------
 function renderizarCalendario() {
 const meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Setiembre", "Octubre", "Noviembre", "Diciembre"];
@@ -1514,10 +1599,27 @@ function mostrarModalHistorialObjeto(reg) {
 const titulo = document.getElementById('modal-historial-titulo');
 const cuerpo = document.getElementById('modal-historial-cuerpo');
 if(titulo) titulo.innerText = reg.rutina;
+
 if(cuerpo) {
-cuerpo.innerHTML = `<p><strong>Fecha:</strong> ${reg.fecha}</p>
+let detalleHtml = `<p><strong>Fecha:</strong> ${reg.fecha}</p>
 <p><strong>Tiempo total:</strong> ${Math.floor((reg.tiempoSegundos||0)/60)} minutos</p>
-<p><strong>Calorías estimadas:</strong> ${reg.calorias || 0} kcal</p>`;
+<p><strong>Calorías estimadas:</strong> ${reg.calorias || 0} kcal</p><hr style="border-color:var(--border); margin:10px 0;">`;
+
+if(reg.ejerciciosDetalle && reg.ejerciciosDetalle.length > 0) {
+    detalleHtml += `<h4 style="color:var(--accent); margin-bottom:8px; font-size:0.95rem;">Desglose de Ejercicios:</h4>`;
+    reg.ejerciciosDetalle.forEach(ej => {
+        if(ej.tipo === "cardio") {
+            detalleHtml += `<div style="margin-bottom:6px; font-size:0.85rem;"><strong style="color:var(--orange);">${ej.nombre}</strong>: ${ej.minutos} mins ${ej.km ? '| ' + ej.km + ' km' : ''}</div>`;
+        } else {
+            let seriesStr = (ej.series || []).map(s => `S${s.serie}: ${s.peso}kg (${s.reps})`).join(' | ');
+            detalleHtml += `<div style="margin-bottom:6px; font-size:0.85rem;"><strong style="color:var(--accent);">${ej.nombre}</strong><br><span style="color:var(--text-muted);">${seriesStr || 'Sin series registradas'}</span></div>`;
+        }
+    });
+} else {
+    detalleHtml += `<p style="font-size:0.85rem; color:var(--text-muted); font-style:italic;">Sesión registrada con formato anterior (sin desglose detallado de series).</p>`;
+}
+
+cuerpo.innerHTML = detalleHtml;
 }
 document.getElementById('modal-detalle-historial').style.display = 'flex';
 }
