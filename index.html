@@ -4,18 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Mi Gym La Cima</title>
-​<!-- PWA Manifest & Meta -->
+<!-- PWA Manifest & Meta -->
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0f172a">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-​<!-- Firebase SDKs (Compat - Auth y Firestore) -->
-<script src="[https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js](https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js)"></script>
-<script src="[https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js](https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js)"></script>
-<script src="[https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js](https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js)"></script>
-​<style>
+<!-- Firebase SDKs (Compat - Auth y Firestore) -->
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<style>
 :root {
 --bg-main: #090d16;
 --bg-card: #111827;
@@ -29,20 +29,21 @@
 --orange: #f97316;
 --yellow: #eab308;
 --border: #334155;
+--sofia-accent: #f472b6; /* Color distintivo para Sofía */
 }
-​{
+* {
 box-sizing: border-box;
 margin: 0;
 padding: 0;
 font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
 }
-​body {
+body {
 background-color: var(--bg-main);
 color: var(--text-main);
 padding-bottom: 90px;
 min-height: 100vh;
 }
-​header {
+header {
 background-color: var(--bg-card);
 border-bottom: 1px solid var(--border);
 padding: 16px;
@@ -53,12 +54,12 @@ position: sticky;
 top: 0;
 z-index: 100;
 }
-​h1 {
+h1 {
 font-size: 1.25rem;
 color: var(--accent);
 font-weight: 700;
 }
-​.cloud-status {
+.cloud-status {
 font-size: 0.75rem;
 display: flex;
 align-items: center;
@@ -67,32 +68,32 @@ background: var(--bg-input);
 padding: 4px 8px;
 border-radius: 20px;
 }
-​.cloud-dot {
+.cloud-dot {
 width: 8px;
 height: 8px;
 border-radius: 50%;
 }
 .cloud-dot.sync { background-color: var(--success); }
 .cloud-dot.offline { background-color: var(--orange); }
-​.container {
+.container {
 max-width: 600px;
 margin: 0 auto;
 padding: 16px;
 }
-​.view-section {
+.view-section {
 display: none;
 }
 .view-section.active {
 display: block;
 }
-​.card {
+.card {
 background-color: var(--bg-card);
 border: 1px solid var(--border);
 border-radius: 12px;
 padding: 16px;
 margin-bottom: 16px;
 }
-​.btn {
+.btn {
 display: inline-block;
 width: 100%;
 padding: 12px;
@@ -105,12 +106,14 @@ text-align: center;
 margin-bottom: 8px;
 transition: background 0.2s;
 }
-​.btn-primary { background-color: var(--accent); color: var(--bg-main); }
+.btn-primary { background-color: var(--accent); color: var(--bg-main); }
 .btn-primary:hover { background-color: var(--accent-hover); }
-​.btn-secondary { background-color: var(--bg-input); color: var(--text-main); border: 1px solid var(--border); }
+.btn-secondary { background-color: var(--bg-input); color: var(--text-main); border: 1px solid var(--border); }
 .btn-danger { background-color: rgba(239, 68, 68, 0.15); color: var(--danger); border: 1px solid var(--danger); }
 .btn-success { background-color: var(--success); color: var(--bg-main); }
-​input, select, textarea {
+.btn-sofia { background-color: #db2777; color: #fff; }
+.btn-sofia:hover { background-color: #be185d; }
+input, select, textarea {
 width: 100%;
 padding: 12px;
 background-color: var(--bg-input);
@@ -120,22 +123,22 @@ color: var(--text-main);
 font-size: 1rem;
 margin-bottom: 12px;
 }
-​input:focus, select:focus, textarea:focus {
+input:focus, select:focus, textarea:focus {
 outline: none;
 border-color: var(--accent);
 }
-​label {
+label {
 display: block;
 font-size: 0.85rem;
 color: var(--text-muted);
 margin-bottom: 6px;
 }
-​.flex-row {
+.flex-row {
 display: flex;
 gap: 10px;
 align-items: center;
 }
-​/* Bottom Nav */
+/* Bottom Nav */
 nav {
 position: fixed;
 bottom: 0;
@@ -148,7 +151,7 @@ justify-content: space-around;
 padding: 10px 0;
 z-index: 100;
 }
-​.nav-btn {
+.nav-btn {
 background: none;
 border: none;
 color: var(--text-muted);
@@ -160,13 +163,13 @@ gap: 4px;
 cursor: pointer;
 flex: 1;
 }
-​.nav-btn.active {
+.nav-btn.active {
 color: var(--accent);
 }
 .nav-btn span {
 font-size: 1.25rem;
 }
-​/* Modal Overlay */
+/* Modal Overlay */
 .modal {
 position: fixed;
 top: 0; left: 0; right: 0; bottom: 0;
@@ -187,7 +190,7 @@ max-width: 400px;
 max-height: 90vh;
 overflow-y: auto;
 }
-​/* Calendario grid */
+/* Calendario grid */
 .cal-grid {
 display: grid;
 grid-template-columns: repeat(7, 1fr);
@@ -216,6 +219,10 @@ cursor: pointer;
 border-color: var(--accent);
 background: rgba(56, 189, 248, 0.1);
 }
+.cal-day.trained-sofia {
+border-color: var(--sofia-accent);
+background: rgba(244, 114, 182, 0.15);
+}
 .cal-day.today {
 font-weight: bold;
 color: var(--accent);
@@ -225,7 +232,7 @@ color: var(--accent);
 </style>
 </head>
 <body>
-​<!-- ================= PANTALLA DE ACCESO / LOGIN ================= -->
+<!-- ================= PANTALLA DE ACCESO / LOGIN ================= -->
 <div id="auth-screen" class="container" style="margin-top: 50px;">
 <div class="card" style="max-width: 400px; margin: 0 auto;">
 <h2 id="auth-title" style="color: var(--accent); text-align: center; margin-bottom: 16px;">Mi Gym La Cima</h2>
@@ -242,7 +249,8 @@ color: var(--accent);
 </div>
 </div>
 </div>
-​<!-- ================= PANTALLA PENDIENTE DE APROBACIÓN ================= -->
+
+<!-- ================= PANTALLA PENDIENTE DE APROBACIÓN ================= -->
 <div id="pending-screen" class="container hidden" style="margin-top: 50px;">
 <div class="card" style="max-width: 400px; margin: 0 auto; text-align: center;">
 <h2 style="color: var(--orange); margin-bottom: 12px;">Cuenta Pendiente</h2>
@@ -250,15 +258,18 @@ color: var(--accent);
 <button class="btn btn-secondary" onclick="logoutSession()">Cerrar Sesión</button>
 </div>
 </div>
-​<!-- ================= PANEL DE ADMINISTRADOR ================= -->
+
+<!-- ================= PANEL DE ADMINISTRADOR ================= -->
 <div id="admin-screen" class="container hidden" style="max-width: 800px;">
 <div class="card">
 <div class="flex-row" style="justify-content: space-between; margin-bottom: 16px;">
 <h2 style="color: var(--accent); font-size: 1.2rem;">Panel de Control - Propietario</h2>
 <button class="btn btn-danger" style="width: auto; margin:0; padding: 6px 12px; font-size: 0.85rem;" onclick="logoutSession()">Cerrar Sesión</button>
 </div>
-​<button class="btn btn-primary" style="margin-bottom: 12px;" onclick="entrarComoAdminApp()">🏋️‍♂️ Ir a mis Rutinas y Entrenamientos</button>
-​<p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">Gestión de usuarios y autorizaciones de acceso:</p>
+
+<button class="btn btn-primary" style="margin-bottom: 12px;" onclick="entrarComoAdminApp()">🏋️‍♂️ Ir a mis Rutinas y Entrenamientos</button>
+
+<p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">Gestión de usuarios y autorizaciones de acceso:</p>
 <div style="overflow-x: auto;">
 <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
 <thead>
@@ -275,7 +286,8 @@ color: var(--accent);
 </div>
 </div>
 </div>
-​<!-- ================= APLICACIÓN PRINCIPAL (PROTEGIDA) ================= -->
+
+<!-- ================= APLICACIÓN PRINCIPAL (PROTEGIDA) ================= -->
 <div id="app-main-wrapper" class="hidden">
 <header>
 <h1>🏋️‍♂️ Mi Gym La Cima</h1>
@@ -287,16 +299,20 @@ color: var(--accent);
 <button class="btn btn-secondary" style="width: auto; margin:0; padding: 4px 8px; font-size: 0.75rem;" onclick="logoutSession()" title="Cerrar Sesión">🚪 Salir</button>
 </div>
 </header>
-​<div class="container">
-​<!-- ================= VISTA HOME ================= -->
+
+<div class="container">
+
+<!-- ================= VISTA HOME ================= -->
 <div id="view-home" class="view-section active">
-​<!-- Banner Borrador Activo -->
+
+<!-- Banner Borrador Activo -->
 <div id="banner-borrador-activo" class="card" style="display:none; background: rgba(249, 115, 22, 0.1); border-color: var(--orange);">
 <h3 style="color: var(--orange); margin-bottom: 6px;">⚡ ¡Tenés un entrenamiento en curso!</h3>
 <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 10px;">Hay una sesión iniciada que no finalizaste.</p>
 <button class="btn btn-primary" style="background:var(--orange); color:#fff; margin:0;" onclick="retomarEntrenamientoBorrador()">Retomar Sesión</button>
 </div>
-​<!-- Perfil Resumen -->
+
+<!-- Perfil Resumen -->
 <div class="card">
 <div class="flex-row" style="justify-content: space-between; align-items: center;">
 <div>
@@ -306,7 +322,8 @@ color: var(--accent);
 <button class="btn btn-secondary" style="width: auto; margin:0; padding: 8px 12px; font-size: 0.8rem;" onclick="abrirModalPesoCorporal()">Actualizar</button>
 </div>
 </div>
-​<!-- Dashboard / Calendario Integrado en Home -->
+
+<!-- Dashboard / Calendario Integrado en Home -->
 <div class="card">
 <div class="flex-row" style="justify-content: space-between; align-items: center; margin-bottom: 8px;">
 <button class="btn btn-secondary" style="width: auto; margin:0; padding: 4px 10px; font-size: 0.8rem;" onclick="cambiarMesHomeCalendario(-1)">◀</button>
@@ -328,7 +345,20 @@ color: var(--accent);
 </div>
 </div>
 </div>
-​<!-- Accesos / Herramientas -->
+
+<!-- ================= SECCIÓN ESPECIAL SOFÍA ================= -->
+<div class="card" style="border-color: var(--sofia-accent); background: rgba(244, 114, 182, 0.03);">
+<div class="flex-row" style="justify-content: space-between; align-items: center; margin-bottom: 10px;">
+<h3 style="font-size: 1.05rem; color: var(--sofia-accent);">🌸 Espacio de Sofía</h3>
+<button class="btn btn-sofia" style="width: auto; margin:0; padding: 6px 12px; font-size: 0.8rem;" onclick="abrirModalCrearRutinaSofia()">+ Rutina Sofía</button>
+</div>
+<p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">Rutinas y seguimiento personalizado de entrenamiento.</p>
+<div id="lista-rutinas-sofia-container">
+<!-- Se cargan dinámicamente -->
+</div>
+</div>
+
+<!-- Accesos / Herramientas -->
 <div class="card">
 <h3 style="font-size: 1rem; margin-bottom: 10px; color: var(--accent);">🛠️ Herramientas Útiles</h3>
 <div class="flex-row">
@@ -337,7 +367,8 @@ color: var(--accent);
 </div>
 <div id="ia-respuesta-box" style="display:none; background: var(--bg-input); padding: 12px; border-radius: 8px; margin-top: 10px; font-size: 0.85rem; line-height: 1.4; border-left: 3px solid var(--accent);"></div>
 </div>
-​<!-- Listado de Rutinas -->
+
+<!-- Listado de Rutinas -->
 <div class="card">
 <div class="flex-row" style="justify-content: space-between; margin-bottom: 12px;">
 <h3 style="font-size: 1rem; color: var(--accent);">📋 Mis Rutinas</h3>
@@ -347,38 +378,46 @@ color: var(--accent);
 <!-- Se cargan dinámicamente -->
 </div>
 </div>
-​<!-- Zona Segura / Botón de Reseteo General -->
+
+<!-- Zona Segura / Botón de Reseteo General -->
 <div class="card" style="border-color: rgba(239, 68, 68, 0.3); background: rgba(239, 68, 68, 0.03);">
 <h3 style="font-size: 0.9rem; color: var(--danger); margin-bottom: 6px;">⚠️ Zona de Ajustes / Fábrica</h3>
 <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 10px;">¿Necesitás reiniciar toda la app desde cero? Cuenta con protección contra borrados accidentales.</p>
 <button class="btn btn-danger" style="font-size: 0.85rem; margin:0;" onclick="solicitarReiniciarFabricaSeguro()">🔄 Reiniciar app a Cero (Seguro)</button>
 </div>
-​</div>
-​<!-- ================= VISTA DETALLE RUTINA ================= -->
+
+</div>
+
+<!-- ================= VISTA DETALLE RUTINA ================= -->
 <div id="view-rutina" class="view-section">
 <div class="card">
 <button class="btn btn-secondary" style="width: auto; margin-bottom: 12px; padding: 6px 12px; font-size: 0.8rem;" onclick="irA('view-home')">⬅ Volver</button>
 <h2 id="titulo-rutina-activa" style="font-size: 1.25rem; color: var(--accent); margin-bottom: 12px;">Rutina</h2>
 <button class="btn btn-success" style="margin-bottom: 16px;" onclick="comenzarModoGuiado()">▶ Comenzar Entrenamiento Guiado</button>
 </div>
-​<!-- Agregar Ejercicio -->
+
+<!-- Agregar Ejercicio -->
 <div class="card">
 <h3 style="font-size: 1rem; margin-bottom: 10px; color: var(--accent);">➕ Agregar Ejercicio</h3>
 <label>Seleccionar del catálogo:</label>
 <select id="select-catalogo-agregar" onchange="verificarOpcionCatalogo()"></select>
-​<div id="div-nombre-personalizado" style="display:none; margin-top: 10px;">
+
+<div id="div-nombre-personalizado" style="display:none; margin-top: 10px;">
 <label>Nombre del ejercicio personalizado:</label>
 <input type="text" id="input-ejercicio-custom" placeholder="Ej: Curl de bíceps inclinado">
 </div>
-​<div id="div-fuerza-inputs" style="margin-top: 10px;">
+
+<div id="div-fuerza-inputs" style="margin-top: 10px;">
 <label>Cantidad de Series</label>
 <input type="number" id="input-series-nuevo" value="3" min="1" max="10" onchange="generarInputsSeriesNuevo()">
-​<label style="margin-top: 10px;">Detalle por serie (Peso y Reps):</label>
+
+<label style="margin-top: 10px;">Detalle por serie (Peso y Reps):</label>
 <div id="contenedor-series-nuevo" style="background: var(--bg-input); padding: 10px; border-radius: 8px; margin-bottom: 10px;">
 <!-- Generado dinámicamente -->
 </div>
 </div>
-​<div id="div-cardio-inputs" style="display:none; margin-top: 10px;">
+
+<div id="div-cardio-inputs" style="display:none; margin-top: 10px;">
 <div class="flex-row">
 <div style="flex:1;">
 <label>Minutos</label>
@@ -390,37 +429,45 @@ color: var(--accent);
 </div>
 </div>
 </div>
-​<div style="margin-top: 10px;">
+
+<div style="margin-top: 10px;">
 <label>Notas técnicas o instrucciones (Especificaciones):</label>
 <textarea id="input-notas-nuevo" placeholder="Ej: Mantener codos fijos, pausa de 1 seg arriba..." rows="2" style="resize:none;"></textarea>
 </div>
-​<button class="btn btn-primary" style="margin-top: 8px;" onclick="agregarEjercicioARutinaActual()">Guardar Ejercicio en Rutina</button>
+
+<button class="btn btn-primary" style="margin-top: 8px;" onclick="agregarEjercicioARutinaActual()">Guardar Ejercicio en Rutina</button>
 </div>
-​<!-- Listado Ejercicios de la Rutina -->
+
+<!-- Listado Ejercicios de la Rutina -->
 <div class="card">
 <h3 style="font-size: 1rem; margin-bottom: 10px; color: var(--accent);">📝 Ejercicios Configurados</h3>
 <div id="lista-ejercicios-container"></div>
 </div>
 </div>
-​<!-- ================= VISTA MODO GUIADO ================= -->
+
+<!-- ================= VISTA MODO GUIADO ================= -->
 <div id="view-guiado" class="view-section">
 <div class="card" style="border-color: var(--accent);">
 <div class="flex-row" style="justify-content: space-between; margin-bottom: 10px;">
 <span id="guiado-progreso" style="font-size: 0.85rem; color: var(--text-muted);">Ejercicio 1 de 5</span>
 <span id="cronometro-sesion" style="font-size: 0.9rem; font-weight: bold; background: var(--bg-input); padding: 4px 8px; border-radius: 6px;">00:00</span>
 </div>
-​<h2 id="guiado-nombre" style="font-size: 1.35rem; color: var(--accent); margin-bottom: 6px;">Nombre Ejercicio</h2>
+
+<h2 id="guiado-nombre" style="font-size: 1.35rem; color: var(--accent); margin-bottom: 6px;">Nombre Ejercicio</h2>
 <p id="guiado-meta" style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 12px;"></p>
-​<!-- Especificaciones / Notas técnicas visibles también en Modo Guiado -->
+
+<!-- Especificaciones / Notas técnicas visibles también en Modo Guiado -->
 <div id="guiado-notas-propias" style="display:none; background: rgba(234, 179, 8, 0.1); border: 1px solid var(--yellow); padding: 10px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 12px; color: var(--yellow);"></div>
-​<!-- Controles Fuerza por Series Individuales -->
+
+<!-- Controles Fuerza por Series Individuales -->
 <div id="guiado-seccion-fuerza">
 <label style="margin-bottom: 6px; color: var(--accent);">Progreso por Serie (Peso y Reps):</label>
 <div id="guiado-series-inputs-container" style="background: var(--bg-input); padding: 10px; border-radius: 8px; margin-bottom: 12px;">
 <!-- Se genera dinámicamente según las series configuradas -->
 </div>
 </div>
-​<!-- Controles Cardio -->
+
+<!-- Controles Cardio -->
 <div id="guiado-seccion-cardio" style="display:none;">
 <div class="flex-row" style="margin-bottom: 10px;">
 <div style="flex:1;">
@@ -433,11 +480,13 @@ color: var(--accent);
 </div>
 </div>
 </div>
-​<div class="flex-row" style="margin-bottom: 12px; align-items: center;">
+
+<div class="flex-row" style="margin-bottom: 12px; align-items: center;">
 <input type="checkbox" id="check-realizado" style="width: auto; margin:0;" checked>
 <label for="check-realizado" style="margin:0; color:var(--text-main); font-size:0.9rem;">Ejercicio realizado en esta sesión</label>
 </div>
-​<!-- Temporizador de descanso -->
+
+<!-- Temporizador de descanso -->
 <div id="timer-box-container" style="display:none; background: var(--bg-input); padding: 12px; border-radius: 8px; text-align: center; margin-bottom: 12px; border: 1px dashed var(--accent);">
 <span style="font-size: 0.8rem; color: var(--text-muted);">⏱️ Temporizador de Descanso</span>
 <h3 id="display-descanso" style="font-size: 1.5rem; color: var(--accent); margin: 4px 0;">01:30</h3>
@@ -448,20 +497,24 @@ color: var(--accent);
 <button class="btn btn-danger" style="width: auto; padding: 4px 8px; font-size:0.75rem; margin:0;" onclick="detenerDescanso()">Parar</button>
 </div>
 </div>
-​<div class="flex-row" style="gap: 8px; margin-bottom: 8px;">
+
+<div class="flex-row" style="gap: 8px; margin-bottom: 8px;">
 <button class="btn btn-primary" style="background: var(--success); color:#fff; margin:0;" onclick="iniciarCronometroDescanso(90)">⏱️ Iniciar Descanso (1:30)</button>
 </div>
-​<div class="flex-row">
+
+<div class="flex-row">
 <button class="btn btn-secondary" onclick="guiadoAnterior()">⬅ Anterior</button>
 <button class="btn btn-primary" onclick="detenerDescanso(); guiadoSiguiente()">Siguiente ➡</button>
 </div>
 </div>
-​<div class="flex-row" style="margin-top: 10px;">
+
+<div class="flex-row" style="margin-top: 10px;">
 <button class="btn btn-secondary" style="font-size: 0.85rem;" onclick="guardarBorradorYVolver()">Guardar y Salir (Continuar luego)</button>
 <button class="btn btn-danger" style="font-size: 0.85rem;" onclick="descartarBorrador()">Descartar</button>
 </div>
 </div>
-​<!-- ================= VISTA CALENDARIO ================= -->
+
+<!-- ================= VISTA CALENDARIO ================= -->
 <div id="view-calendario" class="view-section">
 <div class="card">
 <div class="flex-row" style="justify-content: space-between; align-items: center; margin-bottom: 12px;">
@@ -475,15 +528,18 @@ color: var(--accent);
 <div id="cal-dias-grid" class="cal-grid"></div>
 </div>
 </div>
-​<!-- ================= VISTA HISTORIAL ================= -->
+
+<!-- ================= VISTA HISTORIAL ================= -->
 <div id="view-historial" class="view-section">
 <div class="card">
 <h3 style="font-size: 1rem; margin-bottom: 12px; color: var(--accent);">📜 Historial de Entrenamientos</h3>
 <div id="historial-lista-container"></div>
 </div>
 </div>
-​</div>
-​<!-- Navegación Inferior -->
+
+</div>
+
+<!-- Navegación Inferior -->
 <nav>
 <button class="nav-btn active" onclick="irA('view-home')">
 <span>🏠</span> Inicio
@@ -496,8 +552,10 @@ color: var(--accent);
 </button>
 </nav>
 </div><!-- /app-main-wrapper -->
-​<!-- ================= MODALES ================= -->
-​<!-- Modal Crear Rutina -->
+
+<!-- ================= MODALES ================= -->
+
+<!-- Modal Crear Rutina -->
 <div id="modal-crear-rutina" class="modal">
 <div class="modal-content">
 <h3 style="color: var(--accent); margin-bottom: 10px;">Crear Nueva Rutina</h3>
@@ -509,24 +567,43 @@ color: var(--accent);
 </div>
 </div>
 </div>
-​<!-- Modal Editar Ejercicio -->
+
+<!-- Modal Crear Rutina Sofía -->
+<div id="modal-crear-rutina-sofia" class="modal">
+<div class="modal-content">
+<h3 style="color: var(--sofia-accent); margin-bottom: 10px;">🌸 Crear Rutina de Sofía</h3>
+<label>Nombre de la rutina:</label>
+<input type="text" id="input-nombre-nueva-rutina-sofia" placeholder="Ej: Sofía - Tren Superior">
+<div class="flex-row">
+<button class="btn btn-secondary" onclick="cerrarModalCrearRutinaSofia()">Cancelar</button>
+<button class="btn btn-sofia" onclick="guardarNuevaRutinaSofiaCreada()">Guardar</button>
+</div>
+</div>
+</div>
+
+<!-- Modal Editar Ejercicio -->
 <div id="modal-editar-ejercicio" class="modal">
 <div class="modal-content">
 <h3 style="color: var(--accent); margin-bottom: 10px;">Editar Ejercicio / Progresión</h3>
 <input type="hidden" id="edit-ej-idx">
-​<label>Cantidad de Series</label>
+
+<label>Cantidad de Series</label>
 <input type="number" id="edit-ej-series-cant" min="1" max="10" onchange="generarInputsSeriesEdicion()">
-​<label style="margin-top: 6px;">Series (Peso y Reps individual):</label>
+
+<label style="margin-top: 6px;">Series (Peso y Reps individual):</label>
 <div id="edit-contenedor-series" style="background: var(--bg-input); padding: 8px; border-radius: 6px; margin-bottom: 10px;"></div>
-​<label>Especificaciones / Notas técnicas</label>
+
+<label>Especificaciones / Notas técnicas</label>
 <textarea id="edit-ej-notas" rows="3" placeholder="Pautas técnicas, postura..." style="resize:none;"></textarea>
-​<div class="flex-row">
+
+<div class="flex-row">
 <button class="btn btn-secondary" onclick="cerrarModalEditarEjercicio()">Cancelar</button>
 <button class="btn btn-primary" onclick="guardarEdicionEjercicio()">Actualizar</button>
 </div>
 </div>
 </div>
-​<!-- Modal Detalle Historial -->
+
+<!-- Modal Detalle Historial -->
 <div id="modal-detalle-historial" class="modal">
 <div class="modal-content">
 <h3 id="modal-historial-titulo" style="color: var(--accent); margin-bottom: 10px;">Detalle Sesión</h3>
@@ -534,7 +611,8 @@ color: var(--accent);
 <button class="btn btn-secondary" onclick="cerrarModalHistorial()">Cerrar</button>
 </div>
 </div>
-​<!-- Modal Calculadora Discos -->
+
+<!-- Modal Calculadora Discos -->
 <div id="modal-discos" class="modal">
 <div class="modal-content">
 <h3 style="color: var(--accent); margin-bottom: 10px;">⚖️ Calculadora de Discos</h3>
@@ -546,7 +624,8 @@ color: var(--accent);
 <button class="btn btn-secondary" onclick="cerrarCalculadoraDiscos()">Cerrar</button>
 </div>
 </div>
-​<!-- Modal Peso Corporal -->
+
+<!-- Modal Peso Corporal -->
 <div id="modal-peso-corporal" class="modal">
 <div class="modal-content">
 <h3 style="color: var(--accent); margin-bottom: 10px;">Actualizar Peso Corporal</h3>
@@ -558,7 +637,8 @@ color: var(--accent);
 </div>
 </div>
 </div>
-​<!-- ================= SCRIPT COMPLETO INTEGRADO, AISLADO POR UID Y SEGURO (V2) ================= -->
+
+<!-- ================= SCRIPT COMPLETO INTEGRADO, AISLADO POR UID Y SEGURO (V2) ================= -->
 <script>
 const firebaseConfig = {
 apiKey: "AIzaSyA3N-mLUaTF9jUshNosUiWpso0-934H_fo",
@@ -568,26 +648,32 @@ storageBucket: "mygymlacima.firebasestorage.app",
 messagingSenderId: "398491160791",
 appId: "1:398491160791:web:91346182b9c06588d6e092"
 };
-​firebase.initializeApp(firebaseConfig);
+
+firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const dbCloud = firebase.firestore();
-​const APP_VERSION = "2.0";
+
+const APP_VERSION = "2.0";
 const DATA_VERSION = 2;
-​let isRegisteringMode = false;
-​function toggleAuthMode() {
+
+let isRegisteringMode = false;
+
+function toggleAuthMode() {
 isRegisteringMode = !isRegisteringMode;
 document.getElementById('auth-title').innerText = isRegisteringMode ? 'Crear Cuenta - La Cima' : 'Mi Gym La Cima';
 document.getElementById('auth-btn').innerText = isRegisteringMode ? 'Registrarse' : 'Iniciar Sesión';
 document.getElementById('auth-switch-text').innerText = isRegisteringMode ? 'Iniciá sesión acá' : 'Registrate acá';
 document.getElementById('auth-error').classList.add('hidden');
 }
-​async function handleAuthSubmit(event) {
+
+async function handleAuthSubmit(event) {
 event.preventDefault();
 const email = document.getElementById('auth-email').value;
 const password = document.getElementById('auth-password').value;
 const errorDiv = document.getElementById('auth-error');
 errorDiv.classList.add('hidden');
-​try {
+
+try {
 if (isRegisteringMode) {
 const cred = await auth.createUserWithEmailAndPassword(email, password);
 await dbCloud.collection('usuarios').doc(cred.user.uid).set({
@@ -605,16 +691,19 @@ errorDiv.innerText = error.message;
 errorDiv.classList.remove('hidden');
 }
 }
-​function logoutSession() {
+
+function logoutSession() {
 auth.signOut();
 }
-​// Escuchar cambios de sesión de Firebase
+
+// Escuchar cambios de sesión de Firebase
 auth.onAuthStateChanged(async (user) => {
 document.getElementById('auth-screen').classList.add('hidden');
 document.getElementById('pending-screen').classList.add('hidden');
 document.getElementById('admin-screen').classList.add('hidden');
 document.getElementById('app-main-wrapper').classList.add('hidden');
-​if (user) {
+
+if (user) {
 try {
 const userDoc = await dbCloud.collection('usuarios').doc(user.uid).get();
 if (userDoc.exists) {
@@ -644,10 +733,12 @@ console.error("Error verificando permisos de usuario:", e);
 document.getElementById('auth-screen').classList.remove('hidden');
 }
 });
-​async function loadAdminUsersTable() {
+
+async function loadAdminUsersTable() {
 const tbody = document.getElementById('admin-users-tbody');
 tbody.innerHTML = '<tr><td colspan="3" style="padding: 8px;">Cargando usuarios...</td></tr>';
-​dbCloud.collection('usuarios').onSnapshot(snapshot => {
+
+dbCloud.collection('usuarios').onSnapshot(snapshot => {
 tbody.innerHTML = '';
 if (snapshot.empty) {
 tbody.innerHTML = '<tr><td colspan="3" style="padding: 8px;">No hay usuarios registrados.</td></tr>';
@@ -658,36 +749,41 @@ const data = doc.data();
 if (data.rol === 'admin') return;
 const tr = document.createElement('tr');
 tr.style.borderBottom = '1px solid var(--border)';
-tr.innerHTML = <td style="padding: 8px;">${data.email}</td> <td style="padding: 8px;">${data.autorizado ? '<span style="color: var(--success);">Autorizado</span>' : '<span style="color: var(--orange);">Pendiente</span>'}</td> <td style="padding: 8px;"> ${data.autorizado  ?<button class="btn btn-danger" style="width: auto; margin:0; padding: 4px 8px; font-size:0.75rem;" onclick="setUserAuthStatus('${doc.id}', false)">Bloquear</button> :<button class="btn btn-success" style="width: auto; margin:0; padding: 4px 8px; font-size:0.75rem;" onclick="setUserAuthStatus('${doc.id}', true)">Autorizar</button>} </td>;
+tr.innerHTML = `<td style="padding: 8px;">${data.email}</td><td style="padding: 8px;">${data.autorizado ? '<span style="color: var(--success);">Autorizado</span>' : '<span style="color: var(--orange);">Pendiente</span>'}</td><td style="padding: 8px;">${data.autorizado ? `<button class="btn btn-danger" style="width: auto; margin:0; padding: 4px 8px; font-size:0.75rem;" onclick="setUserAuthStatus('${doc.id}', false)">Bloquear</button>` : `<button class="btn btn-success" style="width: auto; margin:0; padding: 4px 8px; font-size:0.75rem;" onclick="setUserAuthStatus('${doc.id}', true)">Autorizar</button>`}</td>`;
 tbody.appendChild(tr);
 });
 });
 }
-​async function setUserAuthStatus(uid, status) {
+
+async function setUserAuthStatus(uid, status) {
 try {
 await dbCloud.collection('usuarios').doc(uid).update({ autorizado: status });
 } catch (e) {
 alert('Error al actualizar estado: ' + e.message);
 }
 }
-​function entrarComoAdminApp() {
+
+function entrarComoAdminApp() {
 document.getElementById('admin-screen').classList.add('hidden');
 document.getElementById('app-main-wrapper').classList.remove('hidden');
 sincronizarConNubeAlIniciar();
 }
-​// -------------------------------------------------------------
+
+// -------------------------------------------------------------
 // LÓGICA DE ALMACENAMIENTO AISLADO POR UID (ETAPA 1)
 // -------------------------------------------------------------
 function obtenerClavesLocales(uid) {
 if (!uid) return null;
 return {
-rutinas: mi_gym_${uid}_rutinas_v2,
-registros: mi_gym_${uid}_registros_v2,
-perfil: mi_gym_${uid}_perfil_v2,
-borrador: mi_gym_${uid}_borrador_v2
+rutinas: `mi_gym_${uid}_rutinas_v2`,
+rutinasSofia: `mi_gym_${uid}_rutinas_sofia_v2`,
+registros: `mi_gym_${uid}_registros_v2`,
+perfil: `mi_gym_${uid}_perfil_v2`,
+borrador: `mi_gym_${uid}_borrador_v2`
 };
 }
-​const catalogoEjercicios = [
+
+const catalogoEjercicios = [
 "PRESS PLANO", "PRESS INCLINADO MANC", "CROSSOVER CON BANCO", "FLEXIONES",
 "PRESS MILITAR", "VUELO LATERAL", "SENTADILLA / HACK", "BÚLGARAS",
 "FLEXIÓN DE ISQUIOS", "SILLÓN DE CUÁDRICEPS", "GEMELOS", "BÍCEPS CON BARRA",
@@ -696,35 +792,46 @@ borrador: mi_gym_${uid}_borrador_v2
 "Caminar 🚶‍♂️", "Trotar / Correr 🏃‍♂️", "Ciclismo 🚴‍♂️", "Natación 🏊‍♂️",
 "➕ OTRO (Escribir nombre personalizado)..."
 ];
-​let rutinasPersonalizadas = { "Rutina A": [] };
+
+let rutinasPersonalizadas = { "Rutina A": [] };
+let rutinasSofia = { "Sofía - Rutina Base": [] };
 let registrosCloud = [];
 let perfilCloud = { peso: 90 };
 let borradorSesion = null;
-​let rutinaSeleccionadaKey = '';
+
+let rutinaSeleccionadaKey = '';
 let guiadoIndice = 0;
 let cronometroSesionInterval = null;
 let segundosSesion = 0;
 let descansoInterval = null;
 let segundosDescansoRestantes = 90;
-​let calAnioActual = new Date().getFullYear();
+
+let calAnioActual = new Date().getFullYear();
 let calMesActual = new Date().getMonth();
 let homeCalAnioActual = new Date().getFullYear();
 let homeCalMesActual = new Date().getMonth();
-​async function sincronizarConNubeAlIniciar() {
+
+async function sincronizarConNubeAlIniciar() {
 const user = auth.currentUser;
 if (!user) return;
 const uid = user.uid;
 const claves = obtenerClavesLocales(uid);
 let docRef = dbCloud.collection("datos_gym").doc(uid);
-​try {
+
+try {
 actualizarEstadoCloud(false, "Sincronizando...");
 let doc = await docRef.get();
-​if (doc.exists) {
+
+if (doc.exists) {
 let nubeData = doc.data();
 if (nubeData) {
 if (nubeData.rutinas) {
 rutinasPersonalizadas = nubeData.rutinas;
 localStorage.setItem(claves.rutinas, JSON.stringify(rutinasPersonalizadas));
+}
+if (nubeData.rutinasSofia) {
+rutinasSofia = nubeData.rutinasSofia;
+localStorage.setItem(claves.rutinasSofia, JSON.stringify(rutinasSofia));
 }
 if (nubeData.registrosCloud || nubeData.registros) {
 registrosCloud = nubeData.registrosCloud || nubeData.registros;
@@ -737,55 +844,68 @@ localStorage.setItem(claves.perfil, JSON.stringify(perfilCloud));
 }
 } else {
 rutinasPersonalizadas = { "Rutina A": [] };
+rutinasSofia = { "Sofía - Rutina Base": [] };
 registrosCloud = [];
 perfilCloud = { peso: 90 };
 await guardarTodoEnNube();
 }
-​let borradorGuardado = localStorage.getItem(claves.borrador);
+
+let borradorGuardado = localStorage.getItem(claves.borrador);
 borradorSesion = borradorGuardado ? JSON.parse(borradorGuardado) : null;
-​actualizarEstadoCloud(true, "☁️ Sincronizado");
+
+actualizarEstadoCloud(true, "☁️ Sincronizado");
 actualizarDashboard();
 } catch(err) {
 console.error("Error crítico al conectar con Firestore. Operando en modo offline seguro:", err);
 let rutinasLocales = localStorage.getItem(claves.rutinas);
 if (rutinasLocales) rutinasPersonalizadas = JSON.parse(rutinasLocales);
+let rutinasSofiaLocales = localStorage.getItem(claves.rutinasSofia);
+if (rutinasSofiaLocales) rutinasSofia = JSON.parse(rutinasSofiaLocales);
 let regsLocales = localStorage.getItem(claves.registros);
 if (regsLocales) registrosCloud = JSON.parse(regsLocales);
 let perfilLocal = localStorage.getItem(claves.perfil);
 if (perfilLocal) perfilCloud = JSON.parse(perfilLocal);
 let borradorLocal = localStorage.getItem(claves.borrador);
 if (borradorLocal) borradorSesion = JSON.parse(borradorLocal);
-​actualizarEstadoCloud(false, "⚠️ Modo Local");
+
+actualizarEstadoCloud(false, "⚠️ Modo Local");
 actualizarDashboard();
 }
 }
-​async function guardarTodoEnNube() {
+
+async function guardarTodoEnNube() {
 guardarLocal();
 const user = auth.currentUser;
 if (!user) return;
 const uid = user.uid;
-​try {
+
+try {
 actualizarEstadoCloud(false, "Guardando...");
 const payloadData = {
 dataVersion: DATA_VERSION,
 rutinas: rutinasPersonalizadas,
+rutinasSofia: rutinasSofia,
 registrosCloud: registrosCloud,
 perfil: perfilCloud,
 ultimaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
 };
-​await dbCloud.collection("datos_gym").doc(uid).set(payloadData, { merge: true });
+
+await dbCloud.collection("datos_gym").doc(uid).set(payloadData, { merge: true });
 actualizarEstadoCloud(true, "☁️ Nube Actualizada");
 } catch(e) {
 console.error("Error al guardar en Firestore:", e);
 actualizarEstadoCloud(false, "⚠️ Error de red");
 }
 }
-​function guardarLocal() {
+
+function guardarLocal() {
 const user = auth.currentUser;
 if (!user) return;
 const claves = obtenerClavesLocales(user.uid);
 if (!claves) return;
-​localStorage.setItem(claves.rutinas, JSON.stringify(rutinasPersonalizadas));
+
+localStorage.setItem(claves.rutinas, JSON.stringify(rutinasPersonalizadas));
+localStorage.setItem(claves.rutinasSofia, JSON.stringify(rutinasSofia));
 localStorage.setItem(claves.registros, JSON.stringify(registrosCloud));
 localStorage.setItem(claves.perfil, JSON.stringify(perfilCloud));
 if (borradorSesion) {
@@ -794,7 +914,8 @@ localStorage.setItem(claves.borrador, JSON.stringify(borradorSesion));
 localStorage.removeItem(claves.borrador);
 }
 }
-​function actualizarEstadoCloud(sincronizado, texto) {
+
+function actualizarEstadoCloud(sincronizado, texto) {
 const dot = document.getElementById('cloud-dot');
 const txt = document.getElementById('cloud-text');
 if (dot && txt) {
@@ -802,12 +923,15 @@ dot.className = sincronizado ? "cloud-dot sync" : "cloud-dot offline";
 txt.innerText = texto;
 }
 }
-​function irA(viewId) {
+
+function irA(viewId) {
 document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
 const targetView = document.getElementById(viewId);
 if (targetView) targetView.classList.add('active');
-​document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
-​if(viewId === 'view-home') {
+
+document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+
+if(viewId === 'view-home') {
 const navBtn = document.querySelectorAll('.nav-btn')[0];
 if (navBtn) navBtn.classList.add('active');
 actualizarDashboard();
@@ -822,98 +946,139 @@ renderizarHistorial();
 }
 window.scrollTo(0,0);
 }
-​function actualizarDashboard() {
+
+function actualizarDashboard() {
 const pesoCorp = document.getElementById('label-peso-corporal');
-if (pesoCorp) pesoCorp.innerText = ${perfilCloud.peso || '--'} kg;
-​const bannerBorrador = document.getElementById('banner-borrador-activo');
+if (pesoCorp) pesoCorp.innerText = `${perfilCloud.peso || '--'} kg`;
+
+const bannerBorrador = document.getElementById('banner-borrador-activo');
 if(bannerBorrador) {
 bannerBorrador.style.display = borradorSesion ? 'block' : 'none';
 }
-​renderizarHomeCalendario();
-​const cont = document.getElementById('lista-rutinas-home-container');
-if (!cont) return;
-​let html = '';
+
+renderizarHomeCalendario();
+
+// Renderizar mis rutinas
+const cont = document.getElementById('lista-rutinas-home-container');
+if (cont) {
+let html = '';
 Object.keys(rutinasPersonalizadas).forEach(key => {
 let cantEjercicios = Array.isArray(rutinasPersonalizadas[key]) ? rutinasPersonalizadas[key].length : 0;
-html += <div class="flex-row" style="margin-bottom: 8px;">  <button class="btn btn-primary" style="margin:0; flex:1;" onclick="seleccionarRutina('${key}')">📅 ${key} (${cantEjercicios} ejercicios)</button> <button class="btn btn-danger" style="width: auto; margin:0; padding: 12px 14px;" onclick="eliminarRutina('${key}')">🗑️</button>  </div>;
+html += `<div class="flex-row" style="margin-bottom: 8px;"><button class="btn btn-primary" style="margin:0; flex:1;" onclick="seleccionarRutina('${key}')">📅 ${key} (${cantEjercicios} ejercicios)</button><button class="btn btn-danger" style="width: auto; margin:0; padding: 12px 14px;" onclick="eliminarRutina('${key}')">🗑️</button></div>`;
 });
 cont.innerHTML = html || '<p style="color:var(--text-muted); font-size:0.9rem;">No hay rutinas creadas todavía.</p>';
 }
-​function renderizarHomeCalendario() {
+
+// Renderizar rutinas de Sofía
+const contSofia = document.getElementById('lista-rutinas-sofia-container');
+if (contSofia) {
+let htmlSofia = '';
+Object.keys(rutinasSofia).forEach(key => {
+let cantEjerciciosSofia = Array.isArray(rutinasSofia[key]) ? rutinasSofia[key].length : 0;
+htmlSofia += `<div class="flex-row" style="margin-bottom: 8px;"><button class="btn btn-sofia" style="margin:0; flex:1;" onclick="seleccionarRutinaSofia('${key}')">🌸 ${key} (${cantEjerciciosSofia} ejercicios)</button><button class="btn btn-danger" style="width: auto; margin:0; padding: 12px 14px;" onclick="eliminarRutinaSofia('${key}')">🗑️</button></div>`;
+});
+contSofia.innerHTML = htmlSofia || '<p style="color:var(--text-muted); font-size:0.9rem;">No hay rutinas de Sofía creadas todavía.</p>';
+}
+}
+
+function renderizarHomeCalendario() {
 const meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Setiembre", "Octubre", "Noviembre", "Diciembre"];
 const titulo = document.getElementById('home-cal-mes-titulo');
-if (titulo) titulo.innerText = ${meses[homeCalMesActual]} ${homeCalAnioActual};
-​let primerDia = new Date(homeCalAnioActual, homeCalMesActual, 1).getDay();
+if (titulo) titulo.innerText = `${meses[homeCalMesActual]} ${homeCalAnioActual}`;
+
+let primerDia = new Date(homeCalAnioActual, homeCalMesActual, 1).getDay();
 primerDia = primerDia === 0 ? 6 : primerDia - 1;
 let totalDias = new Date(homeCalAnioActual, homeCalMesActual + 1, 0).getDate();
-​let diasEntrenados = {};
+
+let diasEntrenados = {};
 let cantMes = 0;
 let kcalMes = 0;
-​registrosCloud.forEach(r => {
+
+registrosCloud.forEach(r => {
 if (!r.fecha) return;
 let p = r.fecha.split('/');
 if(p.length === 3 && parseInt(p[1]) === (homeCalMesActual + 1) && parseInt(p[2]) === homeCalAnioActual) {
 let dNum = parseInt(p[0]);
-diasEntrenados[dNum] = r.rutina;
+diasEntrenados[dNum] = r;
 cantMes++;
 kcalMes += (r.calorias || 0);
 }
 });
-​const statDias = document.getElementById('home-stat-dias');
+
+const statDias = document.getElementById('home-stat-dias');
 const statKcal = document.getElementById('home-stat-kcal');
 if (statDias) statDias.innerText = Object.keys(diasEntrenados).length;
-if (statKcal) statKcal.innerText = ${kcalMes.toLocaleString()} kcal;
-​let grid = '';
-for(let i=0; i<primerDia; i++) grid += <div class="cal-day" style="opacity:0; border:none; cursor:default;"></div>;
-​let hoy = new Date();
+if (statKcal) statKcal.innerText = `${kcalMes.toLocaleString()} kcal`;
+
+let grid = '';
+for(let i=0; i<primerDia; i++) grid += `<div class="cal-day" style="opacity:0; border:none; cursor:default;"></div>`;
+
+let hoy = new Date();
 for(let d=1; d<=totalDias; d++) {
-let ent = diasEntrenados[d];
+let reg = diasEntrenados[d];
 let esHoy = (d === hoy.getDate() && homeCalMesActual === hoy.getMonth() && homeCalAnioActual === hoy.getFullYear());
-let cls = ent ? 'trained' : '';
+let cls = '';
+if (reg) {
+cls = reg.esSofia ? 'trained-sofia' : 'trained';
+}
 if(esHoy) cls += ' today';
-​grid += <div class="cal-day ${cls}" onclick="alert('${ent ? "Entrenamiento registrado: " + ent : "Día " + d + ": Sin entrenamientos"}')">  <strong style="font-size:0.8rem;">${d}</strong> ${ent ? '<span style="font-size:0.5rem; color:var(--accent);">✔</span>' : ''}  </div>;
+
+let msg = reg ? (reg.esSofia ? "Entrenamiento Sofía: " + reg.rutina : "Entrenamiento registrado: " + reg.rutina) : ("Día " + d + ": Sin entrenamientos");
+let indicador = reg ? (reg.esSofia ? '<span style="font-size:0.5rem; color:var(--sofia-accent);">🌸</span>' : '<span style="font-size:0.5rem; color:var(--accent);">✔</span>') : '';
+
+grid += `<div class="cal-day ${cls}" onclick="alert('${msg}')"><strong style="font-size:0.8rem;">${d}</strong> ${indicador}</div>`;
 }
 const gridEl = document.getElementById('home-cal-grid');
 if (gridEl) gridEl.innerHTML = grid;
 }
-​function cambiarMesHomeCalendario(dir) {
+
+function cambiarMesHomeCalendario(dir) {
 homeCalMesActual += dir;
 if(homeCalMesActual > 11) { homeCalMesActual = 0; homeCalAnioActual++; }
 if(homeCalMesActual < 0) { homeCalMesActual = 11; homeCalAnioActual--; }
 renderizarHomeCalendario();
 }
-​async function solicitarReiniciarFabricaSeguro() {
+
+async function solicitarReiniciarFabricaSeguro() {
 let confirmacion1 = confirm("⚠️ ATENCIÓN: Estás a punto de borrar TODAS tus rutinas, historial de entrenamientos y configuraciones guardadas. ¿Querés continuar?");
 if(!confirmacion1) return;
-​let palabraClave = prompt("Para confirmar que querés reiniciar la aplicación a cero, escribí la palabra: BORRAR");
+
+let palabraClave = prompt("Para confirmar que querés reiniciar la aplicación a cero, escribí la palabra: BORRAR");
 if(palabraClave !== "BORRAR") {
 alert("Operación cancelada. No se borró ningún dato.");
 return;
 }
-​rutinasPersonalizadas = { "Rutina A": [] };
+
+rutinasPersonalizadas = { "Rutina A": [] };
+rutinasSofia = { "Sofía - Rutina Base": [] };
 registrosCloud = [];
 perfilCloud = { peso: 90 };
 borradorSesion = null;
-​guardarTodoEnNube();
+
+guardarTodoEnNube();
 alert("🔄 La aplicación ha sido restablecida a cero exitosamente.");
 actualizarDashboard();
 irA('view-home');
 }
-​function abrirModalCrearRutina() {
+
+function abrirModalCrearRutina() {
 const input = document.getElementById('input-nombre-nueva-rutina');
 if (input) input.value = '';
 const modal = document.getElementById('modal-crear-rutina');
 if (modal) modal.style.display = 'flex';
 }
-​function cerrarModalCrearRutina() {
+
+function cerrarModalCrearRutina() {
 const modal = document.getElementById('modal-crear-rutina');
 if (modal) modal.style.display = 'none';
 }
-​function guardarNuevaRutinaCreada() {
+
+function guardarNuevaRutinaCreada() {
 let inputNombre = document.getElementById('input-nombre-nueva-rutina');
 if (!inputNombre) return;
 let nombre = inputNombre.value.trim();
-​if(nombre !== "") {
+
+if(nombre !== "") {
 if(!rutinasPersonalizadas[nombre]) {
 rutinasPersonalizadas[nombre] = [];
 guardarTodoEnNube();
@@ -924,84 +1089,217 @@ actualizarDashboard();
 alert("Por favor, ingresá un nombre válido para la rutina.");
 }
 }
-​function eliminarRutina(key) {
-if(confirm(¿Estás seguro de eliminar la rutina "${key}"?)) {
+
+function eliminarRutina(key) {
+if(confirm(`¿Estás seguro de eliminar la rutina "${key}"?`)) {
 delete rutinasPersonalizadas[key];
 guardarTodoEnNube();
 actualizarDashboard();
 }
 }
-​function seleccionarRutina(key) {
+
+function seleccionarRutina(key) {
 rutinaSeleccionadaKey = key;
 if (!Array.isArray(rutinasPersonalizadas[rutinaSeleccionadaKey])) {
 rutinasPersonalizadas[rutinaSeleccionadaKey] = [];
 }
-​const tituloRutina = document.getElementById('titulo-rutina-activa');
+
+const tituloRutina = document.getElementById('titulo-rutina-activa');
 if (tituloRutina) tituloRutina.innerText = key;
-​const sel = document.getElementById('select-catalogo-agregar');
+
+const sel = document.getElementById('select-catalogo-agregar');
 if (sel) {
 let h = '';
-catalogoEjercicios.forEach(e => h += <option value="${e}">${e}</option>);
+catalogoEjercicios.forEach(e => h += `<option value="${e}">${e}</option>`);
 sel.innerHTML = h;
 verificarOpcionCatalogo();
 }
-​generarInputsSeriesNuevo();
+
+generarInputsSeriesNuevo();
 renderizarEjerciciosRutinaActual();
 irA('view-rutina');
 }
-​function verificarOpcionCatalogo() {
+
+// Funciones específicas para rutinas de Sofía
+function abrirModalCrearRutinaSofia() {
+const input = document.getElementById('input-nombre-nueva-rutina-sofia');
+if (input) input.value = '';
+const modal = document.getElementById('modal-crear-rutina-sofia');
+if (modal) modal.style.display = 'flex';
+}
+
+function cerrarModalCrearRutinaSofia() {
+const modal = document.getElementById('modal-crear-rutina-sofia');
+if (modal) modal.style.display = 'none';
+}
+
+function guardarNuevaRutinaSofiaCreada() {
+let inputNombre = document.getElementById('input-nombre-nueva-rutina-sofia');
+if (!inputNombre) return;
+let nombre = inputNombre.value.trim();
+
+if(nombre !== "") {
+if(!rutinasSofia[nombre]) {
+rutinasSofia[nombre] = [];
+guardarTodoEnNube();
+}
+cerrarModalCrearRutinaSofia();
+actualizarDashboard();
+} else {
+alert("Por favor, ingresá un nombre válido para la rutina.");
+}
+}
+
+function eliminarRutinaSofia(key) {
+if(confirm(`¿Estás seguro de eliminar la rutina de Sofía "${key}"?`)) {
+delete rutinasSofia[key];
+guardarTodoEnNube();
+actualizarDashboard();
+}
+}
+
+function seleccionarRutinaSofia(key) {
+rutinaSeleccionadaKey = key;
+if (!Array.isArray(rutinasSofia[rutinaSeleccionadaKey])) {
+rutinasSofia[rutinaSeleccionadaKey] = [];
+}
+
+const tituloRutina = document.getElementById('titulo-rutina-activa');
+if (tituloRutina) tituloRutina.innerText = `🌸 ${key}`;
+
+const sel = document.getElementById('select-catalogo-agregar');
+if (sel) {
+let h = '';
+catalogoEjercicios.forEach(e => h += `<option value="${e}">${e}</option>`);
+sel.innerHTML = h;
+verificarOpcionCatalogo();
+}
+
+generarInputsSeriesNuevo();
+renderizarEjerciciosRutinaActualSofia();
+irA('view-rutina');
+}
+
+function renderizarEjerciciosRutinaActualSofia() {
+const cont = document.getElementById('lista-ejercicios-container');
+if (!cont) return;
+const lista = rutinasSofia[rutinaSeleccionadaKey] || [];
+let html = '';
+
+if(lista.length === 0) {
+html = '<p style="color:var(--text-muted); font-size:0.9rem;">Esta rutina de Sofía está vacía. Agregá tu primer ejercicio arriba.</p>';
+}
+
+lista.forEach((item, idx) => {
+if(item.tipo === "cardio") {
+html += `<div class="card exercise-card" style="margin-bottom: 8px; padding: 12px;"><div class="flex-row" style="justify-content: space-between; align-items: flex-start;"><div><h3 style="color: var(--orange); font-size: 1.05rem; margin-bottom: 4px;">${idx+1}. ${item.nombre}</h3><p style="color: var(--text-muted); font-size: 0.85rem;">Cardio | ${item.minutos} mins ${item.km ? '| ' + item.km + ' km' : ''}</p>${item.notas ? '<p style="color: var(--yellow); font-size: 0.85rem; margin-top: 6px; font-style: italic; white-space: pre-wrap;">📝 ' + item.notas + '</p>' : ''}</div><div class="flex-row" style="gap:5px;"><button class="btn btn-secondary" style="width: auto; margin:0; padding: 6px 10px; font-size: 0.8rem;" onclick="abrirModalEditarEjercicioSofia(${idx})">✏️</button><button class="btn btn-danger" style="width: auto; margin:0; padding: 6px 10px; font-size: 0.8rem;" onclick="eliminarEjercicioDeRutinaSofia(${idx})">🗑️</button></div></div></div>`;
+} else {
+let resumenSeries = "";
+if (item.seriesConfig && item.seriesConfig.length > 0) {
+resumenSeries = item.seriesConfig.map((s, i) => `S${i+1}: ${s.peso}kg (${s.reps})`).join(' | ');
+} else {
+resumenSeries = "Series configuradas";
+}
+
+html += `<div class="card exercise-card" style="margin-bottom: 8px; padding: 12px;"><div class="flex-row" style="justify-content: space-between; align-items: flex-start;"><div><h3 style="color: var(--sofia-accent); font-size: 1.05rem; margin-bottom: 4px;">${idx+1}. ${item.nombre}</h3><p style="color: var(--text-muted); font-size: 0.85rem; line-height: 1.4;">${resumenSeries}</p>${item.notas ? '<p style="color: var(--yellow); font-size: 0.85rem; margin-top: 6px; font-style: italic; white-space: pre-wrap;">📝 ' + item.notas + '</p>' : ''}</div><div class="flex-row" style="gap:5px;"><button class="btn btn-secondary" style="width: auto; margin:0; padding: 6px 10px; font-size: 0.8rem;" onclick="abrirModalEditarEjercicioSofia(${idx})">✏️</button><button class="btn btn-danger" style="width: auto; margin:0; padding: 6px 10px; font-size: 0.8rem;" onclick="eliminarEjercicioDeRutinaSofia(${idx})">🗑️</button></div></div></div>`;
+}
+});
+cont.innerHTML = html;
+}
+
+function eliminarEjercicioDeRutinaSofia(idx) {
+if (Array.isArray(rutinasSofia[rutinaSeleccionadaKey])) {
+rutinasSofia[rutinaSeleccionadaKey].splice(idx, 1);
+guardarTodoEnNube();
+renderizarEjerciciosRutinaActualSofia();
+}
+}
+
+function abrirModalEditarEjercicioSofia(idx) {
+let item = rutinasSofia[rutinaSeleccionadaKey]?.[idx];
+if (!item) return;
+
+const idxEl = document.getElementById('edit-ej-idx');
+const cantSeriesEl = document.getElementById('edit-ej-series-cant');
+const notasEl = document.getElementById('edit-ej-notas');
+const modal = document.getElementById('modal-editar-ejercicio');
+
+if (idxEl) idxEl.value = idx;
+let cantSeries = item.seriesConfig ? item.seriesConfig.length : 3;
+if (cantSeriesEl) cantSeriesEl.value = cantSeries;
+if (notasEl) notasEl.value = item.notas || "";
+
+generarInputsSeriesEdicion(item.seriesConfig);
+if (modal) modal.style.display = 'flex';
+}
+
+function verificarOpcionCatalogo() {
 const sel = document.getElementById('select-catalogo-agregar');
 if (!sel) return;
 let val = sel.value;
 let esCustom = val.includes("➕ OTRO");
 let esCardio = val.includes("🚶‍♂️") || val.includes("🏃‍♂️") || val.includes("🚴‍♂️") || val.includes("🏊‍♂️");
-​const divCustom = document.getElementById('div-nombre-personalizado');
+
+const divCustom = document.getElementById('div-nombre-personalizado');
 const divCardio = document.getElementById('div-cardio-inputs');
 const divFuerza = document.getElementById('div-fuerza-inputs');
-​if (divCustom) divCustom.style.display = esCustom ? 'block' : 'none';
+
+if (divCustom) divCustom.style.display = esCustom ? 'block' : 'none';
 if (divCardio) divCardio.style.display = esCardio ? 'block' : 'none';
 if (divFuerza) divFuerza.style.display = esCardio ? 'none' : 'block';
 }
-​function generarInputsSeriesNuevo() {
+
+function generarInputsSeriesNuevo() {
 const cant = parseInt(document.getElementById('input-series-nuevo')?.value) || 3;
 const contenedor = document.getElementById('contenedor-series-nuevo');
 if (!contenedor) return;
-​let html = '';
+
+let html = '';
 for (let i = 1; i <= cant; i++) {
-html += <div class="flex-row" style="margin-bottom: 6px; align-items: center;">  <span style="font-size: 0.85rem; width: 65px; color: var(--accent);">Serie ${i}:</span> <input type="number" placeholder="Peso (kg)" id="nuevo-serie-peso-${i}" step="0.5" value="0" style="margin:0; padding: 6px; font-size:0.9rem;">  <input type="text" placeholder="Reps (ej: 10)" id="nuevo-serie-reps-${i}" value="10" style="margin:0; padding: 6px; font-size:0.9rem;"> </div>;
+html += `<div class="flex-row" style="margin-bottom: 6px; align-items: center;"><span style="font-size: 0.85rem; width: 65px; color: var(--accent);">Serie ${i}:</span><input type="number" placeholder="Peso (kg)" id="nuevo-serie-peso-${i}" step="0.5" value="0" style="margin:0; padding: 6px; font-size:0.9rem;"><input type="text" placeholder="Reps (ej: 10)" id="nuevo-serie-reps-${i}" value="10" style="margin:0; padding: 6px; font-size:0.9rem;"></div>`;
 }
 contenedor.innerHTML = html;
 }
-​function agregarEjercicioARutinaActual() {
+
+function agregarEjercicioARutinaActual() {
 const sel = document.getElementById('select-catalogo-agregar');
 if (!sel) return;
 let selVal = sel.value;
 let nombreFinal = "";
-​if(selVal.includes("➕ OTRO")) {
+
+if(selVal.includes("➕ OTRO")) {
 let inputCustom = document.getElementById('input-ejercicio-custom');
 nombreFinal = inputCustom ? inputCustom.value.trim().toUpperCase() : "";
 if(!nombreFinal) { alert("Ingresá un nombre para el ejercicio."); return; }
 } else {
 nombreFinal = selVal;
 }
-​let esCardio = nombreFinal.includes("🚶‍♂️") || nombreFinal.includes("🏃‍♂️") || nombreFinal.includes("🚴‍♂️") || nombreFinal.includes("🏊‍♂️");
-​if(!Array.isArray(rutinasPersonalizadas[rutinaSeleccionadaKey])) {
-rutinasPersonalizadas[rutinaSeleccionadaKey] = [];
+
+let esCardio = nombreFinal.includes("🚶‍♂️") || nombreFinal.includes("🏃‍♂️") || nombreFinal.includes("🚴‍♂️") || nombreFinal.includes("🏊‍♂️");
+let esSofiaRutina = rutinasSofia[rutinaSeleccionadaKey] !== undefined;
+
+let destinoRutina = esSofiaRutina ? rutinasSofia : rutinasPersonalizadas;
+
+if(!Array.isArray(destinoRutina[rutinaSeleccionadaKey])) {
+destinoRutina[rutinaSeleccionadaKey] = [];
 }
-​let notasManuales = document.getElementById('input-notas-nuevo')?.value.trim() || "";
-​if(esCardio) {
+
+let notasManuales = document.getElementById('input-notas-nuevo')?.value.trim() || "";
+
+if(esCardio) {
 let mins = parseInt(document.getElementById('cardio-minutos')?.value) || 20;
 let km = parseFloat(document.getElementById('cardio-km')?.value) || 0;
-rutinasPersonalizadas[rutinaSeleccionadaKey].push({ id: Date.now() + Math.random(), nombre: nombreFinal, minutos: mins, km, notas: notasManuales, tipo: "cardio" });
+destinoRutina[rutinaSeleccionadaKey].push({ id: Date.now() + Math.random(), nombre: nombreFinal, minutos: mins, km, notas: notasManuales, tipo: "cardio" });
 } else {
 let cantSeries = parseInt(document.getElementById('input-series-nuevo')?.value) || 3;
 let seriesArray = [];
 for (let i = 1; i <= cantSeries; i++) {
-let p = parseFloat(document.getElementById(nuevo-serie-peso-${i})?.value) || 0;
-let r = document.getElementById(nuevo-serie-reps-${i})?.value || "10";
+let p = parseFloat(document.getElementById(`nuevo-serie-peso-${i}`)?.value) || 0;
+let r = document.getElementById(`nuevo-serie-reps-${i}`)?.value || "10";
 seriesArray.push({ peso: p, reps: r });
 }
-​rutinasPersonalizadas[rutinaSeleccionadaKey].push({
+
+destinoRutina[rutinaSeleccionadaKey].push({
 id: Date.now() + Math.random(),
 nombre: nombreFinal,
 seriesConfig: seriesArray,
@@ -1010,34 +1308,45 @@ tipo: "fuerza"
 });
 }
 guardarTodoEnNube();
+if (esSofiaRutina) {
+renderizarEjerciciosRutinaActualSofia();
+} else {
 renderizarEjerciciosRutinaActual();
 }
-​function eliminarEjercicioDeRutina(idx) {
+}
+
+function eliminarEjercicioDeRutina(idx) {
 if (Array.isArray(rutinasPersonalizadas[rutinaSeleccionadaKey])) {
 rutinasPersonalizadas[rutinaSeleccionadaKey].splice(idx, 1);
 guardarTodoEnNube();
 renderizarEjerciciosRutinaActual();
 }
 }
-​function abrirModalEditarEjercicio(idx) {
+
+function abrirModalEditarEjercicio(idx) {
 let item = rutinasPersonalizadas[rutinaSeleccionadaKey]?.[idx];
 if (!item) return;
-​const idxEl = document.getElementById('edit-ej-idx');
+
+const idxEl = document.getElementById('edit-ej-idx');
 const cantSeriesEl = document.getElementById('edit-ej-series-cant');
 const notasEl = document.getElementById('edit-ej-notas');
 const modal = document.getElementById('modal-editar-ejercicio');
-​if (idxEl) idxEl.value = idx;
+
+if (idxEl) idxEl.value = idx;
 let cantSeries = item.seriesConfig ? item.seriesConfig.length : 3;
 if (cantSeriesEl) cantSeriesEl.value = cantSeries;
 if (notasEl) notasEl.value = item.notas || "";
-​generarInputsSeriesEdicion(item.seriesConfig);
+
+generarInputsSeriesEdicion(item.seriesConfig);
 if (modal) modal.style.display = 'flex';
 }
-​function generarInputsSeriesEdicion(seriesPrevias = null) {
+
+function generarInputsSeriesEdicion(seriesPrevias = null) {
 const cant = parseInt(document.getElementById('edit-ej-series-cant')?.value) || 3;
 const contenedor = document.getElementById('edit-contenedor-series');
 if (!contenedor) return;
-​let html = '';
+
+let html = '';
 for (let i = 1; i <= cant; i++) {
 let pesoPrevio = 0;
 let repsPrevio = "10";
@@ -1045,61 +1354,80 @@ if (seriesPrevias && seriesPrevias[i-1]) {
 pesoPrevio = seriesPrevias[i-1].peso !== undefined ? seriesPrevias[i-1].peso : 0;
 repsPrevio = seriesPrevias[i-1].reps !== undefined ? seriesPrevias[i-1].reps : "10";
 }
-html += <div class="flex-row" style="margin-bottom: 6px; align-items: center;">  <span style="font-size: 0.85rem; width: 65px; color: var(--accent);">Serie ${i}:</span> <input type="number" placeholder="Peso (kg)" id="edit-serie-peso-${i}" value="${pesoPrevio}" step="0.5" style="margin:0; padding: 6px; font-size:0.9rem;"> <input type="text" placeholder="Reps" id="edit-serie-reps-${i}" value="${repsPrevio}" style="margin:0; padding: 6px; font-size:0.9rem;"> </div>;
+html += `<div class="flex-row" style="margin-bottom: 6px; align-items: center;"><span style="font-size: 0.85rem; width: 65px; color: var(--accent);">Serie ${i}:</span><input type="number" placeholder="Peso (kg)" id="edit-serie-peso-${i}" value="${pesoPrevio}" step="0.5" style="margin:0; padding: 6px; font-size:0.9rem;"><input type="text" placeholder="Reps" id="edit-serie-reps-${i}" value="${repsPrevio}" style="margin:0; padding: 6px; font-size:0.9rem;"></div>`;
 }
 contenedor.innerHTML = html;
 }
-​function cerrarModalEditarEjercicio() {
+
+function cerrarModalEditarEjercicio() {
 const modal = document.getElementById('modal-editar-ejercicio');
 if (modal) modal.style.display = 'none';
 }
-​function guardarEdicionEjercicio() {
+
+function guardarEdicionEjercicio() {
 let idxInput = document.getElementById('edit-ej-idx');
 if (!idxInput) return;
 let idx = parseInt(idxInput.value);
-let item = rutinasPersonalizadas[rutinaSeleccionadaKey]?.[idx];
+
+let esSofiaRutina = rutinasSofia[rutinaSeleccionadaKey] !== undefined;
+let destinoRutina = esSofiaRutina ? rutinasSofia : rutinasPersonalizadas;
+let item = destinoRutina[rutinaSeleccionadaKey]?.[idx];
 if (!item) return;
-​let cantSeries = parseInt(document.getElementById('edit-ej-series-cant')?.value) || 3;
+
+let cantSeries = parseInt(document.getElementById('edit-ej-series-cant')?.value) || 3;
 let seriesArray = [];
 for (let i = 1; i <= cantSeries; i++) {
-let p = parseFloat(document.getElementById(edit-serie-peso-${i})?.value) || 0;
-let r = document.getElementById(edit-serie-reps-${i})?.value || "10";
+let p = parseFloat(document.getElementById(`edit-serie-peso-${i}`)?.value) || 0;
+let r = document.getElementById(`edit-serie-reps-${i}`)?.value || "10";
 seriesArray.push({ peso: p, reps: r });
 }
-​item.seriesConfig = seriesArray;
+
+item.seriesConfig = seriesArray;
 item.notas = document.getElementById('edit-ej-notas')?.value.trim() || "";
-​guardarTodoEnNube();
+
+guardarTodoEnNube();
 cerrarModalEditarEjercicio();
+if (esSofiaRutina) {
+renderizarEjerciciosRutinaActualSofia();
+} else {
 renderizarEjerciciosRutinaActual();
 }
-​function renderizarEjerciciosRutinaActual() {
+}
+
+function renderizarEjerciciosRutinaActual() {
 const cont = document.getElementById('lista-ejercicios-container');
 if (!cont) return;
 const lista = rutinasPersonalizadas[rutinaSeleccionadaKey] || [];
 let html = '';
-​if(lista.length === 0) {
+
+if(lista.length === 0) {
 html = '<p style="color:var(--text-muted); font-size:0.9rem;">Esta rutina está vacía. Agregá tu primer ejercicio arriba.</p>';
 }
-​lista.forEach((item, idx) => {
+
+lista.forEach((item, idx) => {
 if(item.tipo === "cardio") {
-html += <div class="card exercise-card" style="margin-bottom: 8px; padding: 12px;">  <div class="flex-row" style="justify-content: space-between; align-items: flex-start;">  <div>  <h3 style="color: var(--orange); font-size: 1.05rem; margin-bottom: 4px;">${idx+1}. ${item.nombre}</h3>  <p style="color: var(--text-muted); font-size: 0.85rem;">Cardio | ${item.minutos} mins ${item.km ? '| ' + item.km + ' km' : ''}</p>  ${item.notas ? <p style="color: var(--yellow); font-size: 0.85rem; margin-top: 6px; font-style: italic; white-space: pre-wrap;">📝 ${item.notas}</p> : ''}  </div>  <div class="flex-row" style="gap:5px;">  <button class="btn btn-secondary" style="width: auto; margin:0; padding: 6px 10px; font-size: 0.8rem;" onclick="abrirModalEditarEjercicio(${idx})">✏️</button> <button class="btn btn-danger" style="width: auto; margin:0; padding: 6px 10px; font-size: 0.8rem;" onclick="eliminarEjercicioDeRutina(${idx})">🗑️</button>  </div>  </div>  </div>;
+html += `<div class="card exercise-card" style="margin-bottom: 8px; padding: 12px;"><div class="flex-row" style="justify-content: space-between; align-items: flex-start;"><div><h3 style="color: var(--orange); font-size: 1.05rem; margin-bottom: 4px;">${idx+1}. ${item.nombre}</h3><p style="color: var(--text-muted); font-size: 0.85rem;">Cardio | ${item.minutos} mins ${item.km ? '| ' + item.km + ' km' : ''}</p>${item.notas ? '<p style="color: var(--yellow); font-size: 0.85rem; margin-top: 6px; font-style: italic; white-space: pre-wrap;">📝 ' + item.notas + '</p>' : ''}</div><div class="flex-row" style="gap:5px;"><button class="btn btn-secondary" style="width: auto; margin:0; padding: 6px 10px; font-size: 0.8rem;" onclick="abrirModalEditarEjercicio(${idx})">✏️</button><button class="btn btn-danger" style="width: auto; margin:0; padding: 6px 10px; font-size: 0.8rem;" onclick="eliminarEjercicioDeRutina(${idx})">🗑️</button></div></div></div>`;
 } else {
 let resumenSeries = "";
 if (item.seriesConfig && item.seriesConfig.length > 0) {
-resumenSeries = item.seriesConfig.map((s, i) => S${i+1}: ${s.peso}kg (${s.reps})).join(' | ');
+resumenSeries = item.seriesConfig.map((s, i) => `S${i+1}: ${s.peso}kg (${s.reps})`).join(' | ');
 } else {
 resumenSeries = "Series configuradas";
 }
-​html += <div class="card exercise-card" style="margin-bottom: 8px; padding: 12px;">  <div class="flex-row" style="justify-content: space-between; align-items: flex-start;">  <div>  <h3 style="color: var(--accent); font-size: 1.05rem; margin-bottom: 4px;">${idx+1}. ${item.nombre}</h3>  <p style="color: var(--text-muted); font-size: 0.85rem; line-height: 1.4;">${resumenSeries}</p> ${item.notas ? <p style="color: var(--yellow); font-size: 0.85rem; margin-top: 6px; font-style: italic; white-space: pre-wrap;">📝 ${item.notas}</p> : ''}  </div>  <div class="flex-row" style="gap:5px;">  <button class="btn btn-secondary" style="width: auto; margin:0; padding: 6px 10px; font-size: 0.8rem;" onclick="abrirModalEditarEjercicio(${idx})">✏️</button> <button class="btn btn-danger" style="width: auto; margin:0; padding: 6px 10px; font-size: 0.8rem;" onclick="eliminarEjercicioDeRutina(${idx})">🗑️</button>  </div>  </div>  </div>;
+
+html += `<div class="card exercise-card" style="margin-bottom: 8px; padding: 12px;"><div class="flex-row" style="justify-content: space-between; align-items: flex-start;"><div><h3 style="color: var(--accent); font-size: 1.05rem; margin-bottom: 4px;">${idx+1}. ${item.nombre}</h3><p style="color: var(--text-muted); font-size: 0.85rem; line-height: 1.4;">${resumenSeries}</p>${item.notas ? '<p style="color: var(--yellow); font-size: 0.85rem; margin-top: 6px; font-style: italic; white-space: pre-wrap;">📝 ' + item.notas + '</p>' : ''}</div><div class="flex-row" style="gap:5px;"><button class="btn btn-secondary" style="width: auto; margin:0; padding: 6px 10px; font-size: 0.8rem;" onclick="abrirModalEditarEjercicio(${idx})">✏️</button><button class="btn btn-danger" style="width: auto; margin:0; padding: 6px 10px; font-size: 0.8rem;" onclick="eliminarEjercicioDeRutina(${idx})">🗑️</button></div></div></div>`;
 }
 });
 cont.innerHTML = html;
 }
-​// -------------------------------------------------------------
+
+// -------------------------------------------------------------
 // MODO GUIADO Y CAPTURA DETALLADA DE SERIES (V2)
 // -------------------------------------------------------------
 function comenzarModoGuiado() {
-let lista = rutinasPersonalizadas[rutinaSeleccionadaKey];
+let esSofiaRutina = rutinasSofia[rutinaSeleccionadaKey] !== undefined;
+let lista = esSofiaRutina ? rutinasSofia[rutinaSeleccionadaKey] : rutinasPersonalizadas[rutinaSeleccionadaKey];
+
 if(!lista || lista.length === 0) {
 alert("La rutina no tiene ejercicios para iniciar.");
 return;
@@ -1112,61 +1440,72 @@ segundosSesion++;
 let m = Math.floor(segundosSesion / 60).toString().padStart(2, '0');
 let s = (segundosSesion % 60).toString().padStart(2, '0');
 const cronoEl = document.getElementById('cronometro-sesion');
-if(cronoEl) cronoEl.innerText = ${m}:${s};
+if(cronoEl) cronoEl.innerText = `${m}:${s}`;
 }, 1000);
-​irA('view-guiado');
+
+irA('view-guiado');
 renderizarPasoGuiado();
 }
-​function renderizarPasoGuiado() {
-let lista = rutinasPersonalizadas[rutinaSeleccionadaKey];
+
+function renderizarPasoGuiado() {
+let esSofiaRutina = rutinasSofia[rutinaSeleccionadaKey] !== undefined;
+let lista = esSofiaRutina ? rutinasSofia[rutinaSeleccionadaKey] : rutinasPersonalizadas[rutinaSeleccionadaKey];
 let item = lista[guiadoIndice];
 if(!item) return;
-​const prog = document.getElementById('guiado-progreso');
+
+const prog = document.getElementById('guiado-progreso');
 const nombre = document.getElementById('guiado-nombre');
 const meta = document.getElementById('guiado-meta');
 const notasProp = document.getElementById('guiado-notas-propias');
 const secFuerza = document.getElementById('guiado-seccion-fuerza');
 const secCardio = document.getElementById('guiado-seccion-cardio');
-​if(prog) prog.innerText = Ejercicio ${guiadoIndice + 1} de ${lista.length};
+
+if(prog) prog.innerText = `Ejercicio ${guiadoIndice + 1} de ${lista.length}`;
 if(nombre) nombre.innerText = item.nombre;
-​if(notasProp) {
+
+if(notasProp) {
 if(item.notas) {
 notasProp.style.display = 'block';
-notasProp.innerText = 📝 ${item.notas};
+notasProp.innerText = `📝 ${item.notas}`;
 } else {
 notasProp.style.display = 'none';
 }
 }
-​if(item.tipo === "cardio") {
+
+if(item.tipo === "cardio") {
 if(secFuerza) secFuerza.style.display = 'none';
 if(secCardio) secCardio.style.display = 'block';
 const minIn = document.getElementById('guiado-cardio-mins');
 const kmIn = document.getElementById('guiado-cardio-km');
 if(minIn) minIn.value = item.minutos || 20;
 if(kmIn) kmIn.value = item.km || '';
-if(meta) meta.innerText = Meta: ${item.minutos} minutos;
+if(meta) meta.innerText = `Meta: ${item.minutos} minutos`;
 } else {
 if(secCardio) secCardio.style.display = 'none';
 if(secFuerza) secFuerza.style.display = 'block';
-if(meta) meta.innerText = Series programadas: ${item.seriesConfig?.length || 0};
-​const contSeries = document.getElementById('guiado-series-inputs-container');
+if(meta) meta.innerText = `Series programadas: ${item.seriesConfig?.length || 0}`;
+
+const contSeries = document.getElementById('guiado-series-inputs-container');
 if(contSeries) {
 let html = '';
 (item.seriesConfig || []).forEach((s, i) => {
-html += <div class="flex-row" style="margin-bottom: 6px; align-items: center;"> <span style="font-size:0.85rem; width:65px; color:var(--accent);">Serie ${i+1}:</span> <input type="number" id="g-peso-${i}" value="${s.peso}" step="0.5" style="margin:0; padding:6px; font-size:0.9rem;"> <input type="text" id="g-reps-${i}" value="${s.reps}" style="margin:0; padding:6px; font-size:0.9rem;"> </div>;
+html += `<div class="flex-row" style="margin-bottom: 6px; align-items: center;"><span style="font-size:0.85rem; width:65px; color:var(--accent);">Serie ${i+1}:</span><input type="number" id="g-peso-${i}" value="${s.peso}" step="0.5" style="margin:0; padding:6px; font-size:0.9rem;"><input type="text" id="g-reps-${i}" value="${s.reps}" style="margin:0; padding:6px; font-size:0.9rem;"></div>`;
 });
 contSeries.innerHTML = html;
 }
 }
 }
-​function guiadoAnterior() {
+
+function guiadoAnterior() {
 if(guiadoIndice > 0) {
 guiadoIndice--;
 renderizarPasoGuiado();
 }
 }
-​function guiadoSiguiente() {
-let lista = rutinasPersonalizadas[rutinaSeleccionadaKey];
+
+function guiadoSiguiente() {
+let esSofiaRutina = rutinasSofia[rutinaSeleccionadaKey] !== undefined;
+let lista = esSofiaRutina ? rutinasSofia[rutinaSeleccionadaKey] : rutinasPersonalizadas[rutinaSeleccionadaKey];
 if(guiadoIndice < lista.length - 1) {
 guiadoIndice++;
 renderizarPasoGuiado();
@@ -1174,12 +1513,14 @@ renderizarPasoGuiado();
 finalizarEntrenamientoGuiado();
 }
 }
-​function iniciarCronometroDescanso(secs) {
+
+function iniciarCronometroDescanso(secs) {
 segundosDescansoRestantes = secs;
 const box = document.getElementById('timer-box-container');
 if(box) box.style.display = 'block';
 actualizarDisplayDescanso();
-​if(descansoInterval) clearInterval(descansoInterval);
+
+if(descansoInterval) clearInterval(descansoInterval);
 descansoInterval = setInterval(() => {
 segundosDescansoRestantes--;
 actualizarDisplayDescanso();
@@ -1189,28 +1530,33 @@ alert("¡Tiempo de descanso finalizado!");
 }
 }, 1000);
 }
-​function setearDescanso(secs) {
+
+function setearDescanso(secs) {
 iniciarCronometroDescanso(secs);
 }
-​function detenerDescanso() {
+
+function detenerDescanso() {
 if(descansoInterval) clearInterval(descansoInterval);
 const box = document.getElementById('timer-box-container');
 if(box) box.style.display = 'none';
 }
-​function actualizarDisplayDescanso() {
+
+function actualizarDisplayDescanso() {
 let m = Math.floor(segundosDescansoRestantes / 60).toString().padStart(2, '0');
 let s = (segundosDescansoRestantes % 60).toString().padStart(2, '0');
 const disp = document.getElementById('display-descanso');
-if(disp) disp.innerText = ${m}:${s};
+if(disp) disp.innerText = `${m}:${s}`;
 }
-​function guardarBorradorYVolver() {
+
+function guardarBorradorYVolver() {
 borradorSesion = { rutinaKey: rutinaSeleccionadaKey, indice: guiadoIndice, segundos: segundosSesion };
 guardarLocal();
 if(cronometroSesionInterval) clearInterval(cronometroSesionInterval);
 detenerDescanso();
 irA('view-home');
 }
-​function retomarEntrenamientoBorrador() {
+
+function retomarEntrenamientoBorrador() {
 if(!borradorSesion) return;
 rutinaSeleccionadaKey = borradorSesion.rutinaKey;
 guiadoIndice = borradorSesion.indice || 0;
@@ -1220,7 +1566,8 @@ guardarLocal();
 irA('view-guiado');
 renderizarPasoGuiado();
 }
-​function descartarBorrador() {
+
+function descartarBorrador() {
 if(confirm("¿Descartar el entrenamiento en curso?")) {
 borradorSesion = null;
 guardarLocal();
@@ -1230,12 +1577,17 @@ actualizarDashboard();
 irA('view-home');
 }
 }
-​function finalizarEntrenamientoGuiado() {
+
+function finalizarEntrenamientoGuiado() {
 if(cronometroSesionInterval) clearInterval(cronometroSesionInterval);
 detenerDescanso();
-​let hoyStr = new Date().toLocaleDateString('es-ES');
+
+let hoyStr = new Date().toLocaleDateString('es-ES');
 let kcalEstimadas = Math.round(segundosSesion * 0.12);
-​let listaEjerciciosRutina = rutinasPersonalizadas[rutinaSeleccionadaKey] || [];
+
+let esSofiaRutina = rutinasSofia[rutinaSeleccionadaKey] !== undefined;
+let listaEjerciciosRutina = esSofiaRutina ? (rutinasSofia[rutinaSeleccionadaKey] || []) : (rutinasPersonalizadas[rutinaSeleccionadaKey] || []);
+
 let ejerciciosRegistradosDetalle = listaEjerciciosRutina.map((item, idx) => {
 if (item.tipo === "cardio") {
 let minsRealizados = parseFloat(document.getElementById('guiado-cardio-mins')?.value) || item.minutos;
@@ -1250,11 +1602,12 @@ notas: item.notas || ""
 } else {
 let seriesDetalleArray = [];
 (item.seriesConfig || []).forEach((s, sIdx) => {
-let pesoReal = parseFloat(document.getElementById(g-peso-${sIdx})?.value);
+let pesoReal = parseFloat(document.getElementById(`g-peso-${sIdx}`)?.value);
 if (isNaN(pesoReal)) pesoReal = s.peso;
-let repsReal = document.getElementById(g-reps-${sIdx})?.value;
+let repsReal = document.getElementById(`g-reps-${sIdx}`)?.value;
 if (!repsReal) repsReal = s.reps;
-​seriesDetalleArray.push({
+
+seriesDetalleArray.push({
 serie: sIdx + 1,
 peso: pesoReal,
 reps: repsReal
@@ -1268,31 +1621,37 @@ notas: item.notas || ""
 };
 }
 });
-​registrosCloud.push({
+
+registrosCloud.push({
 id: Date.now(),
 fecha: hoyStr,
 rutina: rutinaSeleccionadaKey,
+esSofia: esSofiaRutina,
 tiempoSegundos: segundosSesion,
 calorias: kcalEstimadas,
 dataVersion: DATA_VERSION,
 ejerciciosDetalle: ejerciciosRegistradosDetalle
 });
-​borradorSesion = null;
+
+borradorSesion = null;
 guardarTodoEnNube();
-alert(🎉 ¡Entrenamiento finalizado con éxito!\nTiempo total: ${Math.floor(segundosSesion/60)} mins\nCalorías aprox: ${kcalEstimadas} kcal);
+alert(`🎉 ¡Entrenamiento finalizado con éxito!\nTiempo total: ${Math.floor(segundosSesion/60)} mins\nCalorías aprox: ${kcalEstimadas} kcal`);
 irA('view-home');
 }
-​// -------------------------------------------------------------
+
+// -------------------------------------------------------------
 // HISTORIAL Y CALENDARIO GENERAL (COMPATIBLE V1 Y V2)
 // -------------------------------------------------------------
 function renderizarCalendario() {
 const meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Setiembre", "Octubre", "Noviembre", "Diciembre"];
 const titulo = document.getElementById('cal-mes-anio-titulo');
-if (titulo) titulo.innerText = ${meses[calMesActual]} ${calAnioActual};
-​let primerDia = new Date(calAnioActual, calMesActual, 1).getDay();
+if (titulo) titulo.innerText = `${meses[calMesActual]} ${calAnioActual}`;
+
+let primerDia = new Date(calAnioActual, calMesActual, 1).getDay();
 primerDia = primerDia === 0 ? 6 : primerDia - 1;
 let totalDias = new Date(calAnioActual, calMesActual + 1, 0).getDate();
-​let diasEntrenados = {};
+
+let diasEntrenados = {};
 registrosCloud.forEach(r => {
 if (!r.fecha) return;
 let p = r.fecha.split('/');
@@ -1300,23 +1659,31 @@ if(p.length === 3 && parseInt(p[1]) === (calMesActual + 1) && parseInt(p[2]) ===
 diasEntrenados[parseInt(p[0])] = r;
 }
 });
-​let grid = '';
-for(let i=0; i<primerDia; i++) grid += <div class="cal-day" style="opacity:0; border:none; cursor:default;"></div>;
-​for(let d=1; d<=totalDias; d++) {
+
+let grid = '';
+for(let i=0; i<primerDia; i++) grid += `<div class="cal-day" style="opacity:0; border:none; cursor:default;"></div>`;
+
+for(let d=1; d<=totalDias; d++) {
 let reg = diasEntrenados[d];
-let cls = reg ? 'trained' : '';
-grid += <div class="cal-day ${cls}" onclick="verDetalleRegistroDia('${d}/${calMesActual+1}/${calAnioActual}')"> <strong style="font-size:0.8rem;">${d}</strong> ${reg ? '<span style="font-size:0.5rem; color:var(--accent);">✔</span>' : ''} </div>;
+let cls = '';
+if (reg) {
+cls = reg.esSofia ? 'trained-sofia' : 'trained';
+}
+let indicador = reg ? (reg.esSofia ? '<span style="font-size:0.5rem; color:var(--sofia-accent);">🌸</span>' : '<span style="font-size:0.5rem; color:var(--accent);">✔</span>') : '';
+grid += `<div class="cal-day ${cls}" onclick="verDetalleRegistroDia('${d}/${calMesActual+1}/${calAnioActual}')"><strong style="font-size:0.8rem;">${d}</strong> ${indicador}</div>`;
 }
 const gridEl = document.getElementById('cal-dias-grid');
 if (gridEl) gridEl.innerHTML = grid;
 }
-​function cambiarMesCalendario(dir) {
+
+function cambiarMesCalendario(dir) {
 calMesActual += dir;
 if(calMesActual > 11) { calMesActual = 0; calAnioActual++; }
 if(calMesActual < 0) { calMesActual = 11; calAnioActual--; }
 renderizarCalendario();
 }
-​function renderizarHistorial() {
+
+function renderizarHistorial() {
 const cont = document.getElementById('historial-lista-container');
 if(!cont) return;
 let html = '';
@@ -1324,12 +1691,16 @@ if(registrosCloud.length === 0) {
 cont.innerHTML = '<p style="color:var(--text-muted); font-size:0.9rem;">No hay entrenamientos registrados todavía.</p>';
 return;
 }
-​[...registrosCloud].reverse().forEach(r => {
-html += <div class="card" style="margin-bottom: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center;"> <div> <h4 style="color: var(--accent); font-size: 1rem; margin-bottom: 2px;">${r.rutina}</h4> <p style="font-size: 0.8rem; color: var(--text-muted);">Fecha: ${r.fecha} | Duración: ${Math.floor((r.tiempoSegundos||0)/60)} min</p> </div> <button class="btn btn-secondary" style="width: auto; margin:0; padding: 6px 10px; font-size: 0.8rem;" onclick="verDetalleRegistroId(${r.id})">Ver</button> </div>;
+
+[...registrosCloud].reverse().forEach(r => {
+let prefix = r.esSofia ? '🌸 [Sofía] ' : '';
+let colorRutina = r.esSofia ? 'var(--sofia-accent)' : 'var(--accent)';
+html += `<div class="card" style="margin-bottom: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center;"><div><h4 style="color: ${colorRutina}; font-size: 1rem; margin-bottom: 2px;">${prefix}${r.rutina}</h4><p style="font-size: 0.8rem; color: var(--text-muted);">Fecha: ${r.fecha} | Duración: ${Math.floor((r.tiempoSegundos||0)/60)} min</p></div><button class="btn btn-secondary" style="width: auto; margin:0; padding: 6px 10px; font-size: 0.8rem;" onclick="verDetalleRegistroId(${r.id})">Ver</button></div>`;
 });
 cont.innerHTML = html;
 }
-​function verDetalleRegistroDia(fechaStr) {
+
+function verDetalleRegistroDia(fechaStr) {
 let reg = registrosCloud.find(r => r.fecha === fechaStr);
 if(!reg) {
 alert("No hay registros guardados para el " + fechaStr);
@@ -1337,38 +1708,45 @@ return;
 }
 mostrarModalHistorialObjeto(reg);
 }
-​function verDetalleRegistroId(id) {
+
+function verDetalleRegistroId(id) {
 let reg = registrosCloud.find(r => r.id === id);
 if(!reg) return;
 mostrarModalHistorialObjeto(reg);
 }
-​function mostrarModalHistorialObjeto(reg) {
+
+function mostrarModalHistorialObjeto(reg) {
 const titulo = document.getElementById('modal-historial-titulo');
 const cuerpo = document.getElementById('modal-historial-cuerpo');
-if(titulo) titulo.innerText = reg.rutina;
-​if(cuerpo) {
-let detalleHtml = <p><strong>Fecha:</strong> ${reg.fecha}</p> <p><strong>Tiempo total:</strong> ${Math.floor((reg.tiempoSegundos||0)/60)} minutos</p> <p><strong>Calorías estimadas:</strong> ${reg.calorias || 0} kcal</p><hr style="border-color:var(--border); margin:10px 0;">;
-​if(reg.ejerciciosDetalle && reg.ejerciciosDetalle.length > 0) {
-detalleHtml += <h4 style="color:var(--accent); margin-bottom:8px; font-size:0.95rem;">Desglose de Ejercicios:</h4>;
+if(titulo) titulo.innerText = (reg.esSofia ? '🌸 ' : '') + reg.rutina;
+
+if(cuerpo) {
+let detalleHtml = `<p><strong>Fecha:</strong> ${reg.fecha}</p><p><strong>Tiempo total:</strong> ${Math.floor((reg.tiempoSegundos||0)/60)} minutos</p><p><strong>Calorías estimadas:</strong> ${reg.calorias || 0} kcal</p><hr style="border-color:var(--border); margin:10px 0;">`;
+
+if(reg.ejerciciosDetalle && reg.ejerciciosDetalle.length > 0) {
+detalleHtml += `<h4 style="color:var(--accent); margin-bottom:8px; font-size:0.95rem;">Desglose de Ejercicios:</h4>`;
 reg.ejerciciosDetalle.forEach(ej => {
 if(ej.tipo === "cardio") {
-detalleHtml += <div style="margin-bottom:6px; font-size:0.85rem;"><strong style="color:var(--orange);">${ej.nombre}</strong>: ${ej.minutos} mins ${ej.km ? '| ' + ej.km + ' km' : ''}</div>;
+detalleHtml += `<div style="margin-bottom:6px; font-size:0.85rem;"><strong style="color:var(--orange);">${ej.nombre}</strong>: ${ej.minutos} mins ${ej.km ? '| ' + ej.km + ' km' : ''}</div>`;
 } else {
-let seriesStr = (ej.series || []).map(s => S${s.serie}: ${s.peso}kg (${s.reps})).join(' | ');
-detalleHtml += <div style="margin-bottom:6px; font-size:0.85rem;"><strong style="color:var(--accent);">${ej.nombre}</strong><br><span style="color:var(--text-muted);">${seriesStr || 'Sin series registradas'}</span></div>;
+let seriesStr = (ej.series || []).map(s => `S${s.serie}: ${s.peso}kg (${s.reps})`).join(' | ');
+detalleHtml += `<div style="margin-bottom:6px; font-size:0.85rem;"><strong style="color:var(--accent);">${ej.nombre}</strong><br><span style="color:var(--text-muted);">${seriesStr || 'Sin series registradas'}</span></div>`;
 }
 });
 } else {
-detalleHtml += <p style="font-size:0.85rem; color:var(--text-muted); font-style:italic;">Sesión registrada con formato anterior (sin desglose detallado de series).</p>;
+detalleHtml += `<p style="font-size:0.85rem; color:var(--text-muted); font-style:italic;">Sesión registrada con formato anterior (sin desglose detallado de series).</p>`;
 }
-​cuerpo.innerHTML = detalleHtml;
+
+cuerpo.innerHTML = detalleHtml;
 }
 document.getElementById('modal-detalle-historial').style.display = 'flex';
 }
-​function cerrarModalHistorial() {
+
+function cerrarModalHistorial() {
 document.getElementById('modal-detalle-historial').style.display = 'none';
 }
-​// -------------------------------------------------------------
+
+// -------------------------------------------------------------
 // HERRAMIENTAS EXTRAS (DISCOS, PESO CORPORAL, IA)
 // -------------------------------------------------------------
 function abrirCalculadoraDiscos() {
@@ -1383,14 +1761,17 @@ let total = parseFloat(document.getElementById('calc-peso-total').value) || 0;
 let barra = parseFloat(document.getElementById('calc-peso-barra').value) || 20;
 let res = document.getElementById('resultado-discos');
 if(!res) return;
-​if(total < barra) {
+
+if(total < barra) {
 res.innerHTML = "El peso total no puede ser menor al peso de la barra.";
 return;
 }
-​let porLado = (total - barra) / 2;
+
+let porLado = (total - barra) / 2;
 let disponibles = [20, 15, 10, 5, 2.5, 1.25];
 let usados = {};
-​disponibles.forEach(d => {
+
+disponibles.forEach(d => {
 let cant = Math.floor(porLado / d);
 if(cant > 0) {
 usados[d] = cant;
@@ -1398,17 +1779,19 @@ porLado -= cant * d;
 porLado = Math.round(porLado * 100) / 100;
 }
 });
-​let txt = <strong>Por cada lado de la barra necesitás:</strong><br>;
+
+let txt = `<strong>Por cada lado de la barra necesitás:</strong><br>`;
 if(Object.keys(usados).length === 0) {
 txt += "Solo la barra pelada.";
 } else {
 Object.keys(usados).forEach(d => {
-txt += • ${usados[d]} disco(s) de ${d} kg<br>;
+txt += `• ${usados[d]} disco(s) de ${d} kg<br>`;
 });
 }
 res.innerHTML = txt;
 }
-​function abrirModalPesoCorporal() {
+
+function abrirModalPesoCorporal() {
 const inp = document.getElementById('input-nuevo-peso-corp');
 if(inp) inp.value = perfilCloud.peso || 90;
 document.getElementById('modal-peso-corporal').style.display = 'flex';
@@ -1427,13 +1810,12 @@ await guardarTodoEnNube();
 cerrarModalPesoCorporal();
 actualizarDashboard();
 }
-​function consultarIA(tipo) {
+
+function consultarIA(tipo) {
 const box = document.getElementById('ia-respuesta-box');
 if(!box) return;
 box.style.display = 'block';
-box.innerHTML = "🤖 Analizando tus entrenamientos y rendimiento en <strong>Mi Gym La Cima</strong>... 
-
-Vas por excelente camino. Mantené la sobrecarga progresiva sumando 0.5kg o 1 repetición cuando completes todas tus series con comodidad. ¡A seguir metiéndole fuerza!";
+box.innerHTML = "🤖 Analizando tus entrenamientos y rendimiento en <strong>Mi Gym La Cima</strong>... <br><br>Vas por excelente camino. Mantené la sobrecarga progresiva sumando 0.5kg o 1 repetición cuando completes todas tus series con comodidad. ¡A seguir metiéndole fuerza!";
 }
 </script>
 </body>
