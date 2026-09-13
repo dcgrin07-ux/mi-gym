@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mi Gym La Cima</title> 
+<title>Mi Gym La Cima con Sofía IA</title> 
 
 <!-- PWA Manifest & Meta -->
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -13,8 +13,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"> 
 
-<!-- Firebase SDK (Compat) -->
+<!-- Firebase SDKs (Compat - Auth y Firestore) -->
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script> 
 
 <style>
@@ -31,8 +32,7 @@
 --orange: #f97316;
 --yellow: #eab308;
 --border: #334155;
---ai-color: #6366f1;
---ai-hover: #4f46e5;
+--sofia-accent: #c084fc;
 } 
 
 * {
@@ -125,8 +125,7 @@ transition: background 0.2s;
 .btn-secondary { background-color: var(--bg-input); color: var(--text-main); border: 1px solid var(--border); }
 .btn-danger { background-color: rgba(239, 68, 68, 0.15); color: var(--danger); border: 1px solid var(--danger); }
 .btn-success { background-color: var(--success); color: var(--bg-main); }
-.btn-ai { background-color: var(--ai-color); color: #fff; }
-.btn-ai:hover { background-color: var(--ai-hover); }
+.btn-sofia { background-color: rgba(192, 132, 252, 0.15); color: var(--sofia-accent); border: 1px solid var(--sofia-accent); }
 
 input, select, textarea {
 width: 100%;
@@ -246,39 +245,127 @@ background: rgba(56, 189, 248, 0.1);
 font-weight: bold;
 color: var(--accent);
 }
+.hidden { display: none !important; }
+.alert-error { background: rgba(239, 68, 68, 0.1); border: 1px solid var(--danger); padding: 10px; border-radius: 8px; color: var(--danger); font-size: 0.85rem; margin-bottom: 12px; text-align: center; }
 
-/* Panel Sofía */
-#sofia-panel {
-display: none;
-margin-top: 15px;
-background: #1e1b4b;
-border: 1px solid var(--ai-color);
-padding: 15px;
+/* Chat Sofia Box Styles */
+.sofia-chat-container {
+display: flex;
+flex-direction: column;
+height: 350px;
+background: var(--bg-input);
 border-radius: 8px;
+border: 1px solid var(--border);
+overflow: hidden;
+margin-bottom: 10px;
 }
-.chat-bubble {
-background: rgba(15, 23, 42, 0.6);
-padding: 10px;
+.sofia-messages {
+flex: 1;
+padding: 12px;
+overflow-y: auto;
+display: flex;
+flex-direction: column;
+gap: 8px;
+}
+.sofia-bubble {
+max-width: 80%;
+padding: 8px 12px;
 border-radius: 8px;
-margin-bottom: 8px;
 font-size: 0.85rem;
 line-height: 1.4;
-border-left: 3px solid var(--ai-color);
 }
-.chat-bubble.user {
-border-left-color: var(--accent);
-background: rgba(31, 41, 55, 0.8);
-text-align: right;
+.sofia-bubble.user {
+background: var(--accent);
+color: var(--bg-main);
+align-self: flex-end;
+}
+.sofia-bubble.assistant {
+background: var(--bg-card);
+color: var(--text-main);
+align-self: flex-start;
+border: 1px solid var(--border);
+}
+.sofia-input-area {
+display: flex;
+padding: 8px;
+background: var(--bg-card);
+border-top: 1px solid var(--border);
+gap: 6px;
+}
+.sofia-input-area input {
+margin: 0;
+padding: 8px;
+font-size: 0.9rem;
 }
 </style>
 </head>
 <body> 
 
+<!-- ================= PANTALLA DE ACCESO / LOGIN ================= -->
+<div id="auth-screen" class="container" style="margin-top: 50px;">
+<div class="card" style="max-width: 400px; margin: 0 auto;">
+<h2 id="auth-title" style="color: var(--accent); text-align: center; margin-bottom: 16px;">Mi Gym La Cima</h2>
+<div id="auth-error" class="alert-error hidden"></div>
+<form onsubmit="handleAuthSubmit(event)">
+<label>Correo Electrónico</label>
+<input type="email" id="auth-email" required placeholder="tu@correo.com">
+<label>Contraseña</label>
+<input type="password" id="auth-password" required placeholder="••••••••">
+<button type="submit" id="auth-btn" class="btn btn-primary">Iniciar Sesión</button>
+</form>
+<div style="text-align: center; margin-top: 12px; font-size: 0.85rem; color: var(--text-muted); cursor: pointer;" onclick="toggleAuthMode()">
+¿No tenés cuenta? <span id="auth-switch-text" style="color: var(--accent); text-decoration: underline;">Registrate acá</span>
+</div>
+</div>
+</div> 
+
+<!-- ================= PANTALLA PENDIENTE DE APROBACIÓN ================= -->
+<div id="pending-screen" class="container hidden" style="margin-top: 50px;">
+<div class="card" style="max-width: 400px; margin: 0 auto; text-align: center;">
+<h2 style="color: var(--orange); margin-bottom: 12px;">Cuenta Pendiente</h2>
+<p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 16px;">Tu cuenta fue registrada con éxito, pero el administrador todavía no la autorizó para ingresar.</p>
+<button class="btn btn-secondary" onclick="logoutSession()">Cerrar Sesión</button>
+</div>
+</div> 
+
+<!-- ================= PANEL DE ADMINISTRADOR ================= -->
+<div id="admin-screen" class="container hidden" style="max-width: 800px;">
+<div class="card">
+<div class="flex-row" style="justify-content: space-between; margin-bottom: 16px;">
+<h2 style="color: var(--accent); font-size: 1.2rem;">Panel de Control - Propietario</h2>
+<button class="btn btn-danger" style="width: auto; margin:0; padding: 6px 12px; font-size: 0.85rem;" onclick="logoutSession()">Cerrar Sesión</button>
+</div> 
+
+<button class="btn btn-primary" style="margin-bottom: 12px;" onclick="entrarComoAdminApp()">🏋️‍♂️ Ir a mis Rutinas y Entrenamientos</button> 
+
+<p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">Gestión de usuarios y autorizaciones de acceso:</p>
+<div style="overflow-x: auto;">
+<table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+<thead>
+<tr style="border-bottom: 1px solid var(--border); text-align: left; color: var(--accent);">
+<th style="padding: 8px;">Correo</th>
+<th style="padding: 8px;">Estado</th>
+<th style="padding: 8px;">Acciones</th>
+</tr>
+</thead>
+<tbody id="admin-users-tbody">
+<tr><td colspan="3" style="padding: 8px; color: var(--text-muted);">Cargando usuarios...</td></tr>
+</tbody>
+</table>
+</div>
+</div>
+</div> 
+
+<!-- ================= APLICACIÓN PRINCIPAL (PROTEGIDA) ================= -->
+<div id="app-main-wrapper" class="hidden">
 <header>
 <h1>🏋️‍♂️ Mi Gym La Cima</h1>
+<div class="flex-row" style="gap: 8px;">
 <div class="cloud-status">
 <div id="cloud-dot" class="cloud-dot offline"></div>
 <span id="cloud-text">Verificando...</span>
+</div>
+<button class="btn btn-secondary" style="width: auto; margin:0; padding: 4px 8px; font-size: 0.75rem;" onclick="logoutSession()" title="Cerrar Sesión">🚪 Salir</button>
 </div>
 </header> 
 
@@ -331,28 +418,9 @@ text-align: right;
 <!-- Accesos / Herramientas con Sofía -->
 <div class="card">
 <h3 style="font-size: 1rem; margin-bottom: 10px; color: var(--accent);">🛠️ Herramientas Útiles</h3>
-<div class="flex-row">
+<div class="flex-row" style="margin-bottom: 8px;">
 <button class="btn btn-secondary" style="margin:0; font-size:0.9rem;" onclick="abrirCalculadoraDiscos()">⚖️ Calc. Discos</button>
-<button class="btn btn-ai" style="margin:0; font-size:0.9rem;" onclick="toggleSofiaHome()">🤖 Sofía (IA Interactiva)</button>
-</div>
-
-<!-- Panel de Sofía Integrado -->
-<div id="sofia-panel">
-<div class="flex-row" style="justify-content: space-between; align-items: center; margin-bottom: 8px;">
-<h3 style="color: #a5b4fc; font-size: 1rem; margin:0;">🤖 Sofía - IA de Rendimiento</h3>
-<button class="btn btn-secondary" style="width:auto; margin:0; padding:2px 8px; font-size:0.75rem;" onclick="abrirModalGraficosProgresion()">📈 Ver Gráficos</button>
-</div>
-<p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Interactuá con Sofía para analizar tus rutinas, evolución de cargas y técnica con videos recomendados.</p>
-
-<div id="sofia-chat-history" style="max-height: 220px; overflow-y: auto; margin-bottom: 10px; padding-right: 4px;">
-<div class="chat-bubble">¡Hola! Soy Sofía, tu inteligencia artificial de entrenamiento. Analizo tus rutinas y cargas automáticamente. ¿De qué ejercicio querés ver tu evolución, técnica o enlaces a videos?</div>
-</div>
-
-<textarea id="sofia-input-consulta" rows="2" placeholder="Ej: Analiza mi progreso en Press Plano o dame tips..." style="font-size: 0.85rem; resize:none;"></textarea>
-<div class="flex-row" style="gap:6px;">
-<button class="btn btn-ai" style="margin:0; font-size:0.85rem; flex:1;" onclick="enviarConsultaSofia()">Consultar a Sofía</button>
-<button class="btn btn-secondary" style="margin:0; font-size:0.85rem; width:auto;" onclick="limpiarChatSofia()">Limpiar</button>
-</div>
+<button class="btn btn-sofia" style="margin:0; font-size:0.9rem;" onclick="abrirSofiaChatGeneral()">🤖 Hablar con Sofía IA</button>
 </div>
 </div> 
 
@@ -362,9 +430,7 @@ text-align: right;
 <h3 style="font-size: 1rem; color: var(--accent);">📋 Mis Rutinas</h3>
 <button class="btn btn-primary" style="width: auto; margin:0; padding: 6px 12px; font-size: 0.85rem;" onclick="abrirModalCrearRutina()">+ Nueva Rutina</button>
 </div>
-<div id="lista-rutinas-home-container">
-<!-- Se cargan dinámicamente -->
-</div>
+<div id="lista-rutinas-home-container"></div>
 </div> 
 
 <!-- Zona Segura / Botón de Reseteo General -->
@@ -381,7 +447,10 @@ text-align: right;
 <div class="card">
 <button class="btn btn-secondary" style="width: auto; margin-bottom: 12px; padding: 6px 12px; font-size: 0.8rem;" onclick="irA('view-home')">⬅ Volver</button>
 <h2 id="titulo-rutina-activa" style="font-size: 1.25rem; color: var(--accent); margin-bottom: 12px;">Rutina</h2>
-<button class="btn btn-success" style="margin-bottom: 16px;" onclick="comenzarModoGuiado()">▶ Comenzar Entrenamiento Guiado</button>
+<div class="flex-row" style="gap:8px; margin-bottom: 12px;">
+<button class="btn btn-success" style="margin:0; flex:1;" onclick="comenzarModoGuiado()">▶ Comenzar Entrenamiento</button>
+<button class="btn btn-sofia" style="margin:0; width:auto; padding: 10px 14px;" onclick="abrirSofiaAsesorRutina()" title="Consultar con Sofía sobre esta rutina">🤖 Asesor Sofía</button>
+</div>
 </div> 
 
 <!-- Agregar Ejercicio -->
@@ -400,26 +469,18 @@ text-align: right;
 <input type="number" id="input-series-nuevo" value="3" min="1" max="10" onchange="generarInputsSeriesNuevo()"> 
 
 <label style="margin-top: 10px;">Detalle por serie (Peso y Reps):</label>
-<div id="contenedor-series-nuevo" style="background: var(--bg-input); padding: 10px; border-radius: 8px; margin-bottom: 10px;">
-<!-- Generado dinámicamente -->
-</div>
+<div id="contenedor-series-nuevo" style="background: var(--bg-input); padding: 10px; border-radius: 8px; margin-bottom: 10px;"></div>
 </div> 
 
 <div id="div-cardio-inputs" style="display:none; margin-top: 10px;">
 <div class="flex-row">
-<div style="flex:1;">
-<label>Minutos</label>
-<input type="number" id="cardio-minutos" value="20">
-</div>
-<div style="flex:1;">
-<label>Km (opcional)</label>
-<input type="number" id="cardio-km" value="" step="0.1">
-</div>
+<div style="flex:1;"><label>Minutos</label><input type="number" id="cardio-minutos" value="20"></div>
+<div style="flex:1;"><label>Km (opcional)</label><input type="number" id="cardio-km" value="" step="0.1"></div>
 </div>
 </div> 
 
 <div style="margin-top: 10px;">
-<label>Notas técnicas o instrucciones (Especificaciones):</label>
+<label>Notas técnicas o instrucciones:</label>
 <textarea id="input-notas-nuevo" placeholder="Ej: Mantener codos fijos, pausa de 1 seg arriba..." rows="2" style="resize:none;"></textarea>
 </div> 
 
@@ -444,28 +505,19 @@ text-align: right;
 <h2 id="guiado-nombre" style="font-size: 1.35rem; color: var(--accent); margin-bottom: 6px;">Nombre Ejercicio</h2>
 <p id="guiado-meta" style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 12px;"></p> 
 
-<!-- Especificaciones / Notas técnicas visibles también en Modo Guiado -->
 <div id="guiado-notas-propias" style="display:none; background: rgba(234, 179, 8, 0.1); border: 1px solid var(--yellow); padding: 10px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 12px; color: var(--yellow);"></div> 
 
 <!-- Controles Fuerza por Series Individuales -->
 <div id="guiado-seccion-fuerza">
 <label style="margin-bottom: 6px; color: var(--accent);">Progreso por Serie (Peso y Reps):</label>
-<div id="guiado-series-inputs-container" style="background: var(--bg-input); padding: 10px; border-radius: 8px; margin-bottom: 12px;">
-<!-- Se genera dinámicamente según las series configuradas -->
-</div>
+<div id="guiado-series-inputs-container" style="background: var(--bg-input); padding: 10px; border-radius: 8px; margin-bottom: 12px;"></div>
 </div> 
 
 <!-- Controles Cardio -->
 <div id="guiado-seccion-cardio" style="display:none;">
 <div class="flex-row" style="margin-bottom: 10px;">
-<div style="flex:1;">
-<label>Minutos realizados:</label>
-<input type="number" id="guiado-cardio-mins">
-</div>
-<div style="flex:1;">
-<label>Km realizados:</label>
-<input type="number" id="guiado-cardio-km" step="0.1">
-</div>
+<div style="flex:1;"><label>Minutos realizados:</label><input type="number" id="guiado-cardio-mins"></div>
+<div style="flex:1;"><label>Km realizados:</label><input type="number" id="guiado-cardio-km" step="0.1"></div>
 </div>
 </div> 
 
@@ -473,6 +525,9 @@ text-align: right;
 <input type="checkbox" id="check-realizado" style="width: auto; margin:0;" checked>
 <label for="check-realizado" style="margin:0; color:var(--text-main); font-size:0.9rem;">Ejercicio realizado en esta sesión</label>
 </div> 
+
+<!-- Botón Consultar con Sofía sobre este ejercicio puntual -->
+<button class="btn btn-sofia" style="margin-bottom: 12px; font-size: 0.85rem;" onclick="abrirSofiaEjercicioActual()">🤖 Preguntarle a Sofía sobre la técnica</button>
 
 <!-- Temporizador de descanso -->
 <div id="timer-box-container" style="display:none; background: var(--bg-input); padding: 12px; border-radius: 8px; text-align: center; margin-bottom: 12px; border: 1px dashed var(--accent);">
@@ -497,7 +552,7 @@ text-align: right;
 </div> 
 
 <div class="flex-row" style="margin-top: 10px;">
-<button class="btn btn-secondary" style="font-size: 0.85rem;" onclick="guardarBorradorYVolver()">Guardar y Salir (Continuar luego)</button>
+<button class="btn btn-secondary" style="font-size: 0.85rem;" onclick="guardarBorradorYVolver()">Guardar y Salir</button>
 <button class="btn btn-danger" style="font-size: 0.85rem;" onclick="descartarBorrador()">Descartar</button>
 </div>
 </div> 
@@ -529,18 +584,32 @@ text-align: right;
 
 <!-- Navegación Inferior -->
 <nav>
-<button class="nav-btn active" onclick="irA('view-home')">
-<span>🏠</span> Inicio
-</button>
-<button class="nav-btn" onclick="irA('view-calendario')">
-<span>📅</span> Calendario
-</button>
-<button class="nav-btn" onclick="irA('view-historial')">
-<span>📜</span> Historial
-</button>
-</nav> 
+<button class="nav-btn active" onclick="irA('view-home')"><span>🏠</span> Inicio</button>
+<button class="nav-btn" onclick="irA('view-calendario')"><span>📅</span> Calendario</button>
+<button class="nav-btn" onclick="irA('view-historial')"><span>📜</span> Historial</button>
+</nav>
+</div><!-- /app-main-wrapper --> 
 
 <!-- ================= MODALES ================= --> 
+
+<!-- Modal Chat Sofía IA -->
+<div id="modal-sofia-chat" class="modal">
+<div class="modal-content" style="max-width: 450px;">
+<div class="flex-row" style="justify-content: space-between; margin-bottom: 10px;">
+<h3 id="sofia-modal-titulo" style="color: var(--sofia-accent);">🤖 Sofía IA - Asesora</h3>
+<button class="btn btn-danger" style="width: auto; margin:0; padding: 2px 8px; font-size:0.75rem;" onclick="cerrarModalSofia()">✕</button>
+</div>
+<div class="sofia-chat-container">
+<div id="sofia-messages-list" class="sofia-messages">
+<div class="sofia-bubble assistant">¡Hola! Soy Sofía, tu entrenadora personal virtual en Mi Gym La Cima. ¿En qué te puedo ayudar hoy con tus rutinas o progresos?</div>
+</div>
+<div class="sofia-input-area">
+<input type="text" id="sofia-input-text" placeholder="Escribile a Sofía..." onkeypress="if(event.key==='Enter') enviarMensajeSofia()">
+<button class="btn btn-primary" style="width: auto; margin:0; padding: 8px 12px;" onclick="enviarMensajeSofia()">Enviar</button>
+</div>
+</div>
+</div>
+</div> 
 
 <!-- Modal Crear Rutina -->
 <div id="modal-crear-rutina" class="modal">
@@ -560,16 +629,12 @@ text-align: right;
 <div class="modal-content">
 <h3 style="color: var(--accent); margin-bottom: 10px;">Editar Ejercicio / Progresión</h3>
 <input type="hidden" id="edit-ej-idx"> 
-
 <label>Cantidad de Series</label>
 <input type="number" id="edit-ej-series-cant" min="1" max="10" onchange="generarInputsSeriesEdicion()"> 
-
 <label style="margin-top: 6px;">Series (Peso y Reps individual):</label>
 <div id="edit-contenedor-series" style="background: var(--bg-input); padding: 8px; border-radius: 6px; margin-bottom: 10px;"></div> 
-
 <label>Especificaciones / Notas técnicas</label>
 <textarea id="edit-ej-notas" rows="3" placeholder="Pautas técnicas, postura..." style="resize:none;"></textarea> 
-
 <div class="flex-row">
 <button class="btn btn-secondary" onclick="cerrarModalEditarEjercicio()">Cancelar</button>
 <button class="btn btn-primary" onclick="guardarEdicionEjercicio()">Actualizar</button>
@@ -612,19 +677,7 @@ text-align: right;
 </div>
 </div> 
 
-<!-- Modal Gráficos de Progresión de Sofía -->
-<div id="modal-graficos-sofia" class="modal">
-<div class="modal-content" style="max-width: 450px;">
-<h3 style="color: #a5b4fc; margin-bottom: 8px;">📈 Gráfico de Progresión de Cargas</h3>
-<p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">Evolución de peso máximo registrado por sesión:</p>
-<label>Elegir ejercicio:</label>
-<select id="select-ejercicio-grafico" onchange="renderizarGraficoProgresion()"></select>
-<div id="contenedor-grafico-barras" style="background: var(--bg-input); padding: 12px; border-radius: 8px; min-height: 150px; max-height: 250px; overflow-y: auto; margin-bottom: 12px;"></div>
-<button class="btn btn-secondary" onclick="cerrarModalGraficosProgresion()">Cerrar</button>
-</div>
-</div>
-
-<!-- ================= SCRIPT COMPLETO INTEGRADO ================= -->
+<!-- ================= SCRIPT GENERAL Y DE SOFÍA IA ================= -->
 <script>
 const firebaseConfig = {
 apiKey: "AIzaSyA3N-mLUaTF9jUshNosUiWpso0-934H_fo",
@@ -635,15 +688,139 @@ messagingSenderId: "398491160791",
 appId: "1:398491160791:web:91346182b9c06588d6e092"
 }; 
 
-let dbCloud = null;
-let usarseNube = false; 
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const dbCloud = firebase.firestore(); 
+
+const APP_VERSION = "2.1";
+const DATA_VERSION = 2; 
+
+let isRegisteringMode = false; 
+
+function toggleAuthMode() {
+isRegisteringMode = !isRegisteringMode;
+document.getElementById('auth-title').innerText = isRegisteringMode ? 'Crear Cuenta - La Cima' : 'Mi Gym La Cima';
+document.getElementById('auth-btn').innerText = isRegisteringMode ? 'Registrarse' : 'Iniciar Sesión';
+document.getElementById('auth-switch-text').innerText = isRegisteringMode ? 'Iniciá sesión acá' : 'Registrate acá';
+document.getElementById('auth-error').classList.add('hidden');
+} 
+
+async function handleAuthSubmit(event) {
+event.preventDefault();
+const email = document.getElementById('auth-email').value;
+const password = document.getElementById('auth-password').value;
+const errorDiv = document.getElementById('auth-error');
+errorDiv.classList.add('hidden'); 
 
 try {
-firebase.initializeApp(firebaseConfig);
-dbCloud = firebase.firestore();
-usarseNube = true;
-} catch(e) {
-console.log("Modo local sin conexión a nube:", e);
+if (isRegisteringMode) {
+const cred = await auth.createUserWithEmailAndPassword(email, password);
+await dbCloud.collection('usuarios').doc(cred.user.uid).set({
+email: email,
+rol: 'cliente',
+autorizado: false,
+creado: firebase.firestore.FieldValue.serverTimestamp()
+});
+alert('¡Registro exitoso! Tu cuenta quedó pendiente de aprobación por el administrador.');
+} else {
+await auth.signInWithEmailAndPassword(email, password);
+}
+} catch (error) {
+errorDiv.innerText = error.message;
+errorDiv.classList.remove('hidden');
+}
+} 
+
+function logoutSession() {
+auth.signOut();
+} 
+
+auth.onAuthStateChanged(async (user) => {
+document.getElementById('auth-screen').classList.add('hidden');
+document.getElementById('pending-screen').classList.add('hidden');
+document.getElementById('admin-screen').classList.add('hidden');
+document.getElementById('app-main-wrapper').classList.add('hidden'); 
+
+if (user) {
+try {
+const userDoc = await dbCloud.collection('usuarios').doc(user.uid).get();
+if (userDoc.exists) {
+const data = userDoc.data();
+if (data.rol === 'admin') {
+document.getElementById('admin-screen').classList.remove('hidden');
+loadAdminUsersTable();
+} else if (data.autorizado) {
+document.getElementById('app-main-wrapper').classList.remove('hidden');
+sincronizarConNubeAlIniciar();
+} else {
+document.getElementById('pending-screen').classList.remove('hidden');
+}
+} else {
+await dbCloud.collection('usuarios').doc(user.uid).set({
+email: user.email,
+rol: 'cliente',
+autorizado: false,
+creado: firebase.firestore.FieldValue.serverTimestamp()
+});
+document.getElementById('pending-screen').classList.add('hidden');
+}
+} catch (e) {
+console.error("Error verificando permisos:", e);
+}
+} else {
+document.getElementById('auth-screen').classList.remove('hidden');
+}
+}); 
+
+async function loadAdminUsersTable() {
+const tbody = document.getElementById('admin-users-tbody');
+tbody.innerHTML = '<tr><td colspan="3" style="padding: 8px;">Cargando usuarios...</td></tr>'; 
+
+dbCloud.collection('usuarios').onSnapshot(snapshot => {
+tbody.innerHTML = '';
+if (snapshot.empty) {
+tbody.innerHTML = '<tr><td colspan="3" style="padding: 8px;">No hay usuarios registrados.</td></tr>';
+return;
+}
+snapshot.forEach(doc => {
+const data = doc.data();
+if (data.rol === 'admin') return;
+const tr = document.createElement('tr');
+tr.style.borderBottom = '1px solid var(--border)';
+tr.innerHTML = `
+<td style="padding: 8px;">${data.email}</td>
+<td style="padding: 8px;">${data.autorizado ? '<span style="color: var(--success);">Autorizado</span>' : '<span style="color: var(--orange);">Pendiente</span>'}</td>
+<td style="padding: 8px;">
+${data.autorizado ? `<button class="btn btn-danger" style="width: auto; margin:0; padding: 4px 8px; font-size:0.75rem;" onclick="setUserAuthStatus('${doc.id}', false)">Bloquear</button>` : `<button class="btn btn-success" style="width: auto; margin:0; padding: 4px 8px; font-size:0.75rem;" onclick="setUserAuthStatus('${doc.id}', true)">Autorizar</button>`}
+</td>
+`;
+tbody.appendChild(tr);
+});
+});
+} 
+
+async function setUserAuthStatus(uid, status) {
+try {
+await dbCloud.collection('usuarios').doc(uid).update({ autorizado: status });
+} catch (e) {
+alert('Error al actualizar estado: ' + e.message);
+}
+} 
+
+function entrarComoAdminApp() {
+document.getElementById('admin-screen').classList.add('hidden');
+document.getElementById('app-main-wrapper').classList.remove('hidden');
+sincronizarConNubeAlIniciar();
+} 
+
+function obtenerClavesLocales(uid) {
+if (!uid) return null;
+return {
+rutinas: `mi_gym_${uid}_rutinas_v2`,
+registros: `mi_gym_${uid}_registros_v2`,
+perfil: `mi_gym_${uid}_perfil_v2`,
+borrador: `mi_gym_${uid}_borrador_v2`
+};
 } 
 
 const catalogoEjercicios = [
@@ -656,14 +833,10 @@ const catalogoEjercicios = [
 "➕ OTRO (Escribir nombre personalizado)..."
 ]; 
 
-let rutinasPersonalizadas = JSON.parse(localStorage.getItem('mi_gym_rutinas_v36') || JSON.stringify({
-"Rutina A": []
-})); 
-
-let registrosCloud = JSON.parse(localStorage.getItem('mi_gym_registros_v36') || '[]');
-let perfilCloud = JSON.parse(localStorage.getItem('mi_gym_perfil_v36') || '{"peso": 90}');
-let borradorSesion = JSON.parse(localStorage.getItem('mi_gym_borrador_v36') || 'null'); 
-
+let rutinasPersonalizadas = { "Rutina A": [] };
+let registrosCloud = [];
+let perfilCloud = { peso: 90 };
+let borradorSesion = null; 
 let rutinaSeleccionadaKey = '';
 let guiadoIndice = 0;
 let cronometroSesionInterval = null;
@@ -671,37 +844,154 @@ let segundosSesion = 0;
 let descansoInterval = null;
 let segundosDescansoRestantes = 90; 
 
-let calAnioActual = new Date().getFullYear();
-let calMesActual = new Date().getMonth();
 let homeCalAnioActual = new Date().getFullYear();
-let homeCalMesActual = new Date().getMonth(); 
+let homeCalMesActual = new Date().getMonth();
+let calAnioActual = new Date().getFullYear();
+let calMesActual = new Date().getMonth(); 
 
-window.addEventListener('DOMContentLoaded', () => {
-sincronizarConNubeAlIniciar();
-});
+// -------------------------------------------------------------
+// MOTOR DE SOFÍA IA (CONVERSACIONAL E INTEGRADA)
+// -------------------------------------------------------------
+let historialChatSofia = [];
 
-async function sincronizarConNubeAlIniciar() {
-if(!usarseNube || !dbCloud) {
-actualizarEstadoCloud(false, "Modo Local");
-actualizarDashboard();
-return;
+function abrirSofiaChatGeneral() {
+historialChatSofia = [
+{ role: "assistant", content: "¡Hola! Soy Sofía, tu asistente experta en entrenamiento y nutrición de La Cima. ¿En qué te puedo ayudar hoy?" }
+];
+document.getElementById('sofia-modal-titulo').innerText = "🤖 Sofía IA - Asesora General";
+renderizarMensajesSofia();
+document.getElementById('modal-sofia-chat').style.display = 'flex';
 }
+
+function abrirSofiaAsesorRutina() {
+let rutinaActualObj = rutinasPersonalizadas[rutinaSeleccionadaKey] || [];
+let resumenRutina = rutinaActualObj.map(e => e.nombre).join(", ");
+historialChatSofia = [
+{ role: "assistant", content: `¡Hola! Veo que estás analizando la rutina "${rutinaSeleccionadaKey}" que tiene los ejercicios: [${resumenRutina}]. ¿Querés que te sugiera ajustes, variantes o cómo progresar en peso?` }
+];
+document.getElementById('sofia-modal-titulo').innerText = `🤖 Sofía IA - Asesora de ${rutinaSeleccionadaKey}`;
+renderizarMensajesSofia();
+document.getElementById('modal-sofia-chat').style.display = 'flex';
+}
+
+function abrirSofiaEjercicioActual() {
+if (!borradorSesion || !borradorSesion.ejercicios || borradorSesion.ejercicios.length === 0) return;
+let ej = borradorSesion.ejercicios[guiadoIndice];
+if (!ej) return;
+
+historialChatSofia = [
+{ role: "assistant", content: `Estás haciendo "${ej.nombre}". Respecto a esto, tus notas son: "${ej.notas || 'Sin notas'}". ¿Tenés dudas sobre la técnica, la postura o el peso a usar?` }
+];
+document.getElementById('sofia-modal-titulo').innerText = `🤖 Sofía IA - Técnica de ${ej.nombre}`;
+renderizarMensajesSofia();
+document.getElementById('modal-sofia-chat').style.display = 'flex';
+}
+
+function cerrarModalSofia() {
+document.getElementById('modal-sofia-chat').style.display = 'none';
+}
+
+function renderizarMensajesSofia() {
+const container = document.getElementById('sofia-messages-list');
+let html = '';
+historialChatSofia.forEach(msg => {
+let cls = msg.role === 'user' ? 'user' : 'assistant';
+html += `<div class="sofia-bubble ${cls}">${escapeHtml(msg.content)}</div>`;
+});
+container.innerHTML = html;
+container.scrollTop = container.scrollHeight;
+}
+
+async function enviarMensajeSofia() {
+const input = document.getElementById('sofia-input-text');
+const texto = input.value.trim();
+if (!texto) return;
+
+historialChatSofia.push({ role: "user", content: texto });
+input.value = '';
+renderizarMensajesSofia();
+
+// Simulación de respuesta interactiva contextual de Sofía IA con alta precisión deportiva
+const respuestaSofia = generarRespuestaInteligenteSofia(texto);
+
+setTimeout(() => {
+historialChatSofia.push({ role: "assistant", content: respuestaSofia });
+renderizarMensajesSofia();
+}, 600);
+}
+
+function generarRespuestaInteligenteSofia(mensaje) {
+const m = mensaje.toLowerCase();
+if (m.includes('peso') || m.includes('engordar') || m.includes('adelgazar') || m.includes('músculo')) {
+return `Para optimizar tus resultados y ganar masa muscular o perder grasa, recordá mantener un consumo adecuado de proteínas (aprox. 1.6g a 2g por kg de peso) y priorizar la sobrecarga progresiva en tus rutinas de La Cima. ¡Tu peso corporal actual registrado es de ${perfilCloud.peso} kg!`;
+}
+if (m.includes('dolor') || m.includes('molestia') || m.includes('lesion')) {
+return `⚠️ Si sentís dolor articular o molestia aguda, detené el ejercicio inmediatamente. No confundas la fatiga muscular con el dolor articular. ¿Querés que veamos un ejercicio alternativo menos agresivo?`;
+}
+if (m.includes('descanso') || m.includes('pausa')) {
+return `Para ejercicios multiarticulares pesados (como sentadillas o press plano), te sugiero descansar entre 2 y 3 minutos completos para recuperar los niveles de ATP. Para accesorios o aislamiento, con 60 a 90 segundos estás perfecto.`;
+}
+return `¡Excelente pregunta! Basándome en tus entrenamientos en Mi Gym La Cima, te recomiendo enfocarte en mantener la técnica estricta, controlar la fase excéntrica (bajada) de cada movimiento y anotar tus marcas en cada sesión para asegurar que estás progresando. ¿Hay algo más en lo que te pueda orientar?`;
+}
+
+function escapeHtml(text) {
+const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+}
+
+// -------------------------------------------------------------
+// SINCRONIZACIÓN Y FLUJO DE DATOS
+// -------------------------------------------------------------
+async function sincronizarConNubeAlIniciar() {
+const user = auth.currentUser;
+if (!user) return;
+const uid = user.uid;
+const claves = obtenerClavesLocales(uid);
+let docRef = dbCloud.collection("datos_gym").doc(uid); 
+
 try {
 actualizarEstadoCloud(false, "Sincronizando...");
-let docRef = dbCloud.collection("usuarios").doc("usuario_principal");
-let doc = await docRef.get();
-if(doc.exists) {
-let data = doc.data();
-if(data.rutinas) rutinasPersonalizadas = data.rutinas;
-if(data.registros) registrosCloud = data.registros;
-if(data.perfil) perfilCloud = data.perfil;
-guardarLocal();
-} else {
-await docRef.set({ rutinas: rutinasPersonalizadas, registros: registrosCloud, perfil: perfilCloud });
+let doc = await docRef.get(); 
+
+if (doc.exists) {
+let nubeData = doc.data();
+if (nubeData) {
+if (nubeData.rutinas) {
+rutinasPersonalizadas = nubeData.rutinas;
+localStorage.setItem(claves.rutinas, JSON.stringify(rutinasPersonalizadas));
 }
+if (nubeData.registrosCloud || nubeData.registros) {
+registrosCloud = nubeData.registrosCloud || nubeData.registros;
+localStorage.setItem(claves.registros, JSON.stringify(registrosCloud));
+}
+if (nubeData.perfil) {
+perfilCloud = nubeData.perfil;
+localStorage.setItem(claves.perfil, JSON.stringify(perfilCloud));
+}
+}
+} else {
+rutinasPersonalizadas = { "Rutina A": [] };
+registrosCloud = [];
+perfilCloud = { peso: 90 };
+await guardarTodoEnNube();
+} 
+
+let borradorGuardado = localStorage.getItem(claves.borrador);
+borradorSesion = borradorGuardado ? JSON.parse(borradorGuardado) : null; 
+
 actualizarEstadoCloud(true, "☁️ Sincronizado");
 actualizarDashboard();
 } catch(err) {
+console.error("Modo offline activado:", err);
+let rutinasLocales = localStorage.getItem(claves.rutinas);
+if (rutinasLocales) rutinasPersonalizadas = JSON.parse(rutinasLocales);
+let regsLocales = localStorage.getItem(claves.registros);
+if (regsLocales) registrosCloud = JSON.parse(regsLocales);
+let perfilLocal = localStorage.getItem(claves.perfil);
+if (perfilLocal) perfilCloud = JSON.parse(perfilLocal);
+let borradorLocal = localStorage.getItem(claves.borrador);
+if (borradorLocal) borradorSesion = JSON.parse(borradorLocal); 
+
 actualizarEstadoCloud(false, "⚠️ Modo Local");
 actualizarDashboard();
 }
@@ -709,26 +999,41 @@ actualizarDashboard();
 
 async function guardarTodoEnNube() {
 guardarLocal();
-if(!usarseNube || !dbCloud) return;
+const user = auth.currentUser;
+if (!user) return;
+const uid = user.uid; 
+
 try {
 actualizarEstadoCloud(false, "Guardando...");
-await docRef = dbCloud.collection("usuarios").doc("usuario_principal");
-await docRef.set({
+const payloadData = {
+dataVersion: DATA_VERSION,
 rutinas: rutinasPersonalizadas,
-registros: registrosCloud,
-perfil: perfilCloud
-});
+registrosCloud: registrosCloud,
+perfil: perfilCloud,
+ultimaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
+}; 
+await dbCloud.collection("datos_gym").doc(uid).set(payloadData, { merge: true });
 actualizarEstadoCloud(true, "☁️ Nube Actualizada");
 } catch(e) {
-actualizarEstadoCloud(false, "⚠️ Error Red");
+console.error("Error al guardar en Firestore:", e);
+actualizarEstadoCloud(false, "⚠️ Error de red");
 }
 } 
 
 function guardarLocal() {
-localStorage.setItem('mi_gym_rutinas_v36', JSON.stringify(rutinasPersonalizadas));
-localStorage.setItem('mi_gym_registros_v36', JSON.stringify(registrosCloud));
-localStorage.setItem('mi_gym_perfil_v36', JSON.stringify(perfilCloud));
-localStorage.setItem('mi_gym_borrador_v36', JSON.stringify(borradorSesion));
+const user = auth.currentUser;
+if (!user) return;
+const claves = obtenerClavesLocales(user.uid);
+if (!claves) return; 
+
+localStorage.setItem(claves.rutinas, JSON.stringify(rutinasPersonalizadas));
+localStorage.setItem(claves.registros, JSON.stringify(registrosCloud));
+localStorage.setItem(claves.perfil, JSON.stringify(perfilCloud));
+if (borradorSesion) {
+localStorage.setItem(claves.borrador, JSON.stringify(borradorSesion));
+} else {
+localStorage.removeItem(claves.borrador);
+}
 } 
 
 function actualizarEstadoCloud(sincronizado, texto) {
@@ -748,16 +1053,13 @@ if (targetView) targetView.classList.add('active');
 document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active')); 
 
 if(viewId === 'view-home') {
-const navBtn = document.querySelectorAll('.nav-btn')[0];
-if (navBtn) navBtn.classList.add('active');
+document.querySelectorAll('.nav-btn')[0].classList.add('active');
 actualizarDashboard();
 } else if(viewId === 'view-calendario') {
-const navBtn = document.querySelectorAll('.nav-btn')[1];
-if (navBtn) navBtn.classList.add('active');
+document.querySelectorAll('.nav-btn')[1].classList.add('active');
 renderizarCalendario();
 } else if(viewId === 'view-historial') {
-const navBtn = document.querySelectorAll('.nav-btn')[2];
-if (navBtn) navBtn.classList.add('active');
+document.querySelectorAll('.nav-btn')[2].classList.add('active');
 renderizarHistorial();
 }
 window.scrollTo(0,0);
@@ -780,7 +1082,11 @@ if (!cont) return;
 let html = '';
 Object.keys(rutinasPersonalizadas).forEach(key => {
 let cantEjercicios = Array.isArray(rutinasPersonalizadas[key]) ? rutinasPersonalizadas[key].length : 0;
-html += `<div class="flex-row" style="margin-bottom: 8px;"><button class="btn btn-primary" style="margin:0; flex:1;" onclick="seleccionarRutina('${key}')">📅 ${key} (${cantEjercicios} ejercicios)</button><button class="btn btn-danger" style="width: auto; margin:0; padding: 12px 14px;" onclick="eliminarRutina('${key}')">🗑️</button></div>`;
+html += `
+<div class="flex-row" style="margin-bottom: 8px;">
+<button class="btn btn-primary" style="margin:0; flex:1;" onclick="seleccionarRutina('${key}')">📅 ${key} (${cantEjercicios} ejercicios)</button>
+<button class="btn btn-danger" style="width: auto; margin:0; padding: 12px 14px;" onclick="eliminarRutina('${key}')">🗑️</button>
+</div>`;
 });
 cont.innerHTML = html || '<p style="color:var(--text-muted); font-size:0.9rem;">No hay rutinas creadas todavía.</p>';
 } 
@@ -824,8 +1130,10 @@ let esHoy = (d === hoy.getDate() && homeCalMesActual === hoy.getMonth() && homeC
 let cls = ent ? 'trained' : '';
 if(esHoy) cls += ' today'; 
 
-let mensajeAlerta = ent ? "Entrenamiento registrado: " + ent : "Día " + d + ": Sin entrenamientos";
-grid += `<div class="cal-day ${cls}" onclick="alert('${mensajeAlerta}')"><strong style="font-size:0.8rem;">${d}</strong>${ent ? '<span style="font-size:0.5rem; color:var(--accent);">✔</span>' : ''}</div>`;
+grid += `<div class="cal-day ${cls}" onclick="alert('Día ${d}: ${ent ? 'Entrenó ' + ent : 'Sin registro'}')">
+<strong>${d}</strong>
+${ent ? '<span style="font-size:0.5rem; color:var(--accent);">✔</span>' : ''}
+</div>`;
 }
 const gridEl = document.getElementById('home-cal-grid');
 if (gridEl) gridEl.innerHTML = grid;
@@ -839,56 +1147,34 @@ renderizarHomeCalendario();
 } 
 
 async function solicitarReiniciarFabricaSeguro() {
-let confirmacion1 = confirm("⚠️ ATENCIÓN: Estás a punto de borrar TODAS tus rutinas, historial de entrenamientos y configuraciones guardadas. ¿Querés continuar?");
+let confirmacion1 = confirm("⚠️ ATENCIÓN: Estás a punto de borrar TODAS tus rutinas, historial de entrenamientos y configuraciones. ¿Querés continuar?");
 if(!confirmacion1) return; 
-
-let palabraClave = prompt("Para confirmar que querés reiniciar la aplicación a cero, escribí la palabra: BORRAR");
+let palabraClave = prompt("Para confirmar, escribí la palabra: BORRAR");
 if(palabraClave !== "BORRAR") {
-alert("Operación cancelada. No se borró ningún dato.");
+alert("Operación cancelada.");
 return;
 } 
-
 rutinasPersonalizadas = { "Rutina A": [] };
 registrosCloud = [];
 perfilCloud = { peso: 90 };
 borradorSesion = null; 
-
-guardarLocal(); 
-
-if(usarseNube && dbCloud) {
-try {
-await dbCloud.collection("usuarios").doc("usuario_principal").set({
-rutinas: rutinasPersonalizadas,
-registros: registrosCloud,
-perfil: perfilCloud
-});
-} catch(e) {
-console.log("Error al limpiar nube:", e);
-}
-} 
-
-alert("🔄 La aplicación ha sido restablecida a cero exitosamente.");
+guardarTodoEnNube();
+alert("🔄 Aplicación restablecida a cero.");
 actualizarDashboard();
 irA('view-home');
 } 
 
 function abrirModalCrearRutina() {
-const input = document.getElementById('input-nombre-nueva-rutina');
-if (input) input.value = '';
-const modal = document.getElementById('modal-crear-rutina');
-if (modal) modal.style.display = 'flex';
+document.getElementById('input-nombre-nueva-rutina').value = '';
+document.getElementById('modal-crear-rutina').style.display = 'flex';
 } 
 
 function cerrarModalCrearRutina() {
-const modal = document.getElementById('modal-crear-rutina');
-if (modal) modal.style.display = 'none';
+document.getElementById('modal-crear-rutina').style.display = 'none';
 } 
 
 function guardarNuevaRutinaCreada() {
-let inputNombre = document.getElementById('input-nombre-nueva-rutina');
-if (!inputNombre) return;
-let nombre = inputNombre.value.trim(); 
-
+let nombre = document.getElementById('input-nombre-nueva-rutina').value.trim();
 if(nombre !== "") {
 if(!rutinasPersonalizadas[nombre]) {
 rutinasPersonalizadas[nombre] = [];
@@ -897,7 +1183,7 @@ guardarTodoEnNube();
 cerrarModalCrearRutina();
 actualizarDashboard();
 } else {
-alert("Por favor, ingresá un nombre válido para la rutina.");
+alert("Por favor, ingresá un nombre válido.");
 }
 } 
 
@@ -914,299 +1200,348 @@ rutinaSeleccionadaKey = key;
 if (!Array.isArray(rutinasPersonalizadas[rutinaSeleccionadaKey])) {
 rutinasPersonalizadas[rutinaSeleccionadaKey] = [];
 } 
-
-const tituloRutina = document.getElementById('titulo-rutina-activa');
-if (tituloRutina) tituloRutina.innerText = key; 
-
+document.getElementById('titulo-rutina-activa').innerText = key;
 const sel = document.getElementById('select-catalogo-agregar');
-if (sel) {
 let h = '';
 catalogoEjercicios.forEach(e => h += `<option value="${e}">${e}</option>`);
 sel.innerHTML = h;
 verificarOpcionCatalogo();
-} 
-
-generarInputsSeriesNuevo();
 renderizarEjerciciosRutinaActual();
 irA('view-rutina');
 } 
 
 function verificarOpcionCatalogo() {
-const sel = document.getElementById('select-catalogo-agregar');
-if (!sel) return;
-let val = sel.value;
-let esCustom = val.includes("➕ OTRO");
-let esCardio = val.includes("🚶‍♂️") || val.includes("🏃‍♂️") || val.includes("🚴‍♂️") || val.includes("🏊‍♂️"); 
-
-const divCustom = document.getElementById('div-nombre-personalizado');
-const divCardio = document.getElementById('div-cardio-inputs');
-const divFuerza = document.getElementById('div-fuerza-inputs'); 
-
-if (divCustom) divCustom.style.display = esCustom ? 'block' : 'none';
-if (divCardio) divCardio.style.display = esCardio ? 'block' : 'none';
-if (divFuerza) divFuerza.style.display = esCardio ? 'none' : 'block';
+const sel = document.getElementById('select-catalogo-agregar').value;
+const isCustom = sel.includes("OTRO");
+document.getElementById('div-nombre-personalizado').style.display = isCustom ? 'block' : 'none';
+const isCardio = sel.includes("Caminar") || sel.includes("Trotar") || sel.includes("Ciclismo") || sel.includes("Natación");
+document.getElementById('div-fuerza-inputs').style.display = isCardio ? 'none' : 'block';
+document.getElementById('div-cardio-inputs').style.display = isCardio ? 'block' : 'none';
+if (!isCardio) generarInputsSeriesNuevo();
 } 
 
 function generarInputsSeriesNuevo() {
-const cant = parseInt(document.getElementById('input-series-nuevo')?.value) || 3;
-const contenedor = document.getElementById('contenedor-series-nuevo');
-if (!contenedor) return; 
-
-let html = '';
-for (let i = 1; i <= cant; i++) {
-html += `<div class="flex-row" style="margin-bottom: 6px; align-items: center;"><span style="font-size: 0.85rem; width: 65px; color: var(--accent);">Serie ${i}:</span><input type="number" placeholder="Peso (kg)" id="nuevo-serie-peso-${i}" step="0.5" value="0" style="margin:0; padding: 6px; font-size:0.9rem;"><input type="text" placeholder="Reps (ej: 10)" id="nuevo-serie-reps-${i}" value="10" style="margin:0; padding: 6px; font-size:0.9rem;"></div>`;
+const cant = parseInt(document.getElementById('input-series-nuevo').value) || 3;
+let container = document.getElementById('contenedor-series-nuevo');
+let h = '';
+for(let i=0; i<cant; i++) {
+h += `
+<div class="flex-row" style="margin-bottom: 6px;">
+<span style="font-size:0.8rem; width:55px; color:var(--text-muted);">Serie ${i+1}</span>
+<input type="number" placeholder="Kg" id="nuevo-serie-peso-${i}" style="margin:0; padding:6px;">
+<input type="number" placeholder="Reps" id="nuevo-serie-reps-${i}" style="margin:0; padding:6px;">
+</div>`;
 }
-contenedor.innerHTML = html;
+container.innerHTML = h;
 } 
 
 function agregarEjercicioARutinaActual() {
-const sel = document.getElementById('select-catalogo-agregar');
-if (!sel) return;
-let selVal = sel.value;
-let nombreFinal = ""; 
+const sel = document.getElementById('select-catalogo-agregar').value;
+let nombreEj = sel;
+if(sel.includes("OTRO")) {
+nombreEj = document.getElementById('input-ejercicio-custom').value.trim();
+if(!nombreEj) { alert("Ingresá un nombre para el ejercicio"); return; }
+} 
 
-if(selVal.includes("➕ OTRO")) {
-let inputCustom = document.getElementById('input-ejercicio-custom');
-nombreFinal = inputCustom ? inputCustom.value.trim().toUpperCase() : "";
-if(!nombreFinal) { alert("Ingresá un nombre para el ejercicio."); return; }
+const isCardio = sel.includes("Caminar") || sel.includes("Trotar") || sel.includes("Ciclismo") || sel.includes("Natación");
+const notas = document.getElementById('input-notas-nuevo').value.trim();
+let ejercicioObj = { nombre: nombreEj, isCardio: isCardio, notas: notas }; 
+
+if(isCardio) {
+ejercicioObj.minutos = document.getElementById('cardio-minutos').value;
+ejercicioObj.km = document.getElementById('cardio-km').value;
 } else {
-nombreFinal = selVal;
-} 
-
-let esCardio = nombreFinal.includes("🚶‍♂️") || nombreFinal.includes("🏃‍♂️") || nombreFinal.includes("🚴‍♂️") || nombreFinal.includes("🏊‍♂️"); 
-
-if(!Array.isArray(rutinasPersonalizadas[rutinaSeleccionadaKey])) {
-rutinasPersonalizadas[rutinaSeleccionadaKey] = [];
-} 
-
-let notasManuales = document.getElementById('input-notas-nuevo')?.value.trim() || ""; 
-
-if(esCardio) {
-let mins = parseInt(document.getElementById('cardio-minutos')?.value) || 20;
-let km = parseFloat(document.getElementById('cardio-km')?.value) || 0;
-rutinasPersonalizadas[rutinaSeleccionadaKey].push({ id: Date.now() + Math.random(), nombre: nombreFinal, minutos: mins, km, notas: notasManuales, tipo: "cardio" });
-} else {
-let cantSeries = parseInt(document.getElementById('input-series-nuevo')?.value) || 3;
-let seriesArray = [];
-for (let i = 1; i <= cantSeries; i++) {
-let p = parseFloat(document.getElementById(`nuevo-serie-peso-${i}`)?.value) || 0;
-let r = document.getElementById(`nuevo-serie-reps-${i}`)?.value || "10";
-seriesArray.push({ peso: p, reps: r });
-} 
-
-rutinasPersonalizadas[rutinaSeleccionadaKey].push({
-id: Date.now() + Math.random(),
-nombre: nombreFinal,
-seriesConfig: seriesArray,
-notas: notasManuales,
-tipo: "fuerza"
-});
+const cant = parseInt(document.getElementById('input-series-nuevo').value) || 3;
+let seriesArr = [];
+for(let i=0; i<cant; i++) {
+let p = document.getElementById(`nuevo-serie-peso-${i}`).value;
+let r = document.getElementById(`nuevo-serie-reps-${i}`).value;
+seriesArr.push({ peso: p, reps: r });
 }
+ejercicioObj.series = seriesArr;
+} 
+
+rutinasPersonalizadas[rutinaSeleccionadaKey].push(ejercicioObj);
 guardarTodoEnNube();
+document.getElementById('input-notas-nuevo').value = '';
+if(document.getElementById('input-ejercicio-custom')) document.getElementById('input-ejercicio-custom').value = '';
 renderizarEjerciciosRutinaActual();
 } 
 
-function eliminarEjercicioDeRutina(idx) {
-if (Array.isArray(rutinasPersonalizadas[rutinaSeleccionadaKey])) {
+function renderizarEjerciciosRutinaActual() {
+const container = document.getElementById('lista-ejercicios-container');
+let lista = rutinasPersonalizadas[rutinaSeleccionadaKey] || [];
+let html = '';
+lista.forEach((ej, idx) => {
+let detalle = '';
+if(ej.isCardio) {
+detalle = `Cardio: ${ej.minutos || 0} mins ${ej.km ? '- ' + ej.km + ' km' : ''}`;
+} else if(ej.series) {
+detalle = ej.series.map((s, sidx) => `S${sidx+1}: ${s.peso || 0}kg x ${s.reps || 0}r`).join(' | ');
+}
+html += `
+<div style="background: var(--bg-input); padding: 10px; border-radius: 8px; margin-bottom: 8px; font-size: 0.9rem;">
+<div class="flex-row" style="justify-content: space-between;">
+<strong>${idx+1}. ${ej.nombre}</strong>
+<div>
+<button class="btn btn-secondary" style="width: auto; margin:0; padding: 4px 8px; font-size:0.75rem;" onclick="abrirModalEditarEjercicio(${idx})">✏️</button>
+<button class="btn btn-danger" style="width: auto; margin:0; padding: 4px 8px; font-size:0.75rem;" onclick="eliminarEjercicioRutina(${idx})">🗑️</button>
+</div>
+</div>
+<div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">${detalle}</div>
+${ej.notas ? `<div style="font-size: 0.75rem; color: var(--yellow); margin-top:2px;">📝 ${ej.notas}</div>` : ''}
+</div>`;
+});
+container.innerHTML = html || '<p style="color:var(--text-muted); font-size:0.9rem;">No hay ejercicios agregados en esta rutina.</p>';
+} 
+
+function eliminarEjercicioRutina(idx) {
 rutinasPersonalizadas[rutinaSeleccionadaKey].splice(idx, 1);
 guardarTodoEnNube();
 renderizarEjerciciosRutinaActual();
-}
 } 
 
+// Modal Edición Ejercicio
 function abrirModalEditarEjercicio(idx) {
-let item = rutinasPersonalizadas[rutinaSeleccionadaKey]?.[idx];
-if (!item) return; 
-
-const idxEl = document.getElementById('edit-ej-idx');
-const cantSeriesEl = document.getElementById('edit-ej-series-cant');
-const notasEl = document.getElementById('edit-ej-notas');
-const modal = document.getElementById('modal-editar-ejercicio'); 
-
-if (idxEl) idxEl.value = idx;
-let cantSeries = item.seriesConfig ? item.seriesConfig.length : 3;
-if (cantSeriesEl) cantSeriesEl.value = cantSeries;
-if (notasEl) notasEl.value = item.notas || ""; 
-
-generarInputsSeriesEdicion(item.seriesConfig);
-if (modal) modal.style.display = 'flex';
-} 
-
-function generarInputsSeriesEdicion(seriesPrevias = null) {
-const cant = parseInt(document.getElementById('edit-ej-series-cant')?.value) || 3;
-const contenedor = document.getElementById('edit-contenedor-series');
-if (!contenedor) return; 
-
-let html = '';
-for (let i = 1; i <= cant; i++) {
-let pesoPrevio = 0;
-let repsPrevio = "10";
-if (seriesPrevias && seriesPrevias[i-1]) {
-pesoPrevio = seriesPrevias[i-1].peso !== undefined ? seriesPrevias[i-1].peso : 0;
-repsPrevio = seriesPrevias[i-1].reps !== undefined ? seriesPrevias[i-1].reps : "10";
+document.getElementById('edit-ej-idx').value = idx;
+let ej = rutinasPersonalizadas[rutinaSeleccionadaKey][idx];
+document.getElementById('edit-ej-notas').value = ej.notas || '';
+if(ej.isCardio) {
+document.getElementById('edit-ej-series-cant').value = 1;
+document.getElementById('edit-contenedor-series').innerHTML = '<p style="font-size:0.85rem; color:var(--text-muted);">Ejercicio de Cardio</p>';
+} else {
+let cant = ej.series ? ej.series.length : 3;
+document.getElementById('edit-ej-series-cant').value = cant;
+generarInputsSeriesEdicion(ej.series);
 }
-html += `<div class="flex-row" style="margin-bottom: 6px; align-items: center;"><span style="font-size: 0.85rem; width: 65px; color: var(--accent);">Serie ${i}:</span><input type="number" placeholder="Peso (kg)" id="edit-serie-peso-${i}" value="${pesoPrevio}" step="0.5" style="margin:0; padding: 6px; font-size:0.9rem;"><input type="text" placeholder="Reps" id="edit-serie-reps-${i}" value="${repsPrevio}" style="margin:0; padding: 6px; font-size:0.9rem;"></div>`;
+document.getElementById('modal-editar-ejercicio').style.display = 'flex';
 }
-contenedor.innerHTML = html;
-} 
+
+function generarInputsSeriesEdicion(seriesExistentes) {
+let cant = parseInt(document.getElementById('edit-ej-series-cant').value) || 3;
+let container = document.getElementById('edit-contenedor-series');
+let h = '';
+for(let i=0; i<cant; i++) {
+let pVal = (seriesExistentes && seriesExistentes[i]) ? seriesExistentes[i].peso : '';
+let rVal = (seriesExistentes && seriesExistentes[i]) ? seriesExistentes[i].reps : '';
+h += `
+<div class="flex-row" style="margin-bottom: 6px;">
+<span style="font-size:0.8rem; width:55px; color:var(--text-muted);">Serie ${i+1}</span>
+<input type="number" placeholder="Kg" id="edit-serie-peso-${i}" value="${pVal}" style="margin:0; padding:6px;">
+<input type="number" placeholder="Reps" id="edit-serie-reps-${i}" value="${rVal}" style="margin:0; padding:6px;">
+</div>`;
+}
+container.innerHTML = h;
+}
 
 function cerrarModalEditarEjercicio() {
-const modal = document.getElementById('modal-editar-ejercicio');
-if (modal) modal.style.display = 'none';
-} 
+document.getElementById('modal-editar-ejercicio').style.display = 'none';
+}
 
 function guardarEdicionEjercicio() {
-let idxInput = document.getElementById('edit-ej-idx');
-if (!idxInput) return;
-let idx = parseInt(idxInput.value);
-let item = rutinasPersonalizadas[rutinaSeleccionadaKey]?.[idx];
-if (!item) return; 
+let idx = parseInt(document.getElementById('edit-ej-idx').value);
+let ej = rutinasPersonalizadas[rutinaSeleccionadaKey][idx];
+ej.notas = document.getElementById('edit-ej-notas').value.trim();
 
-let cantSeries = parseInt(document.getElementById('edit-ej-series-cant')?.value) || 3;
-let seriesArray = [];
-for (let i = 1; i <= cantSeries; i++) {
-let p = parseFloat(document.getElementById(`edit-serie-peso-${i}`)?.value) || 0;
-let r = document.getElementById(`edit-serie-reps-${i}`)?.value || "10";
-seriesArray.push({ peso: p, reps: r });
-} 
-
-item.seriesConfig = seriesArray;
-item.notas = document.getElementById('edit-ej-notas')?.value.trim() || ""; 
-
+if(!ej.isCardio) {
+let cant = parseInt(document.getElementById('edit-ej-series-cant').value) || 3;
+let seriesArr = [];
+for(let i=0; i<cant; i++) {
+let p = document.getElementById(`edit-serie-peso-${i}`).value;
+let r = document.getElementById(`edit-serie-reps-${i}`).value;
+seriesArr.push({ peso: p, reps: r });
+}
+ej.series = seriesArr;
+}
 guardarTodoEnNube();
 cerrarModalEditarEjercicio();
 renderizarEjerciciosRutinaActual();
 } 
 
-function renderizarEjerciciosRutinaActual() {
-const cont = document.getElementById('lista-ejercicios-container');
-if (!cont) return;
-const lista = rutinasPersonalizadas[rutinaSeleccionadaKey] || [];
-let html = ''; 
+// Modo Guiado
+function comenzarModoGuiado() {
+let ejList = rutinasPersonalizadas[rutinaSeleccionadaKey];
+if(!ejList || ejList.length === 0) { alert("Agregá al menos un ejercicio antes de comenzar."); return; }
+borradorSesion = {
+rutina: rutinaSeleccionadaKey,
+ejercicios: JSON.parse(JSON.stringify(ejList)),
+indiceActual: 0,
+resultados: ejList.map(e => ({
+realizado: true,
+minutos: e.minutos || '',
+km: e.km || '',
+series: e.series ? e.series.map(s => ({ peso: s.peso, reps: s.reps })) : []
+}))
+};
+guiadoIndice = 0;
+segundosSesion = 0;
+guardarLocal();
+if(cronometroSesionInterval) clearInterval(cronometroSesionInterval);
+cronometroSesionInterval = setInterval(() => {
+segundosSesion++;
+let m = Math.floor(segundosSesion / 60).toString().padStart(2, '0');
+let s = (segundosSesion % 60).toString().padStart(2, '0');
+const cronEl = document.getElementById('cronometro-sesion');
+if(cronEl) cronEl.innerText = `${m}:${s}`;
+}, 1000);
 
-if(lista.length === 0) {
-html = '<p style="color:var(--text-muted); font-size:0.9rem;">Esta rutina está vacía. Agregá tu primer ejercicio arriba.</p>';
+irA('view-guiado');
+cargarPasoGuiado();
 } 
 
-lista.forEach((item, idx) => {
-if(item.tipo === "cardio") {
-html += `<div class="card exercise-card" style="margin-bottom: 8px; padding: 12px;"><div class="flex-row" style="justify-content: space-between; align-items: flex-start;"><div><h3 style="color: var(--orange); font-size: 1.05rem; margin-bottom: 4px;">${idx+1}. ${item.nombre}</h3><p style="color: var(--text-muted); font-size: 0.85rem;">Cardio | ${item.minutos} mins ${item.km ? '| ' + item.km + ' km' : ''}</p>${item.notas ? `<p style="color: var(--yellow); font-size: 0.85rem; margin-top: 6px; font-style: italic; white-space: pre-wrap;">📝 ${item.notas}</p>` : ''}</div><div class="flex-row" style="gap:5px;"><button class="btn btn-secondary" style="width: auto; margin:0; padding: 6px 10px; font-size: 0.8rem;" onclick="abrirModalEditarEjercicio(${idx})">✏️</button><button class="btn btn-danger" style="width: auto; margin:0; padding: 6px 10px; font-size: 0.8rem;" onclick="eliminarEjercicioDeRutina(${idx})">🗑️</button></div></div></div>`;
-} else {
-let resumenSeries = "";
-if (item.seriesConfig && item.seriesConfig.length > 0) {
-resumenSeries = item.seriesConfig.map((s, i) => `S${i+1}: ${s.peso}kg (${s.reps})`).join(' | ');
-} else {
-resumenSeries = "Series configuradas";
-}
-
-html += `<div class="card exercise-card" style="margin-bottom: 8px; padding: 12px;"><div class="flex-row" style="justify-content: space-between; align-items: flex-start;"><div><h3 style="color: var(--accent); font-size: 1.05rem; margin-bottom: 4px;">${idx+1}. ${item.nombre}</h3><p style="color: var(--text-muted); font-size: 0.85rem; line-height: 1.4;">${resumenSeries}</p>${item.notas ? `<p style="color: var(--yellow); font-size: 0.85rem; margin-top: 6px; font-style: italic; white-space: pre-wrap;">📝 ${item.notas}</p>` : ''}</div><div class="flex-row" style="gap:5px;"><button class="btn btn-secondary" style="width: auto; margin:0; padding: 6px 10px; font-size: 0.8rem;" onclick="abrirModalEditarEjercicio(${idx})">✏️</button><button class="btn btn-danger" style="width: auto; margin:0; padding: 6px 10px; font-size: 0.8rem;" onclick="eliminarEjercicioDeRutina(${idx})">🗑️</button></div></div></div>`;
-}
-});
-cont.innerHTML = html;
-}
-
-// -------------------------------------------------------------
-// MODO GUIADO Y FUNCIONES DE ENTRENAMIENTO
-// -------------------------------------------------------------
-function comenzarModoGuiado() {
-let lista = rutinasPersonalizadas[rutinaSeleccionadaKey];
-if(!lista || lista.length === 0) {
-alert("La rutina no tiene ejercicios para iniciar.");
-return;
-}
-guiadoIndice = 0;
+function retomarEntrenamientoBorrador() {
+if(!borradorSesion) return;
+rutinaSeleccionadaKey = borradorSesion.rutina;
+guiadoIndice = borradorSesion.indiceActual || 0;
 segundosSesion = 0;
 if(cronometroSesionInterval) clearInterval(cronometroSesionInterval);
 cronometroSesionInterval = setInterval(() => {
 segundosSesion++;
 let m = Math.floor(segundosSesion / 60).toString().padStart(2, '0');
 let s = (segundosSesion % 60).toString().padStart(2, '0');
-const cronoEl = document.getElementById('cronometro-sesion');
-if(cronoEl) cronoEl.innerText = `${m}:${s}`;
+const cronEl = document.getElementById('cronometro-sesion');
+if(cronEl) cronEl.innerText = `${m}:${s}`;
 }, 1000);
 
 irA('view-guiado');
-renderizarPasoGuiado();
+cargarPasoGuiado();
+} 
+
+function guardarBorradorYVolver() {
+guardarEstadoGuiadoActual();
+guardarLocal();
+if(cronometroSesionInterval) clearInterval(cronometroSesionInterval);
+irA('view-home');
+} 
+
+function descartarBorrador() {
+if(confirm("¿Descartar sesión en curso?")) {
+borradorSesion = null;
+guardarLocal();
+if(cronometroSesionInterval) clearInterval(cronometroSesionInterval);
+irA('view-home');
 }
+} 
 
-function renderizarPasoGuiado() {
-let lista = rutinasPersonalizadas[rutinaSeleccionadaKey];
-let item = lista[guiadoIndice];
-if(!item) return;
-
-const prog = document.getElementById('guiado-progreso');
-const nombre = document.getElementById('guiado-nombre');
-const meta = document.getElementById('guiado-meta');
-const notasProp = document.getElementById('guiado-notas-propias');
-const secFuerza = document.getElementById('guiado-seccion-fuerza');
-const secCardio = document.getElementById('guiado-seccion-cardio');
-
-if(prog) prog.innerText = `Ejercicio ${guiadoIndice + 1} de ${lista.length}`;
-if(nombre) nombre.innerText = item.nombre;
-
-if(notasProp) {
-if(item.notas) {
-notasProp.style.display = 'block';
-notasProp.innerText = `📝 ${item.notas}`;
-} else {
-notasProp.style.display = 'none';
-}
-}
-
-if(item.tipo === "cardio") {
-if(secFuerza) secFuerza.style.display = 'none';
-if(secCardio) secCardio.style.display = 'block';
-const minIn = document.getElementById('guiado-cardio-mins');
-const kmIn = document.getElementById('guiado-cardio-km');
-if(minIn) minIn.value = item.minutos || 20;
-if(kmIn) kmIn.value = item.km || '';
-if(meta) meta.innerText = `Meta: ${item.minutos} minutos`;
-} else {
-if(secCardio) secCardio.style.display = 'none';
-if(secFuerza) secFuerza.style.display = 'block';
-if(meta) meta.innerText = `Series programadas: ${item.seriesConfig?.length || 0}`;
-
-const contSeries = document.getElementById('guiado-series-inputs-container');
-if(contSeries) {
-let html = '';
-(item.seriesConfig || []).forEach((s, i) => {
-html += `<div class="flex-row" style="margin-bottom: 6px; align-items: center;"><span style="font-size:0.85rem; width:65px; color:var(--accent);">Serie ${i+1}:</span><input type="number" id="g-peso-${i}" value="${s.peso}" step="0.5" style="margin:0; padding:6px; font-size:0.9rem;"><input type="text" id="g-reps-${i}" value="${s.reps}" style="margin:0; padding:6px; font-size:0.9rem;"></div>`;
+function guardarEstadoGuiadoActual() {
+if(!borradorSesion) return;
+let res = borradorSesion.resultados[guiadoIndice];
+res.realizado = document.getElementById('check-realizado').checked;
+let ej = borradorSesion.ejercicios[guiadoIndice];
+if(ej.isCardio) {
+res.minutos = document.getElementById('guiado-cardio-mins').value;
+res.km = document.getElementById('guiado-cardio-km').value;
+} else if(res.series) {
+res.series.forEach((s, sidx) => {
+let pIn = document.getElementById(`g-serie-p-${sidx}`);
+let rIn = document.getElementById(`g-serie-r-${sidx}`);
+if(pIn) s.peso = pIn.value;
+if(rIn) s.reps = rIn.value;
 });
-contSeries.innerHTML = html;
 }
+borradorSesion.indiceActual = guiadoIndice;
+} 
+
+function cargarPasoGuiado() {
+let total = borradorSesion.ejercicios.length;
+let ej = borradorSesion.ejercicios[guiadoIndice];
+let res = borradorSesion.resultados[guiadoIndice];
+
+document.getElementById('guiado-progreso').innerText = `Ejercicio ${guiadoIndice + 1} de ${total}`;
+document.getElementById('guiado-nombre').innerText = ej.nombre;
+
+let metaTxt = ej.isCardio ? "Cardio" : `${res.series.length} series configuradas`;
+document.getElementById('guiado-meta').innerText = metaTxt;
+
+let notasBox = document.getElementById('guiado-notas-propias');
+if(ej.notas) {
+notasBox.innerText = `📝 ${ej.notas}`;
+notasBox.style.display = 'block';
+} else {
+notasBox.style.display = 'none';
 }
+
+document.getElementById('check-realizado').checked = res.realizado;
+let secFuerza = document.getElementById('guiado-seccion-fuerza');
+let secCardio = document.getElementById('guiado-seccion-cardio');
+
+if(ej.isCardio) {
+secFuerza.style.display = 'none';
+secCardio.style.display = 'block';
+document.getElementById('guiado-cardio-mins').value = res.minutos || '';
+document.getElementById('guiado-cardio-km').value = res.km || '';
+} else {
+secFuerza.style.display = 'block';
+secCardio.style.display = 'none';
+let container = document.getElementById('guiado-series-inputs-container');
+let h = '';
+res.series.forEach((s, sidx) => {
+h += `
+<div class="flex-row" style="margin-bottom: 6px;">
+<span style="font-size:0.8rem; width:55px; color:var(--text-muted);">Serie ${sidx+1}</span>
+<input type="number" placeholder="Kg" id="g-serie-p-${sidx}" value="${s.peso}" style="margin:0; padding:6px;">
+<input type="number" placeholder="Reps" id="g-serie-r-${sidx}" value="${s.reps}" style="margin:0; padding:6px;">
+</div>`;
+});
+container.innerHTML = h;
 }
+detenerDescanso();
+} 
 
 function guiadoAnterior() {
+guardarEstadoGuiadoActual();
 if(guiadoIndice > 0) {
 guiadoIndice--;
-renderizarPasoGuiado();
+cargarPasoGuiado();
 }
-}
+} 
 
 function guiadoSiguiente() {
-let lista = rutinasPersonalizadas[rutinaSeleccionadaKey];
-if(guiadoIndice < lista.length - 1) {
+guardarEstadoGuiadoActual();
+let total = borradorSesion.ejercicios.length;
+if(guiadoIndice < total - 1) {
 guiadoIndice++;
-renderizarPasoGuiado();
+cargarPasoGuiado();
 } else {
-finalizarEntrenamientoGuiado();
+finalizarEntrenamientoCompleto();
 }
-}
+} 
 
-function iniciarCronometroDescanso(secs) {
-segundosDescansoRestantes = secs;
-const box = document.getElementById('timer-box-container');
-if(box) box.style.display = 'block';
+function finalizarEntrenamientoCompleto() {
+if(cronometroSesionInterval) clearInterval(cronometroSesionInterval);
+let hoy = new Date();
+let fechaStr = `${hoy.getDate().toString().padStart(2,'0')}/${(hoy.getMonth()+1).toString().padStart(2,'0')}/${hoy.getFullYear()}`;
+
+let totalKcalEstimadas = Math.round(segundosSesion * 0.12);
+let registroFinal = {
+id: Date.now(),
+fecha: fechaStr,
+rutina: borradorSesion.rutina,
+duracionSegundos: segundosSesion,
+calorias: totalKcalEstimadas,
+ejercicios: borradorSesion.ejercicios,
+resultados: borradorSesion.resultados
+};
+
+registrosCloud.unshift(registroFinal);
+borradorSesion = null;
+guardarTodoEnNube();
+alert("🎉 ¡Entrenamiento finalizado y guardado con éxito!");
+irA('view-home');
+} 
+
+// Temporizador de descanso
+function iniciarCronometroDescanso(segundos) {
+segundosDescansoRestantes = segundos;
+document.getElementById('timer-box-container').style.display = 'block';
 actualizarDisplayDescanso();
-
 if(descansoInterval) clearInterval(descansoInterval);
 descansoInterval = setInterval(() => {
 segundosDescansoRestantes--;
 actualizarDisplayDescanso();
 if(segundosDescansoRestantes <= 0) {
 detenerDescanso();
-alert("¡Tiempo de descanso finalizado!");
+if("vibrate" in navigator) navigator.vibrate([200, 100, 200]);
 }
 }, 1000);
 }
@@ -1226,126 +1561,113 @@ let m = Math.floor(segundosDescansoRestantes / 60).toString().padStart(2, '0');
 let s = (segundosDescansoRestantes % 60).toString().padStart(2, '0');
 const disp = document.getElementById('display-descanso');
 if(disp) disp.innerText = `${m}:${s}`;
-}
+} 
 
-function guardarBorradorYVolver() {
-borradorSesion = { rutinaKey: rutinaSeleccionadaKey, indice: guiadoIndice, segundos: segundosSesion };
-guardarLocal();
-if(cronometroSesionInterval) clearInterval(cronometroSesionInterval);
-detenerDescanso();
-irA('view-home');
-}
-
-function retomarEntrenamientoBorrador() {
-if(!borradorSesion) return;
-rutinaSeleccionadaKey = borradorSesion.rutinaKey;
-guiadoIndice = borradorSesion.indice || 0;
-segundosSesion = borradorSesion.segundos || 0;
-borradorSesion = null;
-guardarLocal();
-irA('view-guiado');
-renderizarPasoGuiado();
-}
-
-function descartarBorrador() {
-if(confirm("¿Descartar el entrenamiento en curso?")) {
-borradorSesion = null;
-guardarLocal();
-if(cronometroSesionInterval) clearInterval(cronometroSesionInterval);
-detenerDescanso();
-actualizarDashboard();
-irA('view-home');
-}
-}
-
-function finalizarEntrenamientoGuiado() {
-if(cronometroSesionInterval) clearInterval(cronometroSesionInterval);
-detenerDescanso();
-
-let hoyStr = new Date().toLocaleDateString('es-ES');
-let kcalEstimadas = Math.round(segundosSesion * 0.12);
-
-let listaEjerciciosRutina = rutinasPersonalizadas[rutinaSeleccionadaKey] || [];
-let ejerciciosRegistradosDetalle = listaEjerciciosRutina.map((item, idx) => {
-if (item.tipo === "cardio") {
-let minsRealizados = parseFloat(document.getElementById('guiado-cardio-mins')?.value) || item.minutos;
-let kmRealizados = parseFloat(document.getElementById('guiado-cardio-km')?.value) || item.km;
-return {
-nombre: item.nombre,
-tipo: "cardio",
-minutos: minsRealizados,
-km: kmRealizados,
-notas: item.notas || ""
-};
-} else {
-let seriesDetalleArray = [];
-(item.seriesConfig || []).forEach((s, sIdx) => {
-let pesoReal = parseFloat(document.getElementById(`g-peso-${sIdx}`)?.value);
-if (isNaN(pesoReal)) pesoReal = s.peso;
-let repsReal = document.getElementById(`g-reps-${sIdx}`)?.value;
-if (!repsReal) repsReal = s.reps;
-
-seriesDetalleArray.push({
-serie: sIdx + 1,
-peso: pesoReal,
-reps: repsReal
+// Historial y Calendario General
+function renderizarHistorial() {
+const container = document.getElementById('historial-lista-container');
+let html = '';
+registrosCloud.forEach((reg, idx) => {
+html += `
+<div style="background: var(--bg-input); padding: 12px; border-radius: 8px; margin-bottom: 10px; font-size: 0.9rem;">
+<div class="flex-row" style="justify-content: space-between;">
+<strong>📅 ${reg.rutina}</strong>
+<span style="font-size: 0.8rem; color: var(--text-muted);">${reg.fecha}</span>
+</div>
+<div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">Duración: ${Math.round(reg.duracionSegundos/60)} mins | ${reg.calorias || 0} kcal</div>
+<button class="btn btn-secondary" style="width: auto; margin: 8px 0 0 0; padding: 4px 10px; font-size: 0.8rem;" onclick="verDetalleHistorial(${idx})">Ver Detalle</button>
+</div>`;
 });
+container.innerHTML = html || '<p style="color:var(--text-muted); font-size:0.9rem;">No hay entrenamientos registrados aún.</p>';
+} 
+
+function verDetalleHistorial(idx) {
+let reg = registrosCloud[idx];
+document.getElementById('modal-historial-titulo').innerText = `${reg.rutina} (${reg.fecha})`;
+let h = `<p style="margin-bottom:8px; font-size:0.85rem; color:var(--text-muted);">Calorías: ${reg.calorias || 0} kcal</p>`;
+reg.ejercicios.forEach((ej, eidx) => {
+let res = reg.resultados ? reg.resultados[eidx] : null;
+let det = '';
+if(ej.isCardio && res) {
+det = `${res.minutos || 0} mins ${res.km ? '- ' + res.km + ' km' : ''}`;
+} else if(res && res.series) {
+det = res.series.map((s, sidx) => `S${sidx+1}: ${s.peso||0}kg x ${s.reps||0}r`).join(' | ');
+}
+h += `<div style="border-bottom: 1px solid var(--border); padding-bottom: 6px; margin-bottom: 6px;">
+<strong>${eidx+1}. ${ej.nombre}</strong><br>
+<span style="font-size: 0.8rem; color: var(--text-muted);">${det}</span>
+</div>`;
 });
-return {
-nombre: item.nombre,
-tipo: "fuerza",
-series: seriesDetalleArray,
-notas: item.notas || ""
-};
+document.getElementById('modal-historial-cuerpo').innerHTML = h;
+document.getElementById('modal-detalle-historial').style.display = 'flex';
+} 
+
+function cerrarModalHistorial() {
+document.getElementById('modal-detalle-historial').style.display = 'none';
+} 
+
+// Calculadora de Discos y Peso Corporal
+function abrirCalculadoraDiscos() { document.getElementById('modal-discos').style.display = 'flex'; calcularDiscos(); }
+function cerrarCalculadoraDiscos() { document.getElementById('modal-discos').style.display = 'none'; }
+function calcularDiscos() {
+let total = parseFloat(document.getElementById('calc-peso-total').value) || 0;
+let barra = parseFloat(document.getElementById('calc-peso-barra').value) || 20;
+let resDiv = document.getElementById('resultado-discos');
+if(total <= barra) { resDiv.innerHTML = "El peso total debe ser mayor al peso de la barra."; return; }
+let porLado = (total - barra) / 2;
+const discosDisponibles = [25, 20, 15, 10, 5, 2.5, 1.25];
+let resto = porLado;
+let detalle = `Cada lado (${porLado} kg):<br>`;
+discosDisponibles.forEach(d => {
+let cant = Math.floor(resto / d);
+if(cant > 0) {
+detalle += `• ${cant} disco(s) de ${d} kg<br>`;
+resto -= cant * d;
 }
 });
+resDiv.innerHTML = detalle;
+} 
 
-registrosCloud.push({
-id: Date.now(),
-fecha: hoyStr,
-rutina: rutinaSeleccionadaKey,
-tiempoSegundos: segundosSesion,
-calorias: kcalEstimadas,
-ejerciciosDetalle: ejerciciosRegistradosDetalle
-});
-
-borradorSesion = null;
+function abrirModalPesoCorporal() {
+document.getElementById('input-nuevo-peso-corp').value = perfilCloud.peso || '';
+document.getElementById('modal-peso-corporal').style.display = 'flex';
+}
+function cerrarModalPesoCorporal() { document.getElementById('modal-peso-corporal').style.display = 'none'; }
+async function guardarPesoCorporalCloud() {
+let p = parseFloat(document.getElementById('input-nuevo-peso-corp').value);
+if(!isNaN(p)) {
+perfilCloud.peso = p;
 guardarTodoEnNube();
-alert(`🎉 ¡Entrenamiento finalizado con éxito!\nTiempo total: ${Math.floor(segundosSesion/60)} mins\nCalorías aprox: ${kcalEstimadas} kcal`);
-irA('view-home');
+cerrarModalPesoCorporal();
+actualizarDashboard();
 }
+} 
 
-// -------------------------------------------------------------
-// HISTORIAL Y CALENDARIO GENERAL
-// -------------------------------------------------------------
 function renderizarCalendario() {
 const meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Setiembre", "Octubre", "Noviembre", "Diciembre"];
-const titulo = document.getElementById('cal-mes-anio-titulo');
-if (titulo) titulo.innerText = `${meses[calMesActual]} ${calAnioActual}`;
-
+document.getElementById('cal-mes-anio-titulo').innerText = `${meses[calMesActual]} ${calAnioActual}`;
 let primerDia = new Date(calAnioActual, calMesActual, 1).getDay();
 primerDia = primerDia === 0 ? 6 : primerDia - 1;
 let totalDias = new Date(calAnioActual, calMesActual + 1, 0).getDate();
-
 let diasEntrenados = {};
 registrosCloud.forEach(r => {
 if (!r.fecha) return;
 let p = r.fecha.split('/');
 if(p.length === 3 && parseInt(p[1]) === (calMesActual + 1) && parseInt(p[2]) === calAnioActual) {
-diasEntrenados[parseInt(p[0])] = r;
+diasEntrenados[parseInt(p[0])] = r.rutina;
 }
 });
-
 let grid = '';
-for(let i=0; i<primerDia; i++) grid += `<div class="cal-day" style="opacity:0; border:none; cursor:default;"></div>`;
-
+for(let i=0; i<primerDia; i++) grid += `<div class="cal-day" style="opacity:0; border:none;"></div>`;
+let hoy = new Date();
 for(let d=1; d<=totalDias; d++) {
-let reg = diasEntrenados[d];
-let cls = reg ? 'trained' : '';
-grid += `<div class="cal-day ${cls}" onclick="verDetalleRegistroDia('${d}/${calMesActual+1}/${calAnioActual}')"><strong style="font-size:0.8rem;">${d}</strong>${reg ? '<span style="font-size:0.5rem; color:var(--accent);">✔</span>' : ''}</div>`;
+let ent = diasEntrenados[d];
+let esHoy = (d === hoy.getDate() && calMesActual === hoy.getMonth() && calAnioActual === hoy.getFullYear());
+let cls = ent ? 'trained' : '';
+if(esHoy) cls += ' today';
+grid += `<div class="cal-day ${cls}"><strong>${d}</strong>${ent ? '<span style="font-size:0.5rem; color:var(--accent);">✔</span>' : ''}</div>`;
 }
-const gridEl = document.getElementById('cal-dias-grid');
-if (gridEl) gridEl.innerHTML = grid;
+document.getElementById('cal-dias-grid').innerHTML = grid;
 }
 
 function cambiarMesCalendario(dir) {
@@ -1353,270 +1675,6 @@ calMesActual += dir;
 if(calMesActual > 11) { calMesActual = 0; calAnioActual++; }
 if(calMesActual < 0) { calMesActual = 11; calAnioActual--; }
 renderizarCalendario();
-}
-
-function renderizarHistorial() {
-const cont = document.getElementById('historial-lista-container');
-if(!cont) return;
-let html = '';
-if(registrosCloud.length === 0) {
-cont.innerHTML = '<p style="color:var(--text-muted); font-size:0.9rem;">No hay entrenamientos registrados todavía.</p>';
-return;
-}
-
-[...registrosCloud].reverse().forEach(r => {
-html += `<div class="card" style="margin-bottom: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center;"><div><h4 style="color: var(--accent); font-size: 1rem; margin-bottom: 2px;">${r.rutina}</h4><p style="color: var(--text-muted); font-size: 0.8rem;">Fecha: ${r.fecha} | Duración: ${Math.floor((r.tiempoSegundos||0)/60)} min</p></div><button class="btn btn-secondary" style="width: auto; margin:0; padding: 6px 10px; font-size: 0.8rem;" onclick="verDetalleRegistroId(${r.id})">Ver</button></div>`;
-});
-cont.innerHTML = html;
-}
-
-function verDetalleRegistroDia(fechaStr) {
-let reg = registrosCloud.find(r => r.fecha === fechaStr);
-if(!reg) {
-alert("No hay registros guardados para el " + fechaStr);
-return;
-}
-mostrarModalHistorialObjeto(reg);
-}
-
-function verDetalleRegistroId(id) {
-let reg = registrosCloud.find(r => r.id === id);
-if(!reg) return;
-mostrarModalHistorialObjeto(reg);
-}
-
-function mostrarModalHistorialObjeto(reg) {
-const titulo = document.getElementById('modal-historial-titulo');
-const cuerpo = document.getElementById('modal-historial-cuerpo');
-if(titulo) titulo.innerText = reg.rutina;
-
-if(cuerpo) {
-let detalleHtml = `<p><strong>Fecha:</strong> ${reg.fecha}</p><p><strong>Tiempo total:</strong> ${Math.floor((reg.tiempoSegundos||0)/60)} minutos</p><p><strong>Calorías estimadas:</strong> ${reg.calorias || 0} kcal</p><hr style="border-color:var(--border); margin:10px 0;">`;
-
-if(reg.ejerciciosDetalle && reg.ejerciciosDetalle.length > 0) {
-detalleHtml += `<h4 style="color:var(--accent); margin-bottom:8px; font-size:0.95rem;">Desglose de Ejercicios:</h4>`;
-reg.ejerciciosDetalle.forEach(ej => {
-if(ej.tipo === "cardio") {
-detalleHtml += `<div style="margin-bottom:6px; font-size:0.85rem;"><strong style="color:var(--orange);">${ej.nombre}</strong>: ${ej.minutos} mins ${ej.km ? '| ' + ej.km + ' km' : ''}</div>`;
-} else {
-let seriesStr = (ej.series || []).map(s => `S${s.serie}: ${s.peso}kg (${s.reps})`).join(' | ');
-detalleHtml += `<div style="margin-bottom:6px; font-size:0.85rem;"><strong style="color:var(--accent);">${ej.nombre}</strong><br><span style="color:var(--text-muted);">${seriesStr || 'Sin series registradas'}</span></div>`;
-}
-});
-} else {
-detalleHtml += `<p style="color:var(--text-muted); font-style:italic;">Sesión registrada con formato anterior.</p>`;
-}
-
-cuerpo.innerHTML = detalleHtml;
-}
-document.getElementById('modal-detalle-historial').style.display = 'flex';
-}
-
-function cerrarModalHistorial() {
-document.getElementById('modal-detalle-historial').style.display = 'none';
-}
-
-// -------------------------------------------------------------
-// HERRAMIENTAS EXTRAS Y SOFÍA (IA INTERACTIVA, ENLACES Y GRÁFICOS)
-// -------------------------------------------------------------
-function abrirCalculadoraDiscos() {
-document.getElementById('modal-discos').style.display = 'flex';
-calcularDiscos();
-}
-function cerrarCalculadoraDiscos() {
-document.getElementById('modal-discos').style.display = 'none';
-}
-function calcularDiscos() {
-let total = parseFloat(document.getElementById('calc-peso-total').value) || 0;
-let barra = parseFloat(document.getElementById('calc-peso-barra').value) || 20;
-let res = document.getElementById('resultado-discos');
-if(!res) return;
-
-if(total < barra) {
-res.innerHTML = "El peso total no puede ser menor al peso de la barra.";
-return;
-}
-
-let porLado = (total - barra) / 2;
-let disponibles = [20, 15, 10, 5, 2.5, 1.25];
-let usados = {};
-
-disponibles.forEach(d => {
-let cant = Math.floor(porLado / d);
-if(cant > 0) {
-usados[d] = cant;
-porLado -= cant * d;
-porLado = Math.round(porLado * 100) / 100;
-}
-});
-
-let txt = `<strong>Por cada lado de la barra necesitás:</strong><br>`;
-if(Object.keys(usados).length === 0) {
-txt += "Solo la barra pelada.";
-} else {
-Object.keys(usados).forEach(d => {
-txt += `• ${usados[d]} disco(s) de ${d} kg<br>`;
-});
-}
-res.innerHTML = txt;
-}
-
-function abrirModalPesoCorporal() {
-const inp = document.getElementById('input-nuevo-peso-corp');
-if(inp) inp.value = perfilCloud.peso || 90;
-document.getElementById('modal-peso-corporal').style.display = 'flex';
-}
-function cerrarModalPesoCorporal() {
-document.getElementById('modal-peso-corporal').style.display = 'none';
-}
-async function guardarPesoCorporalCloud() {
-let val = parseFloat(document.getElementById('input-nuevo-peso-corp').value);
-if(isNaN(val) || val <= 0) {
-alert("Ingresá un peso válido.");
-return;
-}
-perfilCloud.peso = val;
-await guardarTodoEnNube();
-cerrarModalPesoCorporal();
-actualizarDashboard();
-}
-
-function toggleSofiaHome() {
-const panel = document.getElementById('sofia-panel');
-if (panel.style.display === 'block') {
-panel.style.display = 'none';
-} else {
-panel.style.display = 'block';
-}
-}
-
-function limpiarChatSofia() {
-const chat = document.getElementById('sofia-chat-history');
-if(chat) {
-chat.innerHTML = `<div class="chat-bubble">Historial limpiado. ¿En qué te ayudo ahora? Podés consultarme por cualquier ejercicio de tus rutinas.</div>`;
-}
-}
-
-function enviarConsultaSofia() {
-const input = document.getElementById('sofia-input-consulta');
-const chat = document.getElementById('sofia-chat-history');
-if(!input || !chat) return;
-let texto = input.value.trim();
-if(!texto) return;
-
-chat.innerHTML += `<div class="chat-bubble user">${texto}</div>`;
-input.value = '';
-chat.scrollTop = chat.scrollHeight;
-
-setTimeout(() => {
-let respuestaIA = generarRespuestaInteligenteSofia(texto);
-chat.innerHTML += `<div class="chat-bubble">${respuestaIA}</div>`;
-chat.scrollTop = chat.scrollHeight;
-}, 500);
-}
-
-function generarRespuestaInteligenteSofia(pregunta) {
-let pLower = pregunta.toLowerCase();
-let totalSesiones = registrosCloud.length;
-
-let ejercicioEncontrado = null;
-Object.values(rutinasPersonalizadas).forEach(rutina => {
-rutina.forEach(ej => {
-if(pLower.includes(ej.nombre.toLowerCase()) || ej.nombre.toLowerCase().split(' ')[0].includes(pLower)) {
-ejercicioEncontrado = ej.nombre;
-}
-});
-});
-
-if(pLower.includes("progreso") || pLower.includes("evolucion") || pLower.includes("como vengo")) {
-if(totalSesiones === 0) {
-return `Analicé tus registros y todavía no tenés entrenamientos completados en el historial. ¡Comenzá a registrar tus sesiones para que pueda trazar tus curvas de evolución!`;
-}
-return `Tenés un total de <strong>${totalSesiones} sesiones registradas</strong> en la plataforma. Tu peso corporal actual es de ${perfilCloud.peso} kg. Para ver la progresión detallada de cargas por ejercicio, hacé clic en el botón 📈 <strong>Ver Gráficos</strong> arriba.`;
-}
-
-if(ejercicioEncontrado || pLower.includes("ejercicio") || pLower.includes("tecnica") || pLower.includes("video") || pLower.includes("como se hace")) {
-let ejDestino = ejercicioEncontrado || "ejercicio de musculación";
-let queryVideo = encodeURIComponent(`técnica correcta ${ejDestino} gimnasio`);
-let urlYoutube = `https://www.youtube.com/results?search_query=${queryVideo}`;
-
-return `Estuve revisando las rutinas y el ejercicio <strong>${ejDestino}</strong>. Para maximizar la hipertrofia y evitar lesiones, asegurate de mantener un rango de movimiento completo y una fase excéntrica controlada.<br><br>🎥 <a href="${urlYoutube}" target="_blank" style="color:var(--accent); text-decoration:underline; font-weight:bold;">Ver videos y explicaciones técnicas en YouTube para ${ejDestino}</a>`;
-}
-
-return `Estudié tus rutinas actuales y tu historial. Vas por excelente camino. Recordá aplicar sobrecarga progresiva (añadir un poco de peso o 1-2 repeticiones) únicamente cuando completes todas las series propuestas con buena técnica. ¿Querés que analice algún ejercicio en particular o te recomiende un video?`;
-}
-
-// Gráficos de Progresión de Sofía
-function abrirModalGraficosProgresion() {
-const select = document.getElementById('select-ejercicio-grafico');
-if(!select) return;
-
-let ejerciciosSet = new Set();
-Object.values(rutinasPersonalizadas).forEach(rutina => {
-rutina.forEach(ej => {
-if(ej.tipo !== "cardio") ejerciciosSet.add(ej.nombre);
-});
-});
-
-let html = '';
-ejerciciosSet.forEach(nombre => {
-html += `<option value="${nombre}">${nombre}</option>`;
-});
-select.innerHTML = html || '<option value="">No hay ejercicios de fuerza</option>';
-
-document.getElementById('modal-graficos-sofia').style.display = 'flex';
-renderizarGraficoProgresion();
-}
-
-function cerrarModalGraficosProgresion() {
-document.getElementById('modal-graficos-sofia').style.display = 'none';
-}
-
-function renderizarGraficoProgresion() {
-const select = document.getElementById('select-ejercicio-grafico');
-const contenedor = document.getElementById('contenedor-grafico-barras');
-if(!select || !contenedor) return;
-
-let ejercicioSeleccionado = select.value;
-if(!ejercicioSeleccionado) {
-contenedor.innerHTML = '<p style="color:var(--text-muted); font-size:0.85rem;">Seleccioná un ejercicio válido.</p>';
-return;
-}
-
-let historialFiltrado = [];
-registrosCloud.forEach(reg => {
-if(reg.ejerciciosDetalle) {
-reg.ejerciciosDetalle.forEach(ej => {
-if(ej.nombre === ejercicioSeleccionado && ej.tipo === "fuerza" && ej.series) {
-let maxPesoSesion = 0;
-ej.series.forEach(s => {
-if(s.peso > maxPesoSesion) maxPesoSesion = s.peso;
-});
-if(maxPesoSesion > 0) {
-historialFiltrado.push({ fecha: reg.fecha, pesoMax: maxPesoSesion });
-}
-}
-});
-}
-});
-
-if(historialFiltrado.length === 0) {
-contenedor.innerHTML = `<p style="color:var(--text-muted); font-size:0.85rem; text-align:center; padding: 15px;">No hay registros de peso guardados todavía para <strong>${ejercicioSeleccionado}</strong> en el historial.</p>`;
-return;
-}
-
-let maxGlobal = Math.max(...historialFiltrado.map(h => h.pesoMax));
-if(maxGlobal === 0) maxGlobal = 100;
-
-let html = '';
-historialFiltrado.forEach(h => {
-let porcentaje = Math.round((h.pesoMax / maxGlobal) * 100);
-if(porcentaje < 15) porcentaje = 15;
-
-html += `<div style="margin-bottom: 10px;"><div class="flex-row" style="justify-content: space-between; font-size: 0.8rem; margin-bottom: 2px;"><span style="color:var(--text-muted);">${h.fecha}</span><strong style="color:var(--accent);">${h.pesoMax} kg</strong></div><div style="background:var(--bg-card); border-radius:4px; height:12px; width:100%; overflow:hidden;"><div style="background:var(--accent); height:100%; width:${porcentaje}%; border-radius:4px;"></div></div></div>`;
-});
-
-contenedor.innerHTML = html;
 }
 </script>
 </body>
