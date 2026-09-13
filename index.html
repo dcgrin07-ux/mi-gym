@@ -262,7 +262,7 @@ text-align: right;
 </head>
 <body>
 
-<!-- Pantalla de carga inicial -->
+<!-- Pantalla de carga inicial blindada -->
 <div id="loading-screen" class="container" style="text-align: center; margin-top: 100px;">
 <h2 style="color: var(--accent); margin-bottom: 10px;">🏋️‍♂️ Mi Gym La Cima</h2>
 <p class="text-muted">Cargando sistema...</p>
@@ -681,7 +681,7 @@ text-align: right;
 </div>
 </div>
 
-<!-- ================= SCRIPT COMPLETO CON SEGURO ANTI-CONGELAMIENTO ================= -->
+<!-- ================= SCRIPT COMPLETO REVISADO Y BLINDADO ================= -->
 <script>
 const firebaseConfig = {
 apiKey: "AIzaSyA3N-mLUaTF9jUshNosUiWpso0-934H_fo",
@@ -692,7 +692,15 @@ messagingSenderId: "398491160791",
 appId: "1:398491160791:web:91346182b9c06588d6e092"
 };
 
-firebase.initializeApp(firebaseConfig);
+// Inicialización segura de Firebase
+try {
+  if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+  }
+} catch (err) {
+  console.error("Error inicializando Firebase:", err);
+}
+
 const auth = firebase.auth();
 const dbCloud = firebase.firestore();
 
@@ -702,22 +710,16 @@ const DATA_VERSION = 2;
 let isRegisteringMode = false;
 let authChecked = false;
 
-// Seguro de emergencia por si Firebase tarda o falla al iniciar
+// Forzar salida de pantalla de carga en máximo 2.5 segundos pase lo que pase
 setTimeout(() => {
-if (!authChecked) {
-console.warn("⚠️ Tiempo de espera agotado. Forzando apertura de pantalla de login.");
-ocultarCargaForzado();
-}
-}, 3500);
-
-function ocultarCargaForzado() {
-const loadingScreen = document.getElementById('loading-screen');
-if (loadingScreen) loadingScreen.classList.add('hidden');
-const authScreen = document.getElementById('auth-screen');
-if (authScreen && authScreen.classList.contains('hidden') && document.getElementById('app-main-wrapper').classList.contains('hidden') && document.getElementById('admin-screen').classList.contains('hidden')) {
-authScreen.classList.remove('hidden');
-}
-}
+  if (!authChecked) {
+    authChecked = true;
+    const loadingScreen = document.getElementById('loading-screen');
+    if (loadingScreen) loadingScreen.classList.add('hidden');
+    const authScreen = document.getElementById('auth-screen');
+    if (authScreen) authScreen.classList.remove('hidden');
+  }
+}, 2500);
 
 function toggleAuthMode() {
 isRegisteringMode = !isRegisteringMode;
@@ -762,7 +764,7 @@ function logoutSession() {
 auth.signOut();
 }
 
-// Escuchar cambios de sesión de Firebase de forma segura
+// Escuchar cambios de sesión de Firebase de forma totalmente robusta
 auth.onAuthStateChanged(async (user) => {
 authChecked = true;
 const loadingScreen = document.getElementById('loading-screen');
