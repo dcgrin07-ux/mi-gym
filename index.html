@@ -850,13 +850,13 @@ let calAnioActual = new Date().getFullYear();
 let calMesActual = new Date().getMonth(); 
 
 // -------------------------------------------------------------
-// MOTOR DE SOFÍA IA (CONVERSACIONAL E INTEGRADA)
+// MOTOR DE SOFÍA IA (ASISTENTE INTEGRADO DE ENTRENAMIENTO)
 // -------------------------------------------------------------
 let historialChatSofia = [];
 
 function abrirSofiaChatGeneral() {
 historialChatSofia = [
-{ role: "assistant", content: "¡Hola! Soy Sofía, tu asistente experta en entrenamiento y nutrición de La Cima. ¿En qué te puedo ayudar hoy?" }
+{ role: "assistant", content: "¡Hola! Soy Sofía, tu entrenadora personal virtual en Mi Gym La Cima. ¿En qué te puedo ayudar hoy con tus rutinas, pesos o técnica?" }
 ];
 document.getElementById('sofia-modal-titulo').innerText = "🤖 Sofía IA - Asesora General";
 renderizarMensajesSofia();
@@ -867,7 +867,7 @@ function abrirSofiaAsesorRutina() {
 let rutinaActualObj = rutinasPersonalizadas[rutinaSeleccionadaKey] || [];
 let resumenRutina = rutinaActualObj.map(e => e.nombre).join(", ");
 historialChatSofia = [
-{ role: "assistant", content: `¡Hola! Veo que estás analizando la rutina "${rutinaSeleccionadaKey}" que tiene los ejercicios: [${resumenRutina}]. ¿Querés que te sugiera ajustes, variantes o cómo progresar en peso?` }
+{ role: "assistant", content: `¡Hola! Veo que estás analizando la rutina "${rutinaSeleccionadaKey}" (${resumenRutina || 'sin ejercicios cargados'}). ¿Querés que te sugiera variantes o cómo optimizar las series?` }
 ];
 document.getElementById('sofia-modal-titulo').innerText = `🤖 Sofía IA - Asesora de ${rutinaSeleccionadaKey}`;
 renderizarMensajesSofia();
@@ -880,7 +880,7 @@ let ej = borradorSesion.ejercicios[guiadoIndice];
 if (!ej) return;
 
 historialChatSofia = [
-{ role: "assistant", content: `Estás haciendo "${ej.nombre}". Respecto a esto, tus notas son: "${ej.notas || 'Sin notas'}". ¿Tenés dudas sobre la técnica, la postura o el peso a usar?` }
+{ role: "assistant", content: `Estás realizando "${ej.nombre}". Tus notas para este ejercicio son: "${ej.notas || 'Sin notas'}". ¿Tenés alguna duda sobre la postura, el peso o la técnica correcta?` }
 ];
 document.getElementById('sofia-modal-titulo').innerText = `🤖 Sofía IA - Técnica de ${ej.nombre}`;
 renderizarMensajesSofia();
@@ -911,27 +911,31 @@ historialChatSofia.push({ role: "user", content: texto });
 input.value = '';
 renderizarMensajesSofia();
 
-// Simulación de respuesta interactiva contextual de Sofía IA con alta precisión deportiva
 const respuestaSofia = generarRespuestaInteligenteSofia(texto);
 
 setTimeout(() => {
 historialChatSofia.push({ role: "assistant", content: respuestaSofia });
 renderizarMensajesSofia();
-}, 600);
+}, 500);
 }
 
 function generarRespuestaInteligenteSofia(mensaje) {
 const m = mensaje.toLowerCase();
-if (m.includes('peso') || m.includes('engordar') || m.includes('adelgazar') || m.includes('músculo')) {
-return `Para optimizar tus resultados y ganar masa muscular o perder grasa, recordá mantener un consumo adecuado de proteínas (aprox. 1.6g a 2g por kg de peso) y priorizar la sobrecarga progresiva en tus rutinas de La Cima. ¡Tu peso corporal actual registrado es de ${perfilCloud.peso} kg!`;
+
+if (m.includes('peso') || m.includes('engordar') || m.includes('adelgazar') || m.includes('músculo') || m.includes('kilos')) {
+return `Para progresar de forma segura en La Cima y optimizar tu rendimiento, te sugiero mantener una correcta hidratación, asegurar un buen descanso y aplicar sobrecarga progresiva semana a semana. ¡Tu peso corporal registrado actual es de ${perfilCloud.peso} kg!`;
 }
-if (m.includes('dolor') || m.includes('molestia') || m.includes('lesion')) {
-return `⚠️ Si sentís dolor articular o molestia aguda, detené el ejercicio inmediatamente. No confundas la fatiga muscular con el dolor articular. ¿Querés que veamos un ejercicio alternativo menos agresivo?`;
+if (m.includes('dolor') || m.includes('molestia') || m.includes('lesion') || m.includes('duele')) {
+return `⚠️ Si sentís dolor articular o molestia punzante, detenete de inmediato. No confundas la fatiga muscular con una posible lesión. ¿Querés que busquemos un ejercicio alternativo?`;
 }
-if (m.includes('descanso') || m.includes('pausa')) {
-return `Para ejercicios multiarticulares pesados (como sentadillas o press plano), te sugiero descansar entre 2 y 3 minutos completos para recuperar los niveles de ATP. Para accesorios o aislamiento, con 60 a 90 segundos estás perfecto.`;
+if (m.includes('descanso') || m.includes('pausa') || m.includes('tiempo')) {
+return `Para ejercicios pesados y multiarticulares (como sentadillas o press plano), te recomiendo descansar entre 2 y 3 minutos para recuperar los niveles de fuerza. Para ejercicios de aislamiento, con 60 a 90 segundos es suficiente.`;
 }
-return `¡Excelente pregunta! Basándome en tus entrenamientos en Mi Gym La Cima, te recomiendo enfocarte en mantener la técnica estricta, controlar la fase excéntrica (bajada) de cada movimiento y anotar tus marcas en cada sesión para asegurar que estás progresando. ¿Hay algo más en lo que te pueda orientar?`;
+if (m.includes('serie') || m.includes('repeticion') || m.includes('reps')) {
+return `Lo ideal para hipertrofia y fuerza es trabajar en un rango de 6 a 12 repeticiones efectivas por serie, asegurándote de llegar cerquita del fallo técnico (dejando 1 o 2 en recámara).`;
+}
+
+return `¡Entendido! Como tu asistente en Mi Gym La Cima, te aconsejo mantener siempre una técnica estricta, controlar la fase de descenso (excéntrica) de cada movimiento y registrar tus marcas para asegurar una evolución constante. ¿En qué más te puedo orientar?`;
 }
 
 function escapeHtml(text) {
