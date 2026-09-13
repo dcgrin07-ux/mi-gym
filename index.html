@@ -903,45 +903,69 @@ container.scrollTop = container.scrollHeight;
 }
 
 async function enviarMensajeSofia() {
-const input = document.getElementById('sofia-input-text');
-const texto = input.value.trim();
-if (!texto) return;
+    const input = document.getElementById('sofia-input-text');
+    const texto = input.value.trim();
+    if (!texto) return;
 
-historialChatSofia.push({ role: "user", content: texto });
-input.value = '';
-renderizarMensajesSofia();
+    historialChatSofia.push({ role: "user", content: texto });
+    input.value = '';
+    renderizarMensajesSofia();
 
-const respuestaSofia = generarRespuestaInteligenteSofia(texto);
+    // Indicador visual de que Sofía está pensando
+    const pensandoId = "sofia_pensando_" + Date.now();
+    historialChatSofia.push({ role: "assistant", content: "Analizando tus datos y rutina...", id: pensandoId });
+    renderizarMensajesSofia();
 
-setTimeout(() => {
-historialChatSofia.push({ role: "assistant", content: respuestaSofia });
-renderizarMensajesSofia();
-}, 500);
+    setTimeout(() => {
+        // Remover mensaje de "pensando"
+        historialChatSofia = historialChatSofia.filter(m => m.id !== pensandoId);
+        
+        // Procesamiento inteligente basado en contexto real
+        const respuestaSofia = procesarRespuestaContextualSofia(texto);
+        historialChatSofia.push({ role: "assistant", content: respuestaSofia });
+        renderizarMensajesSofia();
+    }, 600);
 }
 
-function generarRespuestaInteligenteSofia(mensaje) {
-const m = mensaje.toLowerCase();
+function procesarRespuestaContextualSofia(mensaje) {
+    const m = mensaje.toLowerCase();
+    let contextoExtra = "";
 
-if (m.includes('peso') || m.includes('engordar') || m.includes('adelgazar') || m.includes('músculo') || m.includes('kilos')) {
-return `Para progresar de forma segura en La Cima y optimizar tu rendimiento, te sugiero mantener una correcta hidratación, asegurar un buen descanso y aplicar sobrecarga progresiva semana a semana. ¡Tu peso corporal registrado actual es de ${perfilCloud.peso} kg!`;
-}
-if (m.includes('dolor') || m.includes('molestia') || m.includes('lesion') || m.includes('duele')) {
-return `⚠️ Si sentís dolor articular o molestia punzante, detenete de inmediato. No confundas la fatiga muscular con una posible lesión. ¿Querés que busquemos un ejercicio alternativo?`;
-}
-if (m.includes('descanso') || m.includes('pausa') || m.includes('tiempo')) {
-return `Para ejercicios pesados y multiarticulares (como sentadillas o press plano), te recomiendo descansar entre 2 y 3 minutos para recuperar los niveles de fuerza. Para ejercicios de aislamiento, con 60 a 90 segundos es suficiente.`;
-}
-if (m.includes('serie') || m.includes('repeticion') || m.includes('reps')) {
-return `Lo ideal para hipertrofia y fuerza es trabajar en un rango de 6 a 12 repeticiones efectivas por serie, asegurándote de llegar cerquita del fallo técnico (dejando 1 o 2 en recámara).`;
+    // Extraer datos del estado actual del usuario
+    const pesoActual = perfilCloud.peso || 'no especificado';
+    const rutinaNombre = rutinaSeleccionadaKey || 'Sin rutina seleccionada';
+    let detalleRutina = "";
+    
+    if (rutinasPersonalizadas[rutinaSeleccionadaKey]) {
+        let ejercicios = rutinasPersonalizadas[rutinaSeleccionadaKey];
+        detalleRutina = ejercicios.map(e => e.nombre).join(", ");
+    }
+
+    // Análisis dinámico de la consulta
+    if (m.includes('peso') || m.includes('kilos') || m.includes('grasa') || m.includes('masa')) {
+        return `Registrás un peso corporal actual de ${pesoActual} kg. Para cualquier objetivo de recomposición o ganancia, es clave mantener un registro constante y asegurar una ingesta calórica y proteica adecuada a tu nivel de actividad.`;
+    } 
+    
+    if (m.includes('dolor') || m.includes('molestia') || m.includes('lesion') || m.includes('duele') || m.includes('pinchazo')) {
+        return `⚠️ Atención con esa molestia. Si sentís dolor articular o tendinoso, frená el ejercicio de inmediato. ¿Querés que busquemos un ejercicio alternativo dentro de tu rutina actual (${rutinaNombre}) que no comprometa esa zona?`;
+    } 
+    
+    if (m.includes('descanso') || m.includes('pausa') || m.includes('minutos')) {
+        return `Para los ejercicios principales de fuerza en La Cima, te sugiero descansar entre 2 y 3 minutos completos para permitir la resíntesis de ATP. Para accesorios o aislamiento, con 60 a 90 segundos estás perfecto.`;
+    } 
+    
+    if (m.includes('serie') || m.includes('repeticion') || m.includes('fallo') || m.includes('reps')) {
+        return `Lo ideal para buscar hipertrofia efectiva es trabajar en rangos de 6 a 12 repeticiones, asegurando que las últimas dos sean exigentes pero manteniendo una técnica estricta (dejando 1 o 2 en recámara).`;
+    }
+
+    if (m.includes('rutina') || m.includes('ejercicio') || m.includes('que hago')) {
+        return `Estás trabajando con la rutina "${rutinaNombre}", que incluye: ${detalleRutina || 'ningún ejercicio cargado todavía'}. ¿Querés que te sugiera variantes o modificar alguna serie?`;
+    }
+
+    // Respuesta analítica general personalizada con la información aportada
+    return `Tomando en cuenta lo que me mencionás sobre "${mensaje}", y evaluando tu estructura actual en la rutina "${rutinaNombre}" (${pesoActual} kg corporales), te sugiero revisar la sobrecarga progresiva: si completaste todas las repeticiones de la sesión anterior sin perder técnica, es momento de sumar un pequeño incremento de peso. ¿Querés que analice algún ejercicio en particular?`;
 }
 
-return `¡Entendido! Como tu asistente en Mi Gym La Cima, te aconsejo mantener siempre una técnica estricta, controlar la fase de descenso (excéntrica) de cada movimiento y registrar tus marcas para asegurar una evolución constante. ¿En qué más te puedo orientar?`;
-}
-
-function escapeHtml(text) {
-const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-return text.replace(/[&<>"']/g, function(m) { return map[m]; });
-}
 
 // -------------------------------------------------------------
 // SINCRONIZACIÓN Y FLUJO DE DATOS
