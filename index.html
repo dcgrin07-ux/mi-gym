@@ -902,68 +902,64 @@ container.innerHTML = html;
 container.scrollTop = container.scrollHeight;
 }
 
-async function enviarMensajeSofia() {
-    const input = document.getElementById('sofia-input-text');
-    const texto = input.value.trim();
-    if (!texto) return;
+function escapeHtml(text) {
+const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+}
 
-    historialChatSofia.push({ role: "user", content: texto });
-    input.value = '';
-    renderizarMensajesSofia();
+function enviarMensajeSofia() {
+const input = document.getElementById('sofia-input-text');
+const texto = input.value.trim();
+if (!texto) return;
 
-    // Indicador visual de que Sofía está pensando
-    const pensandoId = "sofia_pensando_" + Date.now();
-    historialChatSofia.push({ role: "assistant", content: "Analizando tus datos y rutina...", id: pensandoId });
-    renderizarMensajesSofia();
+historialChatSofia.push({ role: "user", content: texto });
+input.value = '';
+renderizarMensajesSofia();
 
-    setTimeout(() => {
-        // Remover mensaje de "pensando"
-        historialChatSofia = historialChatSofia.filter(m => m.id !== pensandoId);
-        
-        // Procesamiento inteligente basado en contexto real
-        const respuestaSofia = procesarRespuestaContextualSofia(texto);
-        historialChatSofia.push({ role: "assistant", content: respuestaSofia });
-        renderizarMensajesSofia();
-    }, 600);
+const pensandoId = "sofia_pensando_" + Date.now();
+historialChatSofia.push({ role: "assistant", content: "Analizando tus datos y rutina...", id: pensandoId });
+renderizarMensajesSofia();
+
+setTimeout(() => {
+historialChatSofia = historialChatSofia.filter(m => m.id !== pensandoId);
+const respuestaSofia = procesarRespuestaContextualSofia(texto);
+historialChatSofia.push({ role: "assistant", content: respuestaSofia });
+renderizarMensajesSofia();
+}, 600);
 }
 
 function procesarRespuestaContextualSofia(mensaje) {
-    const m = mensaje.toLowerCase();
-    let contextoExtra = "";
+const m = mensaje.toLowerCase();
+const pesoActual = perfilCloud.peso || 'no especificado';
+const rutinaNombre = rutinaSeleccionadaKey || 'Sin rutina seleccionada';
+let detalleRutina = "";
 
-    // Extraer datos del estado actual del usuario
-    const pesoActual = perfilCloud.peso || 'no especificado';
-    const rutinaNombre = rutinaSeleccionadaKey || 'Sin rutina seleccionada';
-    let detalleRutina = "";
-    
-    if (rutinasPersonalizadas[rutinaSeleccionadaKey]) {
-        let ejercicios = rutinasPersonalizadas[rutinaSeleccionadaKey];
-        detalleRutina = ejercicios.map(e => e.nombre).join(", ");
-    }
+if (rutinasPersonalizadas[rutinaSeleccionadaKey]) {
+let ejercicios = rutinasPersonalizadas[rutinaSeleccionadaKey];
+detalleRutina = ejercicios.map(e => e.nombre).join(", ");
+}
 
-    // Análisis dinámico de la consulta
-    if (m.includes('peso') || m.includes('kilos') || m.includes('grasa') || m.includes('masa')) {
-        return `Registrás un peso corporal actual de ${pesoActual} kg. Para cualquier objetivo de recomposición o ganancia, es clave mantener un registro constante y asegurar una ingesta calórica y proteica adecuada a tu nivel de actividad.`;
-    } 
-    
-    if (m.includes('dolor') || m.includes('molestia') || m.includes('lesion') || m.includes('duele') || m.includes('pinchazo')) {
-        return `⚠️ Atención con esa molestia. Si sentís dolor articular o tendinoso, frená el ejercicio de inmediato. ¿Querés que busquemos un ejercicio alternativo dentro de tu rutina actual (${rutinaNombre}) que no comprometa esa zona?`;
-    } 
-    
-    if (m.includes('descanso') || m.includes('pausa') || m.includes('minutos')) {
-        return `Para los ejercicios principales de fuerza en La Cima, te sugiero descansar entre 2 y 3 minutos completos para permitir la resíntesis de ATP. Para accesorios o aislamiento, con 60 a 90 segundos estás perfecto.`;
-    } 
-    
-    if (m.includes('serie') || m.includes('repeticion') || m.includes('fallo') || m.includes('reps')) {
-        return `Lo ideal para buscar hipertrofia efectiva es trabajar en rangos de 6 a 12 repeticiones, asegurando que las últimas dos sean exigentes pero manteniendo una técnica estricta (dejando 1 o 2 en recámara).`;
-    }
+if (m.includes('peso') || m.includes('kilos') || m.includes('grasa') || m.includes('masa')) {
+return `Registrás un peso corporal actual de ${pesoActual} kg. Para cualquier objetivo de recomposición o ganancia, es clave mantener un registro constante y asegurar una ingesta calórica y proteica adecuada a tu nivel de actividad.`;
+} 
 
-    if (m.includes('rutina') || m.includes('ejercicio') || m.includes('que hago')) {
-        return `Estás trabajando con la rutina "${rutinaNombre}", que incluye: ${detalleRutina || 'ningún ejercicio cargado todavía'}. ¿Querés que te sugiera variantes o modificar alguna serie?`;
-    }
+if (m.includes('dolor') || m.includes('molestia') || m.includes('lesion') || m.includes('duele') || m.includes('pinchazo')) {
+return `⚠️ Atención con esa molestia. Si sentís dolor articular o tendinoso, frená el ejercicio de inmediato. ¿Querés que busquemos un ejercicio alternativo dentro de tu rutina actual (${rutinaNombre}) que no comprometa esa zona?`;
+} 
 
-    // Respuesta analítica general personalizada con la información aportada
-    return `Tomando en cuenta lo que me mencionás sobre "${mensaje}", y evaluando tu estructura actual en la rutina "${rutinaNombre}" (${pesoActual} kg corporales), te sugiero revisar la sobrecarga progresiva: si completaste todas las repeticiones de la sesión anterior sin perder técnica, es momento de sumar un pequeño incremento de peso. ¿Querés que analice algún ejercicio en particular?`;
+if (m.includes('descanso') || m.includes('pausa') || m.includes('minutos')) {
+return `Para los ejercicios principales de fuerza en La Cima, te sugiero descansar entre 2 y 3 minutos completos para permitir la resíntesis de ATP. Para accesorios o aislamiento, con 60 a 90 segundos estás perfecto.`;
+} 
+
+if (m.includes('serie') || m.includes('repeticion') || m.includes('fallo') || m.includes('reps')) {
+return `Lo ideal para buscar hipertrofia efectiva es trabajar en rangos de 6 a 12 repeticiones, asegurando que las últimas dos sean exigentes pero manteniendo una técnica estricta (dejando 1 o 2 en recámara).`;
+}
+
+if (m.includes('rutina') || m.includes('ejercicio') || m.includes('que hago')) {
+return `Estás trabajando con la rutina "${rutinaNombre}", que incluye: ${detalleRutina || 'ningún ejercicio cargado todavía'}. ¿Querés que te sugiera variantes o modificar alguna serie?`;
+}
+
+return `Tomando en cuenta lo que me mencionás sobre "${mensaje}", y evaluando tu estructura actual en la rutina "${rutinaNombre}" (${pesoActual} kg corporales), te sugiero revisar la sobrecarga progresiva: si completaste todas las repeticiones de la sesión anterior sin perder técnica, es momento de sumar un pequeño incremento de peso. ¿Querés que analice algún ejercicio en particular?`;
 }
 
 
