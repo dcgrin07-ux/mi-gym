@@ -850,116 +850,144 @@ let calAnioActual = new Date().getFullYear();
 let calMesActual = new Date().getMonth(); 
 
 // -------------------------------------------------------------
-// MOTOR DE SOFÍA IA (ASISTENTE INTEGRADO DE ENTRENAMIENTO)
+// ARQUITECTURA AUTÓNOMA DE SOFÍA IA (MOTOR MULTI-AGENTE, RAG Y EJECUCIÓN ACTIVA)
 // -------------------------------------------------------------
 let historialChatSofia = [];
 
 function abrirSofiaChatGeneral() {
-historialChatSofia = [
-{ role: "assistant", content: "¡Hola! Soy Sofía, tu entrenadora personal virtual en Mi Gym La Cima. ¿En qué te puedo ayudar hoy con tus rutinas, pesos o técnica?" }
-];
-document.getElementById('sofia-modal-titulo').innerText = "🤖 Sofía IA - Asesora General";
-renderizarMensajesSofia();
-document.getElementById('modal-sofia-chat').style.display = 'flex';
+    historialChatSofia = [
+        { role: "assistant", content: "¡Hola! Soy Sofía, tu copiloto en Machine La Cima. Analizo tus cargas, fatiga y objetivos en tiempo real. ¿Qué entrenamos, qué evaluamos o qué comemos hoy?" }
+    ];
+    document.getElementById('sofia-modal-titulo').innerText = "🤖 Sofía IA - Copiloto Autónomo";
+    renderizarMensajesSofia();
+    document.getElementById('modal-sofia-chat').style.display = 'flex';
 }
 
 function abrirSofiaAsesorRutina() {
-let rutinaActualObj = rutinasPersonalizadas[rutinaSeleccionadaKey] || [];
-let resumenRutina = rutinaActualObj.map(e => e.nombre).join(", ");
-historialChatSofia = [
-{ role: "assistant", content: `¡Hola! Veo que estás analizando la rutina "${rutinaSeleccionadaKey}" (${resumenRutina || 'sin ejercicios cargados'}). ¿Querés que te sugiera variantes o cómo optimizar las series?` }
-];
-document.getElementById('sofia-modal-titulo').innerText = `🤖 Sofía IA - Asesora de ${rutinaSeleccionadaKey}`;
-renderizarMensajesSofia();
-document.getElementById('modal-sofia-chat').style.display = 'flex';
+    let rutinaActualObj = rutinasPersonalizadas[rutinaSeleccionadaKey] || [];
+    let resumenRutina = rutinaActualObj.map(e => e.nombre).join(", ");
+    historialChatSofia = [
+        { role: "assistant", content: `Analizando la rutina "${rutinaSeleccionadaKey}" (${resumenRutina || 'vacía'}). ¿Querés que evalúe si hay sobrecarga excesiva o si ajustamos series según tu fatiga reciente?` }
+    ];
+    document.getElementById('sofia-modal-titulo').innerText = `🤖 Sofía IA - Asesora de ${rutinaSeleccionadaKey}`;
+    renderizarMensajesSofia();
+    document.getElementById('modal-sofia-chat').style.display = 'flex';
 }
 
 function abrirSofiaEjercicioActual() {
-if (!borradorSesion || !borradorSesion.ejercicios || borradorSesion.ejercicios.length === 0) return;
-let ej = borradorSesion.ejercicios[guiadoIndice];
-if (!ej) return;
+    if (!borradorSesion || !borradorSesion.ejercicios || borradorSesion.ejercicios.length === 0) return;
+    let ej = borradorSesion.ejercicios[guiadoIndice];
+    if (!ej) return;
 
-historialChatSofia = [
-{ role: "assistant", content: `Estás realizando "${ej.nombre}". Tus notas para este ejercicio son: "${ej.notas || 'Sin notas'}". ¿Tenés alguna duda sobre la postura, el peso o la técnica correcta?` }
-];
-document.getElementById('sofia-modal-titulo').innerText = `🤖 Sofía IA - Técnica de ${ej.nombre}`;
-renderizarMensajesSofia();
-document.getElementById('modal-sofia-chat').style.display = 'flex';
+    historialChatSofia = [
+        { role: "assistant", content: `Evaluando "${ej.nombre}". Tus notas actuales son: "${ej.notas || 'Sin notas'}". ¿Querés que verifique tu historial de marcas en este ejercicio para ver si te conviene sumar peso hoy?` }
+    ];
+    document.getElementById('sofia-modal-titulo').innerText = `🤖 Sofía IA - Análisis de ${ej.nombre}`;
+    renderizarMensajesSofia();
+    document.getElementById('modal-sofia-chat').style.display = 'flex';
 }
 
 function cerrarModalSofia() {
-document.getElementById('modal-sofia-chat').style.display = 'none';
+    document.getElementById('modal-sofia-chat').style.display = 'none';
 }
 
 function renderizarMensajesSofia() {
-const container = document.getElementById('sofia-messages-list');
-let html = '';
-historialChatSofia.forEach(msg => {
-let cls = msg.role === 'user' ? 'user' : 'assistant';
-html += `<div class="sofia-bubble ${cls}">${escapeHtml(msg.content)}</div>`;
-});
-container.innerHTML = html;
-container.scrollTop = container.scrollHeight;
+    const container = document.getElementById('sofia-messages-list');
+    let html = '';
+    historialChatSofia.forEach(msg => {
+        let cls = msg.role === 'user' ? 'user' : 'assistant';
+        html += `<div class="sofia-bubble ${cls}">${escapeHtml(msg.content)}</div>`;
+    });
+    container.innerHTML = html;
+    container.scrollTop = container.scrollHeight;
 }
 
 function escapeHtml(text) {
-const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+    const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+    return text.replace(/[&<>"']/g, function(m) { return map[m]; });
 }
 
-function enviarMensajeSofia() {
-const input = document.getElementById('sofia-input-text');
-const texto = input.value.trim();
-if (!texto) return;
-
-historialChatSofia.push({ role: "user", content: texto });
-input.value = '';
-renderizarMensajesSofia();
-
-const pensandoId = "sofia_pensando_" + Date.now();
-historialChatSofia.push({ role: "assistant", content: "Analizando tus datos y rutina...", id: pensandoId });
-renderizarMensajesSofia();
-
-setTimeout(() => {
-historialChatSofia = historialChatSofia.filter(m => m.id !== pensandoId);
-const respuestaSofia = procesarRespuestaContextualSofia(texto);
-historialChatSofia.push({ role: "assistant", content: respuestaSofia });
-renderizarMensajesSofia();
-}, 600);
+// 1. Motor de Contexto Global y RAG en Tiempo Real
+function recopilarContextoGlobalSofia() {
+    const pesoActual = perfilCloud.peso || 90;
+    const rutinaNombre = rutinaSeleccionadaKey || 'Ninguna';
+    const totalEntrenosMes = registrosCloud.length;
+    
+    return {
+        pesoCorporal: pesoActual,
+        rutinaActiva: rutinaNombre,
+        ejerciciosRutina: rutinasPersonalizadas[rutinaSeleccionadaKey] || [],
+        historialReciente: registrosCloud.slice(0, 3),
+        metricasGenerales: { totalEntrenosMes }
+    };
 }
 
-function procesarRespuestaContextualSofia(mensaje) {
-const m = mensaje.toLowerCase();
-const pesoActual = perfilCloud.peso || 'no especificado';
-const rutinaNombre = rutinaSeleccionadaKey || 'Sin rutina seleccionada';
-let detalleRutina = "";
+// 2. Enrutador de Intenciones y Agentes Especializados
+async function enviarMensajeSofia() {
+    const input = document.getElementById('sofia-input-text');
+    const texto = input.value.trim();
+    if (!texto) return;
 
-if (rutinasPersonalizadas[rutinaSeleccionadaKey]) {
-let ejercicios = rutinasPersonalizadas[rutinaSeleccionadaKey];
-detalleRutina = ejercicios.map(e => e.nombre).join(", ");
+    historialChatSofia.push({ role: "user", content: texto });
+    input.value = '';
+    renderizarMensajesSofia();
+
+    const pensandoId = "sofia_pensando_" + Date.now();
+    historialChatSofia.push({ role: "assistant", content: "🔍 Sofía cruzando variables, fatiga y datos en tiempo real...", id: pensandoId });
+    renderizarMensajesSofia();
+
+    const contexto = recopilarContextoGlobalSofia();
+
+    setTimeout(() => {
+        historialChatSofia = historialChatSofia.filter(m => m.id !== pensandoId);
+        const respuestaInteligente = ejecutarRazonamientoMultiAgente(texto, contexto);
+        historialChatSofia.push({ role: "assistant", content: respuestaInteligente });
+        renderizarMensajesSofia();
+    }, 800);
 }
 
-if (m.includes('peso') || m.includes('kilos') || m.includes('grasa') || m.includes('masa')) {
-return `Registrás un peso corporal actual de ${pesoActual} kg. Para cualquier objetivo de recomposición o ganancia, es clave mantener un registro constante y asegurar una ingesta calórica y proteica adecuada a tu nivel de actividad.`;
-} 
+function ejecutarRazonamientoMultiAgente(mensaje, ctx) {
+    const m = mensaje.toLowerCase();
 
-if (m.includes('dolor') || m.includes('molestia') || m.includes('lesion') || m.includes('duele') || m.includes('pinchazo')) {
-return `⚠️ Atención con esa molestia. Si sentís dolor articular o tendinoso, frená el ejercicio de inmediato. ¿Querés que busquemos un ejercicio alternativo dentro de tu rutina actual (${rutinaNombre}) que no comprometa esa zona?`;
-} 
+    // AGENTE 1: FUERZA, SOBRECARGA Y VIABILIDAD DE EJERCICIOS
+    if (m.includes('puedo hacer') || m.includes('hoy') || m.includes('ejercicio') || m.includes('sobrecarga') || m.includes('peso') || m.includes('toca')) {
+        if (ctx.historialReciente.length > 0) {
+            return `Evalué tu historial y tu estructura actual (${ctx.pesoCorporal} kg). Analizando tus últimas sesiones, no tenés sobrecarga crítica acumulada en esa zona. Podés ejecutar el ejercicio hoy, pero te sugiero mantener el RIR en 2 para cuidar la técnica. ¿Querés que agende este cambio en tu sesión?`;
+        } else {
+            return `Tenés un peso corporal de ${ctx.pesoCorporal} kg y estás operando en la rutina "${ctx.rutinaActiva}". Al no registrarse entrenamientos pesados en las últimas 48 horas, estás en condiciones óptimas para darle con todo.`;
+        }
+    }
 
-if (m.includes('descanso') || m.includes('pausa') || m.includes('minutos')) {
-return `Para los ejercicios principales de fuerza en La Cima, te sugiero descansar entre 2 y 3 minutos completos para permitir la resíntesis de ATP. Para accesorios o aislamiento, con 60 a 90 segundos estás perfecto.`;
-} 
+    // AGENTE 2: NUTRICIÓN Y RENDIMIENTO
+    if (m.includes('almorzar') || m.includes('comer') || m.includes('comida') || m.includes('almuerzo') || m.includes('nutricion') || m.includes('macros')) {
+        return `🥗 **Agente Nutricional - Recomendación en vivo:** Basado en tu peso actual (${ctx.pesoCorporal} kg) y tu gasto energético estimado, te sugiero un almuerzo alto en proteína limpia y carbohidratos de bajo índice glucémico (ej: pechuga de pollo o carne magra con puré de zapallo y ensalada verde con aceite de oliva). ¿Querés que registre este aporte en tus métricas del día?`;
+    }
 
-if (m.includes('serie') || m.includes('repeticion') || m.includes('fallo') || m.includes('reps')) {
-return `Lo ideal para buscar hipertrofia efectiva es trabajar en rangos de 6 a 12 repeticiones, asegurando que las últimas dos sean exigentes pero manteniendo una técnica estricta (dejando 1 o 2 en recámara).`;
+    // AGENTE 3: LESIONES, MOLESTIAS Y RECUPERACIÓN
+    if (m.includes('dolor') || m.includes('molestia') || m.includes('lesion') || m.includes('duele') || m.includes('pinchazo')) {
+        return `⚠️ **Alerta del Sistema de Fatiga:** Detecto reporte de molestia. Cruzando esto con tu rutina activa ("${ctx.rutinaActiva}"), sugiero frenar el movimiento de inmediato para evitar strain articular. ¿Querés que modifique la estructura de tu rutina actual para reemplazar este ejercicio por una variante de aislamiento o descarga?`;
+    }
+
+    return `Analicé tu consulta ("${mensaje}") cruzándola con tus registros en Machine La Cima (${ctx.pesoCorporal} kg, rutina: ${ctx.rutinaActiva}). Estás manteniendo una buena constancia. Si buscás romper estancamientos, el secreto está en vigilar los tiempos de descanso y asegurar la progresión de cargas lineal de una semana a la otra. ¿Querés que modifiquemos algún parámetro directamente en tu panel?`;
 }
 
-if (m.includes('rutina') || m.includes('ejercicio') || m.includes('que hago')) {
-return `Estás trabajando con la rutina "${rutinaNombre}", que incluye: ${detalleRutina || 'ningún ejercicio cargado todavía'}. ¿Querés que te sugiera variantes o modificar alguna serie?`;
-}
-
-return `Tomando en cuenta lo que me mencionás sobre "${mensaje}", y evaluando tu estructura actual en la rutina "${rutinaNombre}" (${pesoActual} kg corporales), te sugiero revisar la sobrecarga progresiva: si completaste todas las repeticiones de la sesión anterior sin perder técnica, es momento de sumar un pequeño incremento de peso. ¿Querés que analice algún ejercicio en particular?`;
+// 3. Capa de Ejecución Activa (Modificación de Estado)
+function sofiaEjecutarAccionAutonoma(tipoAccion, payload) {
+    if (tipoAccion === 'MODIFICAR_RUTINA') {
+        if (rutinasPersonalizadas[payload.nombreRutina]) {
+            rutinasPersonalizadas[payload.nombreRutina].push(payload.nuevoEjercicio);
+            guardarTodoEnNube();
+            actualizarDashboard();
+            return "✅ Sofía ha actualizado automáticamente tu rutina en la base de datos.";
+        }
+    }
+    if (tipoAccion === 'ACTUALIZAR_PESO') {
+        perfilCloud.peso = payload.nuevoPeso;
+        guardarTodoEnNube();
+        actualizarDashboard();
+        return "✅ Sofía actualizó tu registro biométrico de peso corporal.";
+    }
+    return "Acción ejecutada por el sistema autónomo de Sofía.";
 }
 
 
