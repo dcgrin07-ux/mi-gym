@@ -262,7 +262,7 @@ text-align: right;
 </head>
 <body>
 
-<!-- Pantalla de carga inicial para evitar parpadeos -->
+<!-- Pantalla de carga inicial -->
 <div id="loading-screen" class="container" style="text-align: center; margin-top: 100px;">
 <h2 style="color: var(--accent); margin-bottom: 10px;">🏋️‍♂️ Mi Gym La Cima</h2>
 <p class="text-muted">Cargando sistema...</p>
@@ -681,7 +681,7 @@ text-align: right;
 </div>
 </div>
 
-<!-- ================= SCRIPT COMPLETO INTEGRADO Y CORREGIDO (ANTIPARPADEO) ================= -->
+<!-- ================= SCRIPT COMPLETO CON SEGURO ANTI-CONGELAMIENTO ================= -->
 <script>
 const firebaseConfig = {
 apiKey: "AIzaSyA3N-mLUaTF9jUshNosUiWpso0-934H_fo",
@@ -700,6 +700,24 @@ const APP_VERSION = "2.0";
 const DATA_VERSION = 2;
 
 let isRegisteringMode = false;
+let authChecked = false;
+
+// Seguro de emergencia por si Firebase tarda o falla al iniciar
+setTimeout(() => {
+if (!authChecked) {
+console.warn("⚠️ Tiempo de espera agotado. Forzando apertura de pantalla de login.");
+ocultarCargaForzado();
+}
+}, 3500);
+
+function ocultarCargaForzado() {
+const loadingScreen = document.getElementById('loading-screen');
+if (loadingScreen) loadingScreen.classList.add('hidden');
+const authScreen = document.getElementById('auth-screen');
+if (authScreen && authScreen.classList.contains('hidden') && document.getElementById('app-main-wrapper').classList.contains('hidden') && document.getElementById('admin-screen').classList.contains('hidden')) {
+authScreen.classList.remove('hidden');
+}
+}
 
 function toggleAuthMode() {
 isRegisteringMode = !isRegisteringMode;
@@ -744,9 +762,9 @@ function logoutSession() {
 auth.signOut();
 }
 
-// Escuchar cambios de sesión de Firebase de forma limpia sin parpadeos
+// Escuchar cambios de sesión de Firebase de forma segura
 auth.onAuthStateChanged(async (user) => {
-// Ocultar pantalla de carga inicial
+authChecked = true;
 const loadingScreen = document.getElementById('loading-screen');
 if(loadingScreen) loadingScreen.classList.add('hidden');
 
@@ -776,7 +794,7 @@ rol: 'cliente',
 autorizado: false,
 creado: firebase.firestore.FieldValue.serverTimestamp()
 });
-document.getElementById('pending-screen').classList.remove('hidden');
+document.getElementById('pending-screen').classList.add('hidden');
 }
 } catch (e) {
 console.error("Error verificando permisos de usuario:", e);
