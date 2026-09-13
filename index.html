@@ -849,10 +849,144 @@ let homeCalMesActual = new Date().getMonth();
 let calAnioActual = new Date().getFullYear();
 let calMesActual = new Date().getMonth(); 
 
-// -------------------------------------------------------------
-// ARQUITECTURA AUTÓNOMA DE SOFÍA IA (MOTOR MULTI-AGENTE, RAG Y EJECUCIÓN ACTIVA)
-// -------------------------------------------------------------
+// =============================================================
+// MOTOR REAL DE SOFÍA IA CON LA API DE GEMINI (GENERATIVE AI)
+// =============================================================
+
+const GEMINI_API_KEY = "TU_API_KEY_DE_GEMINI_AQUI"; 
 let historialChatSofia = [];
+
+function abrirSofiaChatGeneral() {
+    historialChatSofia = [
+        { role: "model", parts: [{ text: "¡Hola! Soy Sofía, tu copiloto en Machine La Cima. Leo tus datos, fatiga y objetivos en tiempo real. ¿Qué entrenamos, qué evaluamos o qué comemos hoy?" }] }
+    ];
+    document.getElementById('sofia-modal-titulo').innerText = "🤖 Sofía IA - Copiloto Autónomo";
+    renderizarMensajesSofia();
+    document.getElementById('modal-sofia-chat').style.display = 'flex';
+}
+
+function abrirSofiaAsesorRutina() {
+    let rutinaActualObj = rutinasPersonalizadas[rutinaSeleccionadaKey] || [];
+    let resumenRutina = rutinaActualObj.map(e => e.nombre).join(", ");
+    historialChatSofia = [
+        { role: "model", parts: [{ text: `Hola. Estoy analizando tu rutina "${rutinaSeleccionadaKey}" (${resumenRutina || 'vacía'}). ¿Querés que evalúe cargas, series o sobrecarga progresiva?` }] }
+    ];
+    document.getElementById('sofia-modal-titulo').innerText = `🤖 Sofía IA - Asesora de ${rutinaSeleccionadaKey}`;
+    renderizarMensajesSofia();
+    document.getElementById('modal-sofia-chat').style.display = 'flex';
+}
+
+function abrirSofiaEjercicioActual() {
+    if (!borradorSesion || !borradorSesion.ejercicios || borradorSesion.ejercicios.length === 0) return;
+    let ej = borradorSesion.ejercicios[guiadoIndice];
+    if (!ej) return;
+
+    historialChatSofia = [
+        { role: "model", parts: [{ text: `Estás haciendo "${ej.nombre}". Tus notas técnicas son: "${ej.notas || 'Sin notas'}". ¿Tenés alguna duda sobre el peso o la ejecución?` }] }
+    ];
+    document.getElementById('sofia-modal-titulo').innerText = `🤖 Sofía IA - Análisis de ${ej.nombre}`;
+    renderizarMensajesSofia();
+    document.getElementById('modal-sofia-chat').style.display = 'flex';
+}
+
+function cerrarModalSofia() {
+    document.getElementById('modal-sofia-chat').style.display = 'none';
+}
+
+function renderizarMensajesSofia() {
+    const container = document.getElementById('sofia-messages-list');
+    let html = '';
+    historialChatSofia.forEach(msg => {
+        let roleClass = msg.role === 'user' ? 'user' : 'assistant';
+        let textContent = msg.parts && msg.parts[0] ? msg.parts[0].text : '';
+        html += `<div class="sofia-bubble ${roleClass}">${escapeHtml(textContent)}</div>`;
+    });
+    container.innerHTML = html;
+    container.scrollTop = container.scrollHeight;
+}
+
+function escapeHtml(text) {
+    const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+    return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+}
+
+function recopilarContextoGlobalSofia() {
+    const pesoActual = perfilCloud.peso || 90;
+    const rutinaNombre = rutinaSeleccionadaKey || 'Ninguna';
+    const totalEntrenosMes = registrosCloud.length;
+    const ultimoEntreno = registrosCloud.length > 0 ? registrosCloud[0] : null;
+
+    return `
+    [CONTEXTO ACTUAL DEL USUARIO EN MACHINE LA CIMA]
+    - Peso corporal: ${pesoActual} kg
+    - Rutina seleccionada o activa: ${rutinaNombre}
+    - Total de entrenamientos registrados este mes: ${totalEntrenosMes}
+    - Último entrenamiento registrado: ${ultimoEntreno ? JSON.stringify(ultimoEntreno) : "Ninguno"}
+    - Ejercicios en la rutina actual: ${JSON.stringify(rutinasPersonalizadas[rutinaSeleccionadaKey] || [])}
+    `;
+}
+
+async function enviarMensajeSofia() {
+    const input = document.getElementById('sofia-input-text');
+    const texto = input.value.trim();
+    if (!texto) return;
+
+    historialChatSofia.push({ role: "user", parts: [{ text: texto }] });
+    input.value = '';
+    renderizarMensajesSofia();
+
+    const pensandoId = "sofia_pensando_" + Date.now();
+    const container = document.getElementById('sofia-messages-list');
+    container.innerHTML += `<div id="${pensandoId}" class="sofia-bubble assistant" style="opacity: 0.7;">Pensando con datos en vivo...</div>`;
+    container.scrollTop = container.scrollHeight;
+
+    try {
+        const contextoGlobal = recopilarContextoGlobalSofia();
+        const systemPrompt = `
+        Sos Sofía, una entrenadora física y nutricionista experta, directa, técnica y cercana, que actúa como copiloto en la aplicación "Machine La Cima". 
+        Tenés acceso total en tiempo real a los datos biométricos y de entrenamiento del usuario:
+        ${contextoGlobal}
+        Respondé de forma natural, sin rodeos, sin plantillas robóticas, analizando si puede hacer ejercicios, qué comer, o adaptando las cargas según sus datos reales. No menciones explícitamente que tenés "un prompt", simplemente sé esa inteligencia autónoma.
+        `;
+
+        const contentsPayload = [
+            { role: "user", parts: [{ text: systemPrompt }] },
+            ...historialChatSofia.map(msg => ({
+                role: msg.role === 'assistant' ? 'model' : 'user',
+                parts: msg.parts
+            }))
+        ];
+
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: contentsPayload })
+        });
+
+        const data = await response.json();
+        
+        const pensandoEl = document.getElementById(pensandoId);
+        if (pensandoEl) pensandoEl.remove();
+
+        if (data.candidates && data.candidates[0].content) {
+            const respuestaIA = data.candidates[0].content.parts[0].text;
+            historialChatSofia.push({ role: "model", parts: [{ text: respuestaIA }] });
+        } else {
+            historialChatSofia.push({ role: "model", parts: [{ text: "Tuve un pequeño problema técnico procesando tus datos en la nube. ¿Me repetís la consulta?" }] });
+        }
+
+        renderizarMensajesSofia();
+
+    } catch (error) {
+        console.error("Error conectando con Gemini:", error);
+        const pensandoEl = document.getElementById(pensandoId);
+        if (pensandoEl) pensandoEl.remove();
+        
+        historialChatSofia.push({ role: "model", parts: [{ text: "Error de conexión con el motor de Sofía. Verificá tu red." }] });
+        renderizarMensajesSofia();
+    }
+}
+
 
 function abrirSofiaChatGeneral() {
     historialChatSofia = [
@@ -922,78 +1056,6 @@ function recopilarContextoGlobalSofia() {
     };
 }
 
-// 2. Enrutador de Intenciones y Agentes Especializados
-async function enviarMensajeSofia() {
-    const input = document.getElementById('sofia-input-text');
-    const texto = input.value.trim();
-    if (!texto) return;
-
-    historialChatSofia.push({ role: "user", content: texto });
-    input.value = '';
-    renderizarMensajesSofia();
-
-    const pensandoId = "sofia_pensando_" + Date.now();
-    historialChatSofia.push({ role: "assistant", content: "🔍 Sofía cruzando variables, fatiga y datos en tiempo real...", id: pensandoId });
-    renderizarMensajesSofia();
-
-    const contexto = recopilarContextoGlobalSofia();
-
-    setTimeout(() => {
-        historialChatSofia = historialChatSofia.filter(m => m.id !== pensandoId);
-        const respuestaInteligente = ejecutarRazonamientoMultiAgente(texto, contexto);
-        historialChatSofia.push({ role: "assistant", content: respuestaInteligente });
-        renderizarMensajesSofia();
-    }, 800);
-}
-
-function ejecutarRazonamientoMultiAgente(mensaje, ctx) {
-    const m = mensaje.toLowerCase();
-
-    // AGENTE 1: FUERZA, SOBRECARGA Y VIABILIDAD DE EJERCICIOS
-    if (m.includes('puedo hacer') || m.includes('hoy') || m.includes('ejercicio') || m.includes('sobrecarga') || m.includes('peso') || m.includes('toca')) {
-        if (ctx.historialReciente.length > 0) {
-            return `Evalué tu historial y tu estructura actual (${ctx.pesoCorporal} kg). Analizando tus últimas sesiones, no tenés sobrecarga crítica acumulada en esa zona. Podés ejecutar el ejercicio hoy, pero te sugiero mantener el RIR en 2 para cuidar la técnica. ¿Querés que agende este cambio en tu sesión?`;
-        } else {
-            return `Tenés un peso corporal de ${ctx.pesoCorporal} kg y estás operando en la rutina "${ctx.rutinaActiva}". Al no registrarse entrenamientos pesados en las últimas 48 horas, estás en condiciones óptimas para darle con todo.`;
-        }
-    }
-
-    // AGENTE 2: NUTRICIÓN Y RENDIMIENTO
-    if (m.includes('almorzar') || m.includes('comer') || m.includes('comida') || m.includes('almuerzo') || m.includes('nutricion') || m.includes('macros')) {
-        return `🥗 **Agente Nutricional - Recomendación en vivo:** Basado en tu peso actual (${ctx.pesoCorporal} kg) y tu gasto energético estimado, te sugiero un almuerzo alto en proteína limpia y carbohidratos de bajo índice glucémico (ej: pechuga de pollo o carne magra con puré de zapallo y ensalada verde con aceite de oliva). ¿Querés que registre este aporte en tus métricas del día?`;
-    }
-
-    // AGENTE 3: LESIONES, MOLESTIAS Y RECUPERACIÓN
-    if (m.includes('dolor') || m.includes('molestia') || m.includes('lesion') || m.includes('duele') || m.includes('pinchazo')) {
-        return `⚠️ **Alerta del Sistema de Fatiga:** Detecto reporte de molestia. Cruzando esto con tu rutina activa ("${ctx.rutinaActiva}"), sugiero frenar el movimiento de inmediato para evitar strain articular. ¿Querés que modifique la estructura de tu rutina actual para reemplazar este ejercicio por una variante de aislamiento o descarga?`;
-    }
-
-    return `Analicé tu consulta ("${mensaje}") cruzándola con tus registros en Machine La Cima (${ctx.pesoCorporal} kg, rutina: ${ctx.rutinaActiva}). Estás manteniendo una buena constancia. Si buscás romper estancamientos, el secreto está en vigilar los tiempos de descanso y asegurar la progresión de cargas lineal de una semana a la otra. ¿Querés que modifiquemos algún parámetro directamente en tu panel?`;
-}
-
-// 3. Capa de Ejecución Activa (Modificación de Estado)
-function sofiaEjecutarAccionAutonoma(tipoAccion, payload) {
-    if (tipoAccion === 'MODIFICAR_RUTINA') {
-        if (rutinasPersonalizadas[payload.nombreRutina]) {
-            rutinasPersonalizadas[payload.nombreRutina].push(payload.nuevoEjercicio);
-            guardarTodoEnNube();
-            actualizarDashboard();
-            return "✅ Sofía ha actualizado automáticamente tu rutina en la base de datos.";
-        }
-    }
-    if (tipoAccion === 'ACTUALIZAR_PESO') {
-        perfilCloud.peso = payload.nuevoPeso;
-        guardarTodoEnNube();
-        actualizarDashboard();
-        return "✅ Sofía actualizó tu registro biométrico de peso corporal.";
-    }
-    return "Acción ejecutada por el sistema autónomo de Sofía.";
-}
-
-
-// -------------------------------------------------------------
-// SINCRONIZACIÓN Y FLUJO DE DATOS
-// -------------------------------------------------------------
 async function sincronizarConNubeAlIniciar() {
 const user = auth.currentUser;
 if (!user) return;
