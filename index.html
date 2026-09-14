@@ -858,7 +858,7 @@ let historialChatSofia = [];
 
 function abrirSofiaChatGeneral() {
     historialChatSofia = [
-        { role: "model", parts: [{ text: "¡Hola! Soy Sofía, tu copiloto en Machine La Cima. Leo tus datos, fatiga y objetivos en tiempo real. ¿Qué entrenamos, qué evaluamos o qué comemos hoy?" }] }
+        { role: "model", parts: [{ text: "¡Hola! Soy Sofía, tu copiloto en Mi Gym La Cima. Leo tus datos, fatiga y objetivos en tiempo real. ¿Qué entrenamos, qué evaluamos o qué comemos hoy?" }] }
     ];
     document.getElementById('sofia-modal-titulo').innerText = "🤖 Sofía IA - Copiloto Autónomo";
     renderizarMensajesSofia();
@@ -917,7 +917,7 @@ function recopilarContextoGlobalSofia() {
     const ultimoEntreno = registrosCloud.length > 0 ? registrosCloud[0] : null;
 
     return `
-    [CONTEXTO ACTUAL DEL USUARIO EN MACHINE LA CIMA]
+    [CONTEXTO ACTUAL DEL USUARIO EN MI GYM LA CIMA]
     - Peso corporal: ${pesoActual} kg
     - Rutina seleccionada o activa: ${rutinaNombre}
     - Total de entrenamientos registrados este mes: ${totalEntrenosMes}
@@ -943,7 +943,7 @@ async function enviarMensajeSofia() {
     try {
         const contextoGlobal = recopilarContextoGlobalSofia();
         const systemPrompt = `
-        Sos Sofía, una entrenadora física y nutricionista experta, directa, técnica y cercana, que actúa como copiloto en la aplicación "Machine La Cima". 
+        Sos Sofía, una entrenadora física y nutricionista experta, directa, técnica y cercana, que actúa como copiloto en la aplicación "Mi Gym La Cima". 
         Tenés acceso total en tiempo real a los datos biométricos y de entrenamiento del usuario:
         ${contextoGlobal}
         Respondé de forma natural, sin rodeos, sin plantillas robóticas, analizando si puede hacer ejercicios, qué comer, o adaptando las cargas según sus datos reales. No menciones explícitamente que tenés "un prompt", simplemente sé esa inteligencia autónoma.
@@ -985,75 +985,6 @@ async function enviarMensajeSofia() {
         historialChatSofia.push({ role: "model", parts: [{ text: "Error de conexión con el motor de Sofía. Verificá tu red." }] });
         renderizarMensajesSofia();
     }
-}
-
-
-function abrirSofiaChatGeneral() {
-    historialChatSofia = [
-        { role: "assistant", content: "¡Hola! Soy Sofía, tu copiloto en Machine La Cima. Analizo tus cargas, fatiga y objetivos en tiempo real. ¿Qué entrenamos, qué evaluamos o qué comemos hoy?" }
-    ];
-    document.getElementById('sofia-modal-titulo').innerText = "🤖 Sofía IA - Copiloto Autónomo";
-    renderizarMensajesSofia();
-    document.getElementById('modal-sofia-chat').style.display = 'flex';
-}
-
-function abrirSofiaAsesorRutina() {
-    let rutinaActualObj = rutinasPersonalizadas[rutinaSeleccionadaKey] || [];
-    let resumenRutina = rutinaActualObj.map(e => e.nombre).join(", ");
-    historialChatSofia = [
-        { role: "assistant", content: `Analizando la rutina "${rutinaSeleccionadaKey}" (${resumenRutina || 'vacía'}). ¿Querés que evalúe si hay sobrecarga excesiva o si ajustamos series según tu fatiga reciente?` }
-    ];
-    document.getElementById('sofia-modal-titulo').innerText = `🤖 Sofía IA - Asesora de ${rutinaSeleccionadaKey}`;
-    renderizarMensajesSofia();
-    document.getElementById('modal-sofia-chat').style.display = 'flex';
-}
-
-function abrirSofiaEjercicioActual() {
-    if (!borradorSesion || !borradorSesion.ejercicios || borradorSesion.ejercicios.length === 0) return;
-    let ej = borradorSesion.ejercicios[guiadoIndice];
-    if (!ej) return;
-
-    historialChatSofia = [
-        { role: "assistant", content: `Evaluando "${ej.nombre}". Tus notas actuales son: "${ej.notas || 'Sin notas'}". ¿Querés que verifique tu historial de marcas en este ejercicio para ver si te conviene sumar peso hoy?` }
-    ];
-    document.getElementById('sofia-modal-titulo').innerText = `🤖 Sofía IA - Análisis de ${ej.nombre}`;
-    renderizarMensajesSofia();
-    document.getElementById('modal-sofia-chat').style.display = 'flex';
-}
-
-function cerrarModalSofia() {
-    document.getElementById('modal-sofia-chat').style.display = 'none';
-}
-
-function renderizarMensajesSofia() {
-    const container = document.getElementById('sofia-messages-list');
-    let html = '';
-    historialChatSofia.forEach(msg => {
-        let cls = msg.role === 'user' ? 'user' : 'assistant';
-        html += `<div class="sofia-bubble ${cls}">${escapeHtml(msg.content)}</div>`;
-    });
-    container.innerHTML = html;
-    container.scrollTop = container.scrollHeight;
-}
-
-function escapeHtml(text) {
-    const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-    return text.replace(/[&<>"']/g, function(m) { return map[m]; });
-}
-
-// 1. Motor de Contexto Global y RAG en Tiempo Real
-function recopilarContextoGlobalSofia() {
-    const pesoActual = perfilCloud.peso || 90;
-    const rutinaNombre = rutinaSeleccionadaKey || 'Ninguna';
-    const totalEntrenosMes = registrosCloud.length;
-    
-    return {
-        pesoCorporal: pesoActual,
-        rutinaActiva: rutinaNombre,
-        ejerciciosRutina: rutinasPersonalizadas[rutinaSeleccionadaKey] || [],
-        historialReciente: registrosCloud.slice(0, 3),
-        metricasGenerales: { totalEntrenosMes }
-    };
 }
 
 async function sincronizarConNubeAlIniciar() {
