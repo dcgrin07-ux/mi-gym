@@ -939,17 +939,15 @@ async function enviarMensajeSofia() {
 
     const pensandoId = "sofia_pensando_" + Date.now();
     const container = document.getElementById('sofia-messages-list');
-    container.innerHTML += `<div id="${pensandoId}" class="sofia-bubble assistant" style="opacity: 0.7;">Pensando con datos en vivo...</div>`;
+    container.innerHTML += `<div id="${pensandoId}" class="sofia-bubble assistant">... Pensando ...</div>`;
     container.scrollTop = container.scrollHeight;
 
     try {
         const contextoGlobal = recopilarContextoGlobalSofia();
-        const systemPrompt = `
-        Sos Sofía, una entrenadora física y nutricionista experta, directa, técnica y cercana, que actúa como copiloto en la aplicación "Mi Gym La Cima". 
-        Tenés acceso total en tiempo real a los datos biométricos y de entrenamiento del usuario:
-        ${contextoGlobal}
-        Respondé de forma natural, sin rodeos, sin plantillas robóticas, analizando si puede hacer ejercicios, qué comer, o adaptando las cargas según sus datos reales. No menciones explícitamente que tenés "un prompt", simplemente sé esa inteligencia autónoma.
-        `;
+        const systemPrompt = `Sos Sofía, una entrenadora física y nutricionista experta, directa, motivadora y amigable.
+Tenés acceso en tiempo real a los datos biométricos y de entrenamiento del usuario:
+${contextoGlobal}
+Respondé de forma natural, sin rodeos, sin plantillas robóticas, y sé concisa y útil.`;
 
         const contentsPayload = [
             { role: "user", parts: [{ text: systemPrompt }] },
@@ -959,35 +957,38 @@ async function enviarMensajeSofia() {
             }))
         ];
 
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+
+        const respuesta = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ contents: contentsPayload })
         });
 
-        const data = await response.json();
-        
-        const pensandoEl = document.getElementById(pensandoId);
-        if (pensandoEl) pensandoEl.remove();
+        const datos = await respuesta.json();
 
-        if (data.candidates && data.candidates[0].content) {
-            const respuestaIA = data.candidates[0].content.parts[0].text;
-            historialChatSofia.push({ role: "model", parts: [{ text: respuestaIA }] });
+        // Borramos el cartel de "Pensando"
+        document.getElementById(pensandoId)?.remove();
+
+        if (datos.candidates && datos.candidates[0].content) {
+            const respuestaTexto = datos.candidates[0].content.parts[0].text;
+            historialChatSofia.push({ role: "model", parts: [{ text: respuestaTexto }] });
+            renderizarMensajesSofia();
         } else {
-            historialChatSofia.push({ role: "model", parts: [{ text: "Tuve un pequeño problema técnico procesando tus datos en la nube. ¿Me repetís la consulta?" }] });
+            console.error("Respuesta inesperada de Gemini:", datos);
+            throw new Error("Formato de respuesta inválido");
         }
 
-        renderizarMensajesSofia();
-
     } catch (error) {
-        console.error("Error conectando con Gemini:", error);
-        const pensandoEl = document.getElementById(pensandoId);
-        if (pensandoEl) pensandoEl.remove();
+        console.error("Error al consultar a Sofía:", error);
+        document.getElementById(pensandoId)?.remove();
         
-        historialChatSofia.push({ role: "model", parts: [{ text: "Error de conexión con el motor de Sofía. Verificá tu red." }] });
-        renderizarMensajesSofia();
+        // Mensaje de error amigable en el chat
+        container.innerHTML += `<div class="sofia-bubble assistant" style="color: red;">Tuve un pequeño problema técnico procesando tus datos en la nube. Revisa la consola si persiste.</div>`;
+        container.scrollTop = container.scrollHeight;
     }
 }
+
 
 async function sincronizarConNubeAlIniciar() {
 const user = auth.currentUser;
