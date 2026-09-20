@@ -851,145 +851,813 @@ let calAnioActual = new Date().getFullYear();
 let calMesActual = new Date().getMonth(); 
 
 // =============================================================
-// MOTOR REAL DE SOFÍA IA CON LA API DE GEMINI (GENERATIVE AI)
 // =============================================================
-
-const GEMINI_API_KEY = CONFIG.GEMINI_API_KEY;
+// MOTOR REAL DE SOFÍA IA - GEMINI
+// Arquitectura basada en Gestión con IA 2.0
+// =============================================================
 
 let historialChatSofia = [];
 
-function abrirSofiaChatGeneral() {
-    historialChatSofia = [
-        { role: "model", parts: [{ text: "¡Hola! Soy Sofía, tu copiloto en Mi Gym La Cima. Leo tus datos, fatiga y objetivos en tiempo real. ¿Qué entrenamos, qué evaluamos o qué comemos hoy?" }] }
-    ];
-    document.getElementById('sofia-modal-titulo').innerText = "🤖 Sofía IA - Copiloto Autónomo";
-    renderizarMensajesSofia();
-    document.getElementById('modal-sofia-chat').style.display = 'flex';
-}
+/* =============================================================
+   GESTIÓN DE API KEY
+   ============================================================= */
 
-function abrirSofiaAsesorRutina() {
-    let rutinaActualObj = rutinasPersonalizadas[rutinaSeleccionadaKey] || [];
-    let resumenRutina = rutinaActualObj.map(e => e.nombre).join(", ");
-    historialChatSofia = [
-        { role: "model", parts: [{ text: `Hola. Estoy analizando tu rutina "${rutinaSeleccionadaKey}" (${resumenRutina || 'vacía'}). ¿Querés que evalúe cargas, series o sobrecarga progresiva?` }] }
-    ];
-    document.getElementById('sofia-modal-titulo').innerText = `🤖 Sofía IA - Asesora de ${rutinaSeleccionadaKey}`;
-    renderizarMensajesSofia();
-    document.getElementById('modal-sofia-chat').style.display = 'flex';
-}
+function obtenerApiKey() {
+    let key = localStorage.getItem('gemini_api_key') || '';
 
-function abrirSofiaEjercicioActual() {
-    if (!borradorSesion || !borradorSesion.ejercicios || borradorSesion.ejercicios.length === 0) return;
-    let ej = borradorSesion.ejercicios[guiadoIndice];
-    if (!ej) return;
+    if (!key) {
+        key = prompt(
+            "Ingresá tu API Key de Gemini para activar la Inteligencia Artificial de Sofía:"
+        );
 
-    historialChatSofia = [
-        { role: "model", parts: [{ text: `Estás haciendo "${ej.nombre}". Tus notas técnicas son: "${ej.notas || 'Sin notas'}". ¿Tenés alguna duda sobre el peso o la ejecución?` }] }
-    ];
-    document.getElementById('sofia-modal-titulo').innerText = `🤖 Sofía IA - Análisis de ${ej.nombre}`;
-    renderizarMensajesSofia();
-    document.getElementById('modal-sofia-chat').style.display = 'flex';
-}
-
-function cerrarModalSofia() {
-    document.getElementById('modal-sofia-chat').style.display = 'none';
-}
-
-function renderizarMensajesSofia() {
-    const container = document.getElementById('sofia-messages-list');
-    let html = '';
-    historialChatSofia.forEach(msg => {
-        let roleClass = msg.role === 'user' ? 'user' : 'assistant';
-        let textContent = msg.parts && msg.parts[0] ? msg.parts[0].text : '';
-        html += `<div class="sofia-bubble ${roleClass}">${escapeHtml(textContent)}</div>`;
-    });
-    container.innerHTML = html;
-    container.scrollTop = container.scrollHeight;
-}
-
-function escapeHtml(text) {
-    const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-    return text.replace(/[&<>"']/g, function(m) { return map[m]; });
-}
-
-function recopilarContextoGlobalSofia() {
-    const pesoActual = perfilCloud.peso || 90;
-    const rutinaNombre = rutinaSeleccionadaKey || 'Ninguna';
-    const totalEntrenosMes = registrosCloud.length;
-    const ultimoEntreno = registrosCloud.length > 0 ? registrosCloud[0] : null;
-
-    return `
-    [CONTEXTO ACTUAL DEL USUARIO EN MI GYM LA CIMA]
-    - Peso corporal: ${pesoActual} kg
-    - Rutina seleccionada o activa: ${rutinaNombre}
-    - Total de entrenamientos registrados este mes: ${totalEntrenosMes}
-    - Último entrenamiento registrado: ${ultimoEntreno ? JSON.stringify(ultimoEntreno) : "Ninguno"}
-    - Ejercicios en la rutina actual: ${JSON.stringify(rutinasPersonalizadas[rutinaSeleccionadaKey] || [])}
-    `;
-}
-
-async function enviarMensajeSofia() {
-    const input = document.getElementById('sofia-input-text');
-    const texto = input.value.trim();
-    if (!texto) return;
-
-    historialChatSofia.push({ role: "user", parts: [{ text: texto }] });
-    input.value = '';
-    renderizarMensajesSofia();
-
-    const pensandoId = "sofia_pensando_" + Date.now();
-    const container = document.getElementById('sofia-messages-list');
-    container.innerHTML += `<div id="${pensandoId}" class="sofia-bubble assistant">... Pensando ...</div>`;
-    container.scrollTop = container.scrollHeight;
-
-    try {
-        const contextoGlobal = recopilarContextoGlobalSofia();
-        const systemPrompt = `Sos Sofía, una entrenadora física y nutricionista experta, directa, motivadora y amigable.
-Tenés acceso en tiempo real a los datos biométricos y de entrenamiento del usuario:
-${contextoGlobal}
-Respondé de forma natural, sin rodeos, sin plantillas robóticas, y sé concisa y útil.`;
-
-        const contentsPayload = [
-            { role: "user", parts: [{ text: systemPrompt }] },
-            ...historialChatSofia.map(msg => ({
-                role: msg.role === 'assistant' ? 'model' : 'user',
-                parts: msg.parts
-            }))
-        ];
-
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-
-        const respuesta = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents: contentsPayload })
-        });
-
-        const datos = await respuesta.json();
-
-        // Borramos el cartel de "Pensando"
-        document.getElementById(pensandoId)?.remove();
-
-        if (datos.candidates && datos.candidates[0].content) {
-            const respuestaTexto = datos.candidates[0].content.parts[0].text;
-            historialChatSofia.push({ role: "model", parts: [{ text: respuestaTexto }] });
-            renderizarMensajesSofia();
+        if (key !== null && key.trim() !== '') {
+            key = key.trim();
+            localStorage.setItem('gemini_api_key', key);
         } else {
-            console.error("Respuesta inesperada de Gemini:", datos);
-            throw new Error("Formato de respuesta inválido");
+            return null;
         }
+    }
 
-    } catch (error) {
-        console.error("Error al consultar a Sofía:", error);
-        document.getElementById(pensandoId)?.remove();
-        
-        // Mensaje de error amigable en el chat
-        container.innerHTML += `<div class="sofia-bubble assistant" style="color: red;">Tuve un pequeño problema técnico procesando tus datos en la nube. Revisa la consola si persiste.</div>`;
-        container.scrollTop = container.scrollHeight;
+    return key;
+}
+
+function configurarApiKey() {
+    const actualKey = localStorage.getItem('gemini_api_key') || '';
+
+    const newKey = prompt(
+        "Modificar API Key de Gemini:",
+        actualKey
+    );
+
+    if (newKey !== null) {
+        localStorage.setItem('gemini_api_key', newKey.trim());
+        alert("API Key actualizada.");
     }
 }
 
 
+/* =============================================================
+   MOTOR CENTRAL DE CONSULTA A GEMINI
+   ============================================================= */
+
+async function consultarGeminiAPI(apiKey, promptOrContents) {
+
+    /*
+     * Se intenta primero con el modelo principal.
+     * Si Gemini devuelve 404 o 503, se prueba automáticamente
+     * con el siguiente modelo.
+     */
+
+    const modelos = [
+        'gemini-3.7-flash',
+        'gemini-3.6-flash',
+        'gemini-2.5-flash'
+    ];
+
+    const esChat = Array.isArray(promptOrContents);
+
+    const bodyData = esChat
+        ? {
+            contents: promptOrContents
+        }
+        : {
+            contents: [
+                {
+                    parts: [
+                        {
+                            text: promptOrContents
+                        }
+                    ]
+                }
+            ]
+        };
+
+    let ultimoError = null;
+
+    for (const modelo of modelos) {
+
+        try {
+
+            const url =
+                `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`;
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(bodyData)
+            });
+
+            const data = await response.json();
+
+            /*
+             * Si el modelo no existe o está temporalmente saturado,
+             * probamos automáticamente con el siguiente.
+             */
+
+            if (response.status === 404 || response.status === 503) {
+
+                console.warn(
+                    `Modelo ${modelo} no disponible (${response.status}). Probando siguiente modelo...`
+                );
+
+                ultimoError = new Error(
+                    `Modelo ${modelo} no disponible.`
+                );
+
+                continue;
+            }
+
+            /*
+             * Error de API: clave inválida, permisos, cuota, etc.
+             */
+
+            if (!response.ok) {
+
+                if (data && data.error) {
+
+                    throw new Error(
+                        `[${data.error.code}] ${data.error.message}`
+                    );
+
+                }
+
+                throw new Error(
+                    `Error HTTP ${response.status}`
+                );
+            }
+
+            /*
+             * Verificación de la estructura de respuesta.
+             */
+
+            if (
+                data &&
+                data.candidates &&
+                data.candidates[0] &&
+                data.candidates[0].content &&
+                data.candidates[0].content.parts &&
+                data.candidates[0].content.parts[0] &&
+                data.candidates[0].content.parts[0].text
+            ) {
+
+                return data.candidates[0].content.parts[0].text;
+            }
+
+            /*
+             * Gemini respondió pero no encontramos texto.
+             */
+
+            if (data && data.error) {
+
+                throw new Error(
+                    `[${data.error.code}] ${data.error.message}`
+                );
+            }
+
+            throw new Error(
+                "Gemini devolvió una respuesta sin contenido de texto."
+            );
+
+        } catch (err) {
+
+            ultimoError = err;
+
+            /*
+             * Si el error corresponde a un modelo no disponible,
+             * continuamos con el siguiente.
+             */
+
+            if (
+                err.message &&
+                (
+                    err.message.includes('404') ||
+                    err.message.includes('503') ||
+                    err.message.includes('no disponible')
+                )
+            ) {
+                continue;
+            }
+
+            /*
+             * Para otros errores detenemos el proceso.
+             */
+
+            throw err;
+        }
+    }
+
+    throw ultimoError ||
+        new Error(
+            "Servicio de IA no disponible temporalmente. Reintentá en unos momentos."
+        );
+}
+
+
+/* =============================================================
+   APERTURA DEL CHAT GENERAL
+   ============================================================= */
+
+function abrirSofiaChatGeneral() {
+
+    historialChatSofia = [
+
+        {
+            role: "user",
+            parts: [
+                {
+                    text:
+                        `Actuá como Sofía, la asistente personal de Mi Gym La Cima.
+
+Sos una entrenadora física y asesora de hábitos y nutrición general.
+
+Tu función es ayudar al usuario a interpretar sus entrenamientos, progresos, cargas, series, repeticiones, descanso, recuperación, alimentación y objetivos.
+
+Respondé en español argentino, de manera natural, clara, directa y amigable.
+
+No inventes datos que no estén disponibles.
+
+Cuando el usuario pregunte sobre cuestiones médicas, lesiones o síntomas, aclarale que la información no reemplaza la evaluación de un profesional de la salud.`
+                }
+            ]
+        },
+
+        {
+            role: "model",
+            parts: [
+                {
+                    text:
+                        "Entendido. Soy Sofía, tu copiloto de Mi Gym La Cima. Estoy lista para analizar tus entrenamientos, progresos y objetivos."
+                }
+            ]
+        }
+
+    ];
+
+    document.getElementById('sofia-modal-titulo').innerText =
+        "🤖 Sofía IA - Copiloto";
+
+    renderizarMensajesSofia();
+
+    document.getElementById('modal-sofia-chat').style.display = 'flex';
+}
+
+
+/* =============================================================
+   APERTURA DEL ASESOR DE RUTINA
+   ============================================================= */
+
+function abrirSofiaAsesorRutina() {
+
+    let rutinaActualObj =
+        rutinasPersonalizadas[rutinaSeleccionadaKey] || [];
+
+    let resumenRutina =
+        rutinaActualObj
+            .map(e => e.nombre)
+            .join(", ");
+
+    historialChatSofia = [
+
+        {
+            role: "user",
+            parts: [
+                {
+                    text:
+                        `Actuá como Sofía, entrenadora personal de Mi Gym La Cima.
+
+Vas a analizar específicamente la rutina:
+"${rutinaSeleccionadaKey}"
+
+Ejercicios configurados:
+${resumenRutina || 'Rutina vacía'}
+
+Podés ayudar a evaluar:
+- distribución de ejercicios
+- series
+- repeticiones
+- cargas
+- progresión
+- volumen de entrenamiento
+- descanso
+- posibles mejoras
+
+No inventes información que no esté presente en los datos.`
+                }
+            ]
+        },
+
+        {
+            role: "model",
+            parts: [
+                {
+                    text:
+                        `Perfecto. Estoy analizando la rutina "${rutinaSeleccionadaKey}". Podemos revisar cargas, series, volumen y progresión.`
+                }
+            ]
+        }
+
+    ];
+
+    document.getElementById('sofia-modal-titulo').innerText =
+        `🤖 Sofía IA - Asesora de ${rutinaSeleccionadaKey}`;
+
+    renderizarMensajesSofia();
+
+    document.getElementById('modal-sofia-chat').style.display = 'flex';
+}
+
+
+/* =============================================================
+   APERTURA DEL ASESOR DEL EJERCICIO ACTUAL
+   ============================================================= */
+
+function abrirSofiaEjercicioActual() {
+
+    if (
+        !borradorSesion ||
+        !borradorSesion.ejercicios ||
+        borradorSesion.ejercicios.length === 0
+    ) {
+        return;
+    }
+
+    let ej =
+        borradorSesion.ejercicios[guiadoIndice];
+
+    if (!ej) return;
+
+    historialChatSofia = [
+
+        {
+            role: "user",
+            parts: [
+                {
+                    text:
+                        `Actuá como Sofía, entrenadora personal.
+
+El usuario está realizando actualmente el ejercicio:
+"${ej.nombre}"
+
+Notas técnicas configuradas:
+"${ej.notas || 'Sin notas'}"
+
+Ayudalo con dudas relacionadas con:
+- técnica
+- ejecución
+- carga
+- repeticiones
+- descanso
+- progresión
+
+No inventes datos sobre el usuario.`
+                }
+            ]
+        },
+
+        {
+            role: "model",
+            parts: [
+                {
+                    text:
+                        `Estás haciendo "${ej.nombre}". Estoy lista para ayudarte con la técnica, el peso, las repeticiones o la ejecución.`
+                }
+            ]
+        }
+
+    ];
+
+    document.getElementById('sofia-modal-titulo').innerText =
+        `🤖 Sofía IA - ${ej.nombre}`;
+
+    renderizarMensajesSofia();
+
+    document.getElementById('modal-sofia-chat').style.display = 'flex';
+}
+
+
+/* =============================================================
+   CERRAR CHAT
+   ============================================================= */
+
+function cerrarModalSofia() {
+
+    document.getElementById('modal-sofia-chat').style.display = 'none';
+
+}
+
+
+/* =============================================================
+   RENDERIZAR MENSAJES
+   ============================================================= */
+
+function renderizarMensajesSofia() {
+
+    const container =
+        document.getElementById('sofia-messages-list');
+
+    if (!container) return;
+
+    let html = '';
+
+    historialChatSofia.forEach(msg => {
+
+        const roleClass =
+            msg.role === 'user'
+                ? 'user'
+                : 'assistant';
+
+        const textContent =
+            msg.parts &&
+            msg.parts[0]
+                ? msg.parts[0].text
+                : '';
+
+        html +=
+            `<div class="sofia-bubble ${roleClass}">
+                ${escapeHtml(textContent)}
+            </div>`;
+    });
+
+    container.innerHTML = html;
+
+    container.scrollTop =
+        container.scrollHeight;
+}
+
+
+/* =============================================================
+   ESCAPAR HTML
+   ============================================================= */
+
+function escapeHtml(text) {
+
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+
+    return String(text || '').replace(
+        /[&<>"']/g,
+        function(m) {
+            return map[m];
+        }
+    );
+}
+
+
+/* =============================================================
+   CONTEXTO REAL DE MI GYM
+   ============================================================= */
+
+function recopilarContextoGlobalSofia() {
+
+    const pesoActual =
+        perfilCloud &&
+        perfilCloud.peso
+            ? perfilCloud.peso
+            : 'No registrado';
+
+    const rutinaNombre =
+        rutinaSeleccionadaKey ||
+        'Ninguna';
+
+    const totalEntrenos =
+        registrosCloud
+            ? registrosCloud.length
+            : 0;
+
+    const ultimoEntreno =
+        registrosCloud &&
+        registrosCloud.length > 0
+            ? registrosCloud[0]
+            : null;
+
+    const rutinaActual =
+        rutinasPersonalizadas &&
+        rutinaSeleccionadaKey
+            ? (
+                rutinasPersonalizadas[
+                    rutinaSeleccionadaKey
+                ] || []
+            )
+            : [];
+
+    return `
+[DATOS ACTUALES DE MI GYM LA CIMA]
+
+Peso corporal:
+${pesoActual} kg
+
+Rutina actualmente seleccionada:
+${rutinaNombre}
+
+Cantidad de entrenamientos registrados:
+${totalEntrenos}
+
+Último entrenamiento:
+${ultimoEntreno
+    ? JSON.stringify(ultimoEntreno)
+    : 'No hay entrenamientos registrados'}
+
+Ejercicios de la rutina actual:
+${JSON.stringify(rutinaActual)}
+
+Historial completo de entrenamientos:
+${JSON.stringify(registrosCloud || [])}
+
+Perfil del usuario:
+${JSON.stringify(perfilCloud || {})}
+`;
+}
+
+
+/* =============================================================
+   ENVIAR MENSAJE A SOFÍA
+   ============================================================= */
+
+async function enviarMensajeSofia() {
+
+    const input =
+        document.getElementById('sofia-input-text');
+
+    if (!input) return;
+
+    const texto =
+        input.value.trim();
+
+    if (!texto) return;
+
+
+    /* ---------------------------------------------------------
+       OBTENER API KEY
+       --------------------------------------------------------- */
+
+    const apiKey =
+        obtenerApiKey();
+
+    if (!apiKey) {
+
+        alert(
+            "Se necesita una API Key de Gemini para utilizar Sofía."
+        );
+
+        return;
+    }
+
+
+    /* ---------------------------------------------------------
+       AGREGAR MENSAJE DEL USUARIO
+       --------------------------------------------------------- */
+
+    historialChatSofia.push({
+
+        role: "user",
+
+        parts: [
+            {
+                text: texto
+            }
+        ]
+
+    });
+
+    input.value = '';
+
+    renderizarMensajesSofia();
+
+
+    /* ---------------------------------------------------------
+       INDICADOR DE PENSANDO
+       --------------------------------------------------------- */
+
+    const pensandoId =
+        "sofia_pensando_" + Date.now();
+
+    const container =
+        document.getElementById('sofia-messages-list');
+
+    container.innerHTML +=
+        `<div id="${pensandoId}"
+              class="sofia-bubble assistant">
+            ... Pensando ...
+        </div>`;
+
+    container.scrollTop =
+        container.scrollHeight;
+
+
+    try {
+
+        /* -----------------------------------------------------
+           CONTEXTO ACTUAL DE LA APP
+           ----------------------------------------------------- */
+
+        const contextoGlobal =
+            recopilarContextoGlobalSofia();
+
+
+        /* -----------------------------------------------------
+           INSTRUCCIÓN PRINCIPAL
+           ----------------------------------------------------- */
+
+        const systemPrompt =
+
+`DATOS DEL USUARIO Y DE LA APLICACIÓN:
+
+${contextoGlobal}
+
+INSTRUCCIONES PARA SOFÍA:
+
+Sos Sofía, la asistente personal de Mi Gym La Cima.
+
+Actuás como entrenadora física y asesora general de hábitos y nutrición.
+
+Tenés acceso a los datos de entrenamiento proporcionados arriba.
+
+Utilizá esos datos para responder.
+
+No inventes entrenamientos, pesos, repeticiones, fechas o estadísticas que no estén presentes.
+
+Si falta información, decilo claramente.
+
+Respondé en español argentino.
+
+Sé natural, directa, amigable y concreta.
+
+Evitá respuestas robóticas o excesivamente extensas.
+
+Cuando corresponda, podés analizar:
+- progresión de cargas
+- volumen
+- series
+- repeticiones
+- frecuencia
+- descanso
+- evolución del peso
+- historial de entrenamientos
+- adherencia
+- recuperación
+- objetivos
+
+En cuestiones médicas, lesiones, dolor o síntomas, brindá información general y aclarale al usuario que debe consultar a un profesional de salud cuando corresponda.
+
+El usuario está conversando con vos, por lo tanto mantené el contexto de los mensajes anteriores.`;
+
+
+        /* -----------------------------------------------------
+           CONSTRUIR HISTORIAL PARA GEMINI
+           ----------------------------------------------------- */
+
+        const contentsPayload = [
+
+            {
+                role: "user",
+                parts: [
+                    {
+                        text: systemPrompt
+                    }
+                ]
+            },
+
+            ...historialChatSofia.map(msg => ({
+
+                /*
+                 * IMPORTANTE:
+                 * Gemini utiliza "user" y "model".
+                 *
+                 * El código anterior tenía un error:
+                 *
+                 * msg.role === 'assistant'
+                 *
+                 * pero Sofía guarda sus respuestas como "model".
+                 *
+                 * Ahora se conserva correctamente el rol.
+                 */
+
+                role:
+                    msg.role === 'model'
+                        ? 'model'
+                        : 'user',
+
+                parts:
+                    msg.parts
+
+            }))
+
+        ];
+
+
+        /* -----------------------------------------------------
+           CONSULTAR GEMINI
+           ----------------------------------------------------- */
+
+        const respuestaTexto =
+            await consultarGeminiAPI(
+                apiKey,
+                contentsPayload
+            );
+
+
+        /* -----------------------------------------------------
+           QUITAR "PENSANDO"
+           ----------------------------------------------------- */
+
+        document
+            .getElementById(pensandoId)
+            ?.remove();
+
+
+        /* -----------------------------------------------------
+           GUARDAR RESPUESTA DE SOFÍA
+           ----------------------------------------------------- */
+
+        historialChatSofia.push({
+
+            role: "model",
+
+            parts: [
+                {
+                    text: respuestaTexto
+                }
+            ]
+
+        });
+
+
+        renderizarMensajesSofia();
+
+
+    } catch (error) {
+
+        console.error(
+            "Error al consultar a Sofía:",
+            error
+        );
+
+        document
+            .getElementById(pensandoId)
+            ?.remove();
+
+
+        const mensajeError =
+            error &&
+            error.message
+                ? error.message
+                : "Error desconocido";
+
+
+        container.innerHTML +=
+            `<div class="sofia-bubble assistant"
+                  style="color: var(--danger);">
+                ⚠️ No pude conectarme con Gemini.
+                <br><br>
+                <small>${escapeHtml(mensajeError)}</small>
+            </div>`;
+
+
+        container.scrollTop =
+            container.scrollHeight;
+    }
+}
+
+
+/* =============================================================
+   PRUEBA MANUAL DE CONEXIÓN
+   ============================================================= */
+
+async function probarConexionIA() {
+
+    const apiKey =
+        obtenerApiKey();
+
+    if (!apiKey) return;
+
+    try {
+
+        const respuesta =
+            await consultarGeminiAPI(
+                apiKey,
+                "Respondé únicamente: CONEXIÓN EXITOSA"
+            );
+
+        alert(
+            "🤖 Sofía IA respondió correctamente:\n\n" +
+            respuesta
+        );
+
+    } catch (error) {
+
+        alert(
+            "❌ No se pudo conectar con Gemini:\n\n" +
+            error.message
+        );
+    }
+}
 async function sincronizarConNubeAlIniciar() {
 const user = auth.currentUser;
 if (!user) return;
