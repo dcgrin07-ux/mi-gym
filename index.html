@@ -907,52 +907,189 @@ function configurarApiKey() {
 
 async function consultarGeminiAPI(apiKey, contents) {
 
-    const modelo = 'gemini-3.6-flash';
+    /*
+     * Gemini puede devolver 503 cuando el modelo está temporalmente
+     * saturado. Por eso:
+     * 1) reintentamos con espera creciente;
+     * 2) si sigue ocupado, pasamos a otro modelo;
+     * 3) los errores de clave/permisos/cuota no se reintentan.
+     */
 
-    const url =
-        `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`;
+    const modelos = [
+        'gemini-3.6-flash',
+        'gemini-2.5-flash'
+    ];
 
-    console.log('🤖 Consultando Gemini:', modelo);
+    let ultimoError = null;
 
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            contents: contents
-        })
-    });
+    for (const modelo of modelos) {
 
-    const data = await response.json();
+        for (let intento = 0; intento < 3; intento++) {
 
-    console.log('📡 Respuesta Gemini:', response.status, data);
+            try {
 
-    if (!response.ok) {
-        const codigo = data?.error?.code || response.status;
-        const mensaje = data?.error?.message || 'Gemini devolvió un error sin descripción.';
-        const estado = data?.error?.status || 'SIN_ESTADO';
+                const url =
+                    `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`;
 
-        throw new Error(
-            `Gemini ${codigo} (${estado}): ${mensaje}`
+                console.log(
+                    `🤖 Consultando Gemini: ${modelo} | intento ${intento + 1}/3`
+                );
+
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        contents: contents
+                    })
+                });
+
+                const data = await response.json();
+
+                console.log(
+                    '📡 Respuesta Gemini:',
+                    response.status,
+                    data
+                );
+
+                if (response.ok) {
+
+                    if (
+                        data &&
+                        data.candidates &&
+                        data.candidates[0] &&
+                        data.candidates[0].content &&
+                        data.candidates[0].content.parts &&
+                        data.candidates[0].content.parts[0] &&
+                        data.candidates[0].content.parts[0].text
+                    ) {
+                        return data.candidates[0].content.parts[0].text;
+                    }
+
+                    if (data && data.error) {
+                        throw new Error(
+                            `Gemini ${data.error.code || ''}: ${data.error.message || 'Error sin descripción'}`
+                        );
+                    }
+
+                    throw new Error(
+                        'Gemini respondió correctamente pero no devolvió texto.'
+                    );
+                }
+
+                const codigo =
+                    data?.error?.code || response.status;
+
+                const mensaje =
+                    data?.error?.message ||
+                    'Gemini devolvió un error sin descripción.';
+
+                const estado =
+                    data?.error?.status || 'SIN_ESTADO';
+
+                ultimoError = new Error(
+                    `Gemini ${codigo} (${estado}): ${mensaje}`
+                );
+
+                /*
+                 * 503 / 429 / 408 / 5xx son errores transitorios.
+                 * Esperamos y reintentamos.
+                 */
+                const transitorio =
+                    response.status === 408 ||
+                    response.status === 429 ||
+                    response.status >= 500;
+
+                if (!transitorio) {
+                    throw ultimoError;
+                }
+
+                if (intento < 2) {
+
+                    const espera =
+                        Math.min(
+                            8000,
+                            1500 * Math.pow(2, intento)
+                        );
+
+                    console.warn(
+                        `⚠️ Gemini ${response.status}. Reintentando en ${espera} ms...`
+                    );
+
+                    await new Promise(
+                        resolve => setTimeout(resolve, espera)
+                    );
+
+                    continue;
+                }
+
+                /*
+                 * Se agotaron los 3 intentos de este modelo.
+                 * Pasamos al siguiente.
+                 */
+                console.warn(
+                    `⚠️ Se agotaron los intentos para ${modelo}.`
+                );
+
+                break;
+
+            } catch (err) {
+
+                ultimoError = err;
+
+                /*
+                 * Si es un error de red, también vale la pena
+                 * reintentar porque puede ser transitorio.
+                 */
+                if (
+                    intento < 2 &&
+                    (
+                        err instanceof TypeError ||
+                        /503|UNAVAILABLE|429|408|500|502|504/i.test(
+                            err.message || ''
+                        )
+                    )
+                ) {
+
+                    const espera =
+                        Math.min(
+                            8000,
+                            1500 * Math.pow(2, intento)
+                        );
+
+                    console.warn(
+                        `⚠️ Error transitorio. Reintentando en ${espera} ms...`
+                    );
+
+                    await new Promise(
+                        resolve => setTimeout(resolve, espera)
+                    );
+
+                    continue;
+                }
+
+                /*
+                 * Si no es transitorio, no seguimos golpeando
+                 * la API: mostramos el error real.
+                 */
+                if (
+                    !/503|UNAVAILABLE|429|408|500|502|504/i.test(
+                        err.message || ''
+                    )
+                ) {
+                    throw err;
+                }
+
+                break;
+            }
+        }
+    }
+
+    throw ultimoError ||
+        new Error(
+            'Gemini no está disponible temporalmente. Reintentá en unos segundos.'
         );
-    }
-
-    if (
-        data &&
-        data.candidates &&
-        data.candidates[0] &&
-        data.candidates[0].content &&
-        data.candidates[0].content.parts &&
-        data.candidates[0].content.parts[0] &&
-        data.candidates[0].content.parts[0].text
-    ) {
-        return data.candidates[0].content.parts[0].text;
-    }
-
-    throw new Error(
-        'Gemini respondió correctamente pero no devolvió texto.'
-    );
 }
 
 /* =============================================================
@@ -1193,74 +1330,178 @@ ${JSON.stringify(perfilCloud || {})}
    ============================================================= */
 
 async function enviarMensajeSofia() {
-    const input = document.getElementById('sofia-input-text');
+
+    const input =
+        document.getElementById('sofia-input-text');
+
     if (!input) return;
 
-    const texto = input.value.trim();
+    const texto =
+        input.value.trim();
+
     if (!texto) return;
 
-    const apiKey = obtenerApiKey();
+    const apiKey =
+        obtenerApiKey();
 
     if (!apiKey) {
-        alert('Se necesita una API Key de Gemini para utilizar Sofía.');
+
+        alert(
+            'Se necesita una API Key de Gemini para utilizar Sofía.'
+        );
+
         return;
     }
 
+    /*
+     * Guardamos el mensaje limpio.
+     * No mezclamos el contexto de la app dentro del mensaje histórico,
+     * porque eso hacía crecer innecesariamente la solicitud en cada turno.
+     */
     historialChatSofia.push({
         role: 'user',
-        parts: [{ text: texto }]
+        parts: [
+            {
+                text: texto
+            }
+        ]
     });
 
     input.value = '';
+
     renderizarMensajesSofia();
 
-    const pensandoId = 'sofia_pensando_' + Date.now();
-    const container = document.getElementById('sofia-messages-list');
+    const pensandoId =
+        'sofia_pensando_' + Date.now();
+
+    const container =
+        document.getElementById('sofia-messages-list');
 
     if (!container) return;
 
     container.innerHTML +=
-        `<div id="${pensandoId}" class="sofia-bubble assistant">... Pensando ...</div>`;
-    container.scrollTop = container.scrollHeight;
+        `<div id="${pensandoId}"
+              class="sofia-bubble assistant">
+            ... Pensando ...
+        </div>`;
+
+    container.scrollTop =
+        container.scrollHeight;
 
     try {
-        const contextoGlobal = recopilarContextoGlobalSofia();
 
-        // Se agrega el contexto al último mensaje del usuario.
-        // Así Gemini recibe el historial completo y los datos actuales
-        // en la misma solicitud.
-        const ultimoMensaje = historialChatSofia[historialChatSofia.length - 1];
+        const contextoGlobal =
+            recopilarContextoGlobalSofia();
 
-        ultimoMensaje.parts[0].text +=
-`\n\n[CONTEXTO ACTUAL DE MI GYM LA CIMA]\n\n${contextoGlobal}\n\n[INSTRUCCIONES PARA SOFÍA]\n\nUtilizá estos datos para responder.\nNo inventes entrenamientos, pesos, repeticiones, fechas o estadísticas.\nSi falta información, decilo claramente.\nRespondé en español argentino.\nSé natural, directa, amigable y concreta.\nEn cuestiones médicas, lesiones, dolor o síntomas, brindá información general y recomendá consultar a un profesional de salud cuando corresponda.`;
+        /*
+         * Solo enviamos las últimas intervenciones.
+         * Así Sofía conserva contexto sin hacer crecer indefinidamente
+         * el tamaño de cada petición.
+         */
+        const historialReciente =
+            historialChatSofia.slice(-8);
 
-        const respuestaTexto = await consultarGeminiAPI(
-            apiKey,
-            historialChatSofia
-        );
+        const instrucciones =
+`Sos Sofía, la asistente personal de Mi Gym La Cima.
 
-        document.getElementById(pensandoId)?.remove();
+Actuás como entrenadora física y asesora general de hábitos y nutrición.
+
+Respondé en español argentino, de manera natural, clara, directa y amigable.
+
+Utilizá los datos actuales de la aplicación que aparecen abajo.
+
+No inventes entrenamientos, pesos, repeticiones, fechas o estadísticas.
+
+Si falta información, decilo claramente.
+
+Podés analizar entrenamientos, progresión, volumen, series, repeticiones, frecuencia, descanso, recuperación, evolución del peso y objetivos.
+
+En cuestiones médicas, lesiones, dolor o síntomas, brindá información general y aclarale al usuario que esa información no reemplaza la evaluación de un profesional de salud.
+
+[DATOS ACTUALES DE MI GYM LA CIMA]
+
+${contextoGlobal}`;
+
+        /*
+         * Gemini recibe la instrucción actual por separado del historial.
+         * Esto evita repetir el contexto completo en cada mensaje.
+         */
+        const contentsPayload = [
+            {
+                role: 'user',
+                parts: [
+                    {
+                        text: instrucciones
+                    }
+                ]
+            },
+            {
+                role: 'model',
+                parts: [
+                    {
+                        text:
+                            'Entendido. Voy a utilizar esos datos para responder.'
+                    }
+                ]
+            },
+            ...historialReciente
+        ];
+
+        const respuestaTexto =
+            await consultarGeminiAPI(
+                apiKey,
+                contentsPayload
+            );
+
+        document
+            .getElementById(pensandoId)
+            ?.remove();
 
         historialChatSofia.push({
             role: 'model',
-            parts: [{ text: respuestaTexto }]
+            parts: [
+                {
+                    text: respuestaTexto
+                }
+            ]
         });
+
+        /*
+         * Conservamos una ventana de conversación razonable.
+         */
+        if (historialChatSofia.length > 12) {
+            historialChatSofia =
+                historialChatSofia.slice(-12);
+        }
 
         renderizarMensajesSofia();
 
     } catch (error) {
-        console.error('Error al consultar a Sofía:', error);
 
-        document.getElementById(pensandoId)?.remove();
+        console.error(
+            'Error al consultar a Sofía:',
+            error
+        );
 
-        const mensajeError = error && error.message
-            ? error.message
-            : 'Error desconocido';
+        document
+            .getElementById(pensandoId)
+            ?.remove();
+
+        const mensajeError =
+            error && error.message
+                ? error.message
+                : 'Error desconocido';
 
         container.innerHTML +=
-            `<div class="sofia-bubble assistant" style="color: var(--danger);">\n                ⚠️ No pude conectarme con Gemini.\n                <br><br>\n                <small>${escapeHtml(mensajeError)}</small>\n            </div>`;
+            `<div class="sofia-bubble assistant"
+                  style="color: var(--danger);">
+                ⚠️ No pude conectarme con Gemini.
+                <br><br>
+                <small>${escapeHtml(mensajeError)}</small>
+            </div>`;
 
-        container.scrollTop = container.scrollHeight;
+        container.scrollTop =
+            container.scrollHeight;
     }
 }
 
