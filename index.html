@@ -902,15 +902,98 @@ function configurarApiKey() {
 
 async function consultarGeminiAPI(apiKey, promptOrContents) {
 
-    /*
-     * Se intenta primero con el modelo principal.
-     * Si Gemini devuelve 404 o 503, se prueba automáticamente
-     * con el siguiente modelo.
-     */
-
     const modelos = [
-    'gemini-3.6-flash'
-];
+        'gemini-3.6-flash'
+    ];
+
+    const esChat = Array.isArray(promptOrContents);
+
+    const bodyData = esChat
+        ? { contents: promptOrContents }
+        : {
+            contents: [
+                {
+                    parts: [
+                        { text: promptOrContents }
+                    ]
+                }
+            ]
+        };
+
+    let ultimoError = null;
+
+    for (const modelo of modelos) {
+
+        try {
+
+            const url =
+                `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`;
+
+            console.log("🤖 Consultando Gemini:", modelo);
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(bodyData)
+            });
+
+            const data = await response.json();
+
+            console.log("📡 Respuesta Gemini:", response.status, data);
+
+            // Si Google devuelve un error, MOSTRAR EL ERROR REAL
+            if (!response.ok) {
+
+                const codigo =
+                    data?.error?.code || response.status;
+
+                const mensaje =
+                    data?.error?.message ||
+                    "Gemini devolvió un error sin descripción.";
+
+                const estado =
+                    data?.error?.status ||
+                    "SIN_ESTADO";
+
+                throw new Error(
+                    `Gemini ${codigo} (${estado}): ${mensaje}`
+                );
+            }
+
+            // Respuesta correcta
+            if (
+                data &&
+                data.candidates &&
+                data.candidates[0] &&
+                data.candidates[0].content &&
+                data.candidates[0].content.parts &&
+                data.candidates[0].content.parts[0] &&
+                data.candidates[0].content.parts[0].text
+            ) {
+
+                return data.candidates[0].content.parts[0].text;
+
+            }
+
+            throw new Error(
+                "Gemini respondió correctamente pero no devolvió texto."
+            );
+
+        } catch (err) {
+
+            console.error("❌ Error completo de Gemini:", err);
+
+            ultimoError = err;
+
+            throw err;
+        }
+    }
+
+    throw ultimoError ||
+        new Error("No se pudo conectar con Gemini.");
+}
 
     const esChat = Array.isArray(promptOrContents);
 
