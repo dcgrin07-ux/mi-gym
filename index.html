@@ -1513,55 +1513,21 @@ El usuario está conversando con vos, por lo tanto mantené el contexto de los m
            CONSTRUIR HISTORIAL PARA GEMINI
            ----------------------------------------------------- */
 
-        const contentsPayload = [
+       const contextoGlobal = recopilarContextoGlobalSofia();
 
-            {
-                role: "user",
-                parts: [
-                    {
-                        text: systemPrompt
-                    }
-                ]
-            },
+const ultimoMensaje = historialChatSofia[historialChatSofia.length - 1];
 
-            ...historialChatSofia.map(msg => ({
+ultimoMensaje.parts[0].text += `
 
-                /*
-                 * IMPORTANTE:
-                 * Gemini utiliza "user" y "model".
-                 *
-                 * El código anterior tenía un error:
-                 *
-                 * msg.role === 'assistant'
-                 *
-                 * pero Sofía guarda sus respuestas como "model".
-                 *
-                 * Ahora se conserva correctamente el rol.
-                 */
+${contextoGlobal}`;
 
-                role:
-                    msg.role === 'model'
-                        ? 'model'
-                        : 'user',
-
-                parts:
-                    msg.parts
-
-            }))
-
-        ];
+const respuestaTexto = await consultarGeminiAPI(
+    apiKey,
+    historialChatSofia
+);   
 
 
-        /* -----------------------------------------------------
-           CONSULTAR GEMINI
-           ----------------------------------------------------- */
-
-        const respuestaTexto =
-            await consultarGeminiAPI(
-                apiKey,
-                contentsPayload
-            );
-
+        
 
         /* -----------------------------------------------------
            QUITAR "PENSANDO"
