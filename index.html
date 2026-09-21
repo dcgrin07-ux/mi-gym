@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mi Gym La Cima con Sofía IA</title> 
+<title>Mi Gym La Cima — Sofía IA V3.5</title> 
 
 <!-- PWA Manifest & Meta -->
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -894,29 +894,52 @@ let historialChatSofia = [];
    ============================================================= */
 
 function obtenerApiKey() {
-    let key = localStorage.getItem('gemini_api_key') || '';
+    /*
+     * V3.5: la clave definida en config.js tiene prioridad absoluta.
+     * Si quedó una clave vieja guardada en el dispositivo, la eliminamos
+     * para evitar que vuelva a interferir con la autenticación.
+     */
+    if (typeof CONFIG !== 'undefined' && CONFIG.GEMINI_API_KEY) {
+        const keyConfig = String(CONFIG.GEMINI_API_KEY).trim();
 
-    // Si no hay una clave guardada, intenta usar CONFIG.GEMINI_API_KEY
-    // definida en config.js.
-    if (!key && typeof CONFIG !== 'undefined' && CONFIG.GEMINI_API_KEY) {
-        key = CONFIG.GEMINI_API_KEY;
-    }
-
-    // Último recurso: pedir la clave al usuario.
-    if (!key) {
-        key = prompt(
-            "Ingresá tu API Key de Gemini para activar la Inteligencia Artificial de Sofía:"
-        );
-
-        if (key !== null && key.trim() !== '') {
-            key = key.trim();
-            localStorage.setItem('gemini_api_key', key);
-        } else {
-            return null;
+        try {
+            localStorage.removeItem('gemini_api_key');
+        } catch (e) {
+            console.warn('No se pudo limpiar la API Key local:', e);
         }
+
+        return keyConfig;
     }
 
-    return key;
+    /*
+     * Solo usamos una clave local si config.js no contiene ninguna.
+     */
+    let key = '';
+
+    try {
+        key = String(localStorage.getItem('gemini_api_key') || '').trim();
+    } catch (e) {
+        console.warn('No se pudo leer la API Key local:', e);
+    }
+
+    if (key) return key;
+
+    /* Último recurso: pedir la clave al usuario. */
+    key = prompt(
+        "Ingresá tu API Key de Gemini para activar la Inteligencia Artificial de Sofía:"
+    );
+
+    if (key !== null && key.trim() !== '') {
+        key = key.trim();
+        try {
+            localStorage.setItem('gemini_api_key', key);
+        } catch (e) {
+            console.warn('No se pudo guardar la API Key local:', e);
+        }
+        return key;
+    }
+
+    return null;
 }
 
 function configurarApiKey() {
@@ -948,8 +971,7 @@ async function consultarGeminiAPI(apiKey, contents) {
      */
 
     const modelos = [
-        'gemini-3.6-flash',
-        'gemini-2.5-flash'
+        'gemini-3.6-flash'
     ];
 
     let ultimoError = null;
