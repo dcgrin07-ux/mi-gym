@@ -977,13 +977,19 @@ function iniciarChatSofia(clave, historialInicial) {
    ============================================================= */
 
 function obtenerApiKey() {
-    let key = localStorage.getItem('gemini_api_key') || '';
-
-    // Si no hay una clave guardada, intenta usar CONFIG.GEMINI_API_KEY
-    // definida en config.js.
-    if (!key && typeof CONFIG !== 'undefined' && CONFIG.GEMINI_API_KEY) {
-        key = CONFIG.GEMINI_API_KEY;
+    /*
+     * En la versión anterior una clave vieja guardada en localStorage
+     * podía tener prioridad sobre la clave válida de config.js.
+     * Eso puede provocar un 401 aunque Gemini esté bien configurado.
+     *
+     * Por seguridad funcional, si existe CONFIG.GEMINI_API_KEY la usamos
+     * como fuente principal. La clave local queda como respaldo.
+     */
+    if (typeof CONFIG !== 'undefined' && CONFIG.GEMINI_API_KEY) {
+        return String(CONFIG.GEMINI_API_KEY).trim();
     }
+
+    let key = localStorage.getItem('gemini_api_key') || '';
 
     // Último recurso: pedir la clave al usuario.
     if (!key) {
@@ -999,7 +1005,7 @@ function obtenerApiKey() {
         }
     }
 
-    return key;
+    return key.trim();
 }
 
 function configurarApiKey() {
@@ -1117,6 +1123,23 @@ async function consultarGeminiAPI(apiKey, contents) {
                     response.status >= 500;
 
                 if (!transitorio) {
+                    /*
+                     * Si había una clave vieja guardada localmente y
+                     * Gemini devuelve 401, intentamos una sola vez con
+                     * la clave definida en config.js, si existe.
+                     */
+                    if (
+                        response.status === 401 &&
+                        typeof CONFIG !== 'undefined' &&
+                        CONFIG.GEMINI_API_KEY &&
+                        apiKey !== String(CONFIG.GEMINI_API_KEY).trim()
+                    ) {
+                        apiKey = String(CONFIG.GEMINI_API_KEY).trim();
+                        localStorage.removeItem('gemini_api_key');
+                        console.warn('⚠️ API Key local rechazada. Reintentando con CONFIG.GEMINI_API_KEY.');
+                        continue;
+                    }
+
                     throw ultimoError;
                 }
 
