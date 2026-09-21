@@ -299,9 +299,6 @@ padding: 8px;
 font-size: 0.9rem;
 }
 </style>
-<style>
-/* Memoria de Sofía: no requiere estilos adicionales. */
-</style>
 </head>
 <body> 
 
@@ -591,7 +588,21 @@ font-size: 0.9rem;
 <button class="nav-btn active" onclick="irA('view-home')"><span>🏠</span> Inicio</button>
 <button class="nav-btn" onclick="irA('view-calendario')"><span>📅</span> Calendario</button>
 <button class="nav-btn" onclick="irA('view-historial')"><span>📜</span> Historial</button>
+<button class="nav-btn" onclick="irA('view-notas-sofia')"><span>📝</span> Notas</button>
 </nav>
+
+<!-- ================= VISTA NOTAS DE SOFÍA ================= -->
+<div id="view-notas-sofia" class="view-section">
+<div class="card">
+<div class="flex-row" style="justify-content: space-between; align-items:center; margin-bottom:12px;">
+<h3 style="font-size:1rem; color:var(--sofia-accent);">📝 Mis Notas de Sofía</h3>
+<button class="btn btn-sofia" style="width:auto; margin:0; padding:6px 10px; font-size:0.8rem;" onclick="abrirNuevaNotaSofia()">+ Nueva nota</button>
+</div>
+<p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:12px;">Guardá consejos importantes de Sofía sin conservar toda la conversación.</p>
+<div id="lista-notas-sofia-container"></div>
+</div>
+</div>
+
 </div><!-- /app-main-wrapper --> 
 
 <!-- ================= MODALES ================= --> 
@@ -611,6 +622,21 @@ font-size: 0.9rem;
 <input type="text" id="sofia-input-text" placeholder="Escribile a Sofía..." onkeypress="if(event.key==='Enter') enviarMensajeSofia()">
 <button class="btn btn-primary" style="width: auto; margin:0; padding: 8px 12px;" onclick="enviarMensajeSofia()">Enviar</button>
 </div>
+</div>
+</div>
+</div> 
+
+<!-- Modal Nota de Sofía -->
+<div id="modal-nota-sofia" class="modal">
+<div class="modal-content">
+<h3 style="color:var(--sofia-accent); margin-bottom:10px;">📝 Guardar nota de Sofía</h3>
+<label>Título de la nota</label>
+<input type="text" id="nota-sofia-titulo" placeholder="Ej: Consejo sobre press militar">
+<label>Resumen / contenido</label>
+<textarea id="nota-sofia-contenido" rows="9" placeholder="Escribí o editá el consejo que querés conservar..." style="resize:vertical;"></textarea>
+<div class="flex-row">
+<button class="btn btn-secondary" onclick="cerrarModalNotaSofia()">Cancelar</button>
+<button class="btn btn-sofia" onclick="guardarNotaSofia()">📝 Guardar nota</button>
 </div>
 </div>
 </div> 
@@ -823,7 +849,8 @@ return {
 rutinas: `mi_gym_${uid}_rutinas_v2`,
 registros: `mi_gym_${uid}_registros_v2`,
 perfil: `mi_gym_${uid}_perfil_v2`,
-borrador: `mi_gym_${uid}_borrador_v2`
+borrador: `mi_gym_${uid}_borrador_v2`,
+notasSofia: `mi_gym_${uid}_notas_sofia_v1`
 };
 } 
 
@@ -841,6 +868,8 @@ let rutinasPersonalizadas = { "Rutina A": [] };
 let registrosCloud = [];
 let perfilCloud = { peso: 90 };
 let borradorSesion = null; 
+let notasSofia = [];
+let notaSofiaEditandoId = null;
 let rutinaSeleccionadaKey = '';
 let guiadoIndice = 0;
 let cronometroSesionInterval = null;
@@ -861,135 +890,17 @@ let calMesActual = new Date().getMonth();
 let historialChatSofia = [];
 
 /* =============================================================
-   MEMORIA LOCAL DE CONVERSACIONES DE SOFÍA
-   -------------------------------------------------------------
-   Guardamos solamente el historial visible de cada contexto.
-   No guardamos aquí el contexto completo que se envía a Gemini.
-   Así las conversaciones sobreviven al cierre/recarga y el
-   almacenamiento utilizado sigue siendo muy pequeño.
-   ============================================================= */
-
-const SOFIA_MEMORIA_VERSION = 'v1';
-const SOFIA_MAX_MENSAJES_POR_CHAT = 12;
-const SOFIA_MAX_CHATS_GUARDADOS = 20;
-let sofiaChatActualKey = '';
-
-function obtenerClaveMemoriaSofia() {
-    const uid =
-        auth && auth.currentUser
-            ? auth.currentUser.uid
-            : 'sin_usuario';
-
-    return `mi_gym_${uid}_sofia_memoria_${SOFIA_MEMORIA_VERSION}`;
-}
-
-function cargarMemoriaSofia() {
-    try {
-        const raw = localStorage.getItem(obtenerClaveMemoriaSofia());
-        if (!raw) return {};
-
-        const datos = JSON.parse(raw);
-        return datos && typeof datos === 'object' ? datos : {};
-    } catch (error) {
-        console.warn('⚠️ No se pudo leer la memoria local de Sofía:', error);
-        return {};
-    }
-}
-
-function guardarMemoriaSofia(memoria) {
-    try {
-        localStorage.setItem(
-            obtenerClaveMemoriaSofia(),
-            JSON.stringify(memoria)
-        );
-    } catch (error) {
-        console.warn('⚠️ No se pudo guardar la memoria local de Sofía:', error);
-    }
-}
-
-function crearClaveChatSofia(tipo, identificador = '') {
-    const base = `${tipo}:${identificador}`;
-
-    return base
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-zA-Z0-9:_-]+/g, '_')
-        .slice(0, 180);
-}
-
-function limitarHistorialSofia(historial) {
-    if (!Array.isArray(historial)) return [];
-
-    return historial
-        .filter(msg =>
-            msg &&
-            (msg.role === 'user' || msg.role === 'model') &&
-            msg.parts &&
-            msg.parts[0] &&
-            typeof msg.parts[0].text === 'string'
-        )
-        .slice(-SOFIA_MAX_MENSAJES_POR_CHAT);
-}
-
-function guardarChatSofiaActual() {
-    if (!sofiaChatActualKey) return;
-
-    const memoria = cargarMemoriaSofia();
-
-    memoria[sofiaChatActualKey] = {
-        actualizado: Date.now(),
-        mensajes: limitarHistorialSofia(historialChatSofia)
-    };
-
-    const claves = Object.keys(memoria);
-
-    if (claves.length > SOFIA_MAX_CHATS_GUARDADOS) {
-        claves
-            .sort((a, b) =>
-                (memoria[a]?.actualizado || 0) -
-                (memoria[b]?.actualizado || 0)
-            )
-            .slice(0, claves.length - SOFIA_MAX_CHATS_GUARDADOS)
-            .forEach(clave => delete memoria[clave]);
-    }
-
-    guardarMemoriaSofia(memoria);
-}
-
-function iniciarChatSofia(clave, historialInicial) {
-    sofiaChatActualKey = clave;
-
-    const memoria = cargarMemoriaSofia();
-    const guardado = memoria[clave];
-
-    if (guardado && Array.isArray(guardado.mensajes) && guardado.mensajes.length) {
-        historialChatSofia = limitarHistorialSofia(guardado.mensajes);
-        return true;
-    }
-
-    historialChatSofia = limitarHistorialSofia(historialInicial);
-    guardarChatSofiaActual();
-    return false;
-}
-
-/* =============================================================
    GESTIÓN DE API KEY
    ============================================================= */
 
 function obtenerApiKey() {
-    /*
-     * En la versión anterior una clave vieja guardada en localStorage
-     * podía tener prioridad sobre la clave válida de config.js.
-     * Eso puede provocar un 401 aunque Gemini esté bien configurado.
-     *
-     * Por seguridad funcional, si existe CONFIG.GEMINI_API_KEY la usamos
-     * como fuente principal. La clave local queda como respaldo.
-     */
-    if (typeof CONFIG !== 'undefined' && CONFIG.GEMINI_API_KEY) {
-        return String(CONFIG.GEMINI_API_KEY).trim();
-    }
-
     let key = localStorage.getItem('gemini_api_key') || '';
+
+    // Si no hay una clave guardada, intenta usar CONFIG.GEMINI_API_KEY
+    // definida en config.js.
+    if (!key && typeof CONFIG !== 'undefined' && CONFIG.GEMINI_API_KEY) {
+        key = CONFIG.GEMINI_API_KEY;
+    }
 
     // Último recurso: pedir la clave al usuario.
     if (!key) {
@@ -1005,7 +916,7 @@ function obtenerApiKey() {
         }
     }
 
-    return key.trim();
+    return key;
 }
 
 function configurarApiKey() {
@@ -1036,12 +947,9 @@ async function consultarGeminiAPI(apiKey, contents) {
      * 3) los errores de clave/permisos/cuota no se reintentan.
      */
 
-    // No usamos Gemini 2.5 como fallback: en algunas cuentas nuevas
-    // ese modelo puede devolver 404 aunque figure en la documentación.
-    // Usamos solamente modelos Flash 3.x actuales y estables.
     const modelos = [
         'gemini-3.6-flash',
-        'gemini-3.5-flash-lite'
+        'gemini-2.5-flash'
     ];
 
     let ultimoError = null;
@@ -1053,7 +961,7 @@ async function consultarGeminiAPI(apiKey, contents) {
             try {
 
                 const url =
-                    `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent`;
+                    `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`;
 
                 console.log(
                     `🤖 Consultando Gemini: ${modelo} | intento ${intento + 1}/3`
@@ -1062,8 +970,7 @@ async function consultarGeminiAPI(apiKey, contents) {
                 const response = await fetch(url, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
-                        'x-goog-api-key': apiKey
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
                         contents: contents
@@ -1127,23 +1034,6 @@ async function consultarGeminiAPI(apiKey, contents) {
                     response.status >= 500;
 
                 if (!transitorio) {
-                    /*
-                     * Si había una clave vieja guardada localmente y
-                     * Gemini devuelve 401, intentamos una sola vez con
-                     * la clave definida en config.js, si existe.
-                     */
-                    if (
-                        response.status === 401 &&
-                        typeof CONFIG !== 'undefined' &&
-                        CONFIG.GEMINI_API_KEY &&
-                        apiKey !== String(CONFIG.GEMINI_API_KEY).trim()
-                    ) {
-                        apiKey = String(CONFIG.GEMINI_API_KEY).trim();
-                        localStorage.removeItem('gemini_api_key');
-                        console.warn('⚠️ API Key local rechazada. Reintentando con CONFIG.GEMINI_API_KEY.');
-                        continue;
-                    }
-
                     throw ultimoError;
                 }
 
@@ -1239,7 +1129,7 @@ async function consultarGeminiAPI(apiKey, contents) {
    ============================================================= */
 
 function abrirSofiaChatGeneral() {
-    const historialInicial = [
+    historialChatSofia = [
         {
             role: 'user',
             parts: [{
@@ -1265,11 +1155,6 @@ Cuando el usuario pregunte sobre cuestiones médicas, lesiones o síntomas, acla
         }
     ];
 
-    iniciarChatSofia(
-        crearClaveChatSofia('general'),
-        historialInicial
-    );
-
     document.getElementById('sofia-modal-titulo').innerText =
         '🤖 Sofía IA - Copiloto';
 
@@ -1289,7 +1174,7 @@ function abrirSofiaAsesorRutina() {
         .map(e => e.nombre)
         .join(', ');
 
-    const historialInicial = [
+    historialChatSofia = [
         {
             role: 'user',
             parts: [{
@@ -1315,11 +1200,6 @@ No inventes información que no esté presente.`
         }
     ];
 
-    iniciarChatSofia(
-        crearClaveChatSofia('rutina', rutinaSeleccionadaKey),
-        historialInicial
-    );
-
     document.getElementById('sofia-modal-titulo').innerText =
         `🤖 Sofía IA - Asesora de ${rutinaSeleccionadaKey}`;
 
@@ -1343,7 +1223,7 @@ function abrirSofiaEjercicioActual() {
     const ej = borradorSesion.ejercicios[guiadoIndice];
     if (!ej) return;
 
-    const historialInicial = [
+    historialChatSofia = [
         {
             role: 'user',
             parts: [{
@@ -1369,14 +1249,6 @@ No inventes datos sobre el usuario.`
         }
     ];
 
-    iniciarChatSofia(
-        crearClaveChatSofia(
-            'ejercicio',
-            `${rutinaSeleccionadaKey}:${guiadoIndice}:${ej.nombre}`
-        ),
-        historialInicial
-    );
-
     document.getElementById('sofia-modal-titulo').innerText =
         `🤖 Sofía IA - ${ej.nombre}`;
 
@@ -1389,7 +1261,6 @@ No inventes datos sobre el usuario.`
    ============================================================= */
 
 function cerrarModalSofia() {
-    guardarChatSofiaActual();
     document.getElementById('modal-sofia-chat').style.display = 'none';
 }
 
@@ -1409,7 +1280,7 @@ function renderizarMensajesSofia() {
             ? msg.parts[0].text
             : '';
 
-        html += `<div class="sofia-bubble ${roleClass}">${escapeHtml(textContent)}</div>`;
+        html += `<div class="sofia-bubble ${roleClass}">${escapeHtml(textContent)}${msg.role === 'model' && textContent && !/^Entendido\. Soy Sofía/.test(textContent) ? `<button class="btn btn-secondary" style="width:auto; margin:8px 0 0 0; padding:4px 8px; font-size:0.72rem; color:var(--sofia-accent); border-color:var(--sofia-accent);" onclick="abrirNotaSofiaDesdeMensaje(${historialChatSofia.indexOf(msg)})">📝 Guardar como nota</button>` : ''}</div>`;
     });
 
     container.innerHTML = html;
@@ -1528,10 +1399,6 @@ async function enviarMensajeSofia() {
         ]
     });
 
-    // Guardamos inmediatamente el mensaje para no perderlo si
-    // el usuario cambia de aplicación o recarga la página.
-    guardarChatSofiaActual();
-
     input.value = '';
 
     renderizarMensajesSofia();
@@ -1632,13 +1499,12 @@ ${contextoGlobal}`;
         });
 
         /*
-         * Conservamos una ventana de conversación razonable
-         * y la guardamos de forma persistente.
+         * Conservamos una ventana de conversación razonable.
          */
-        historialChatSofia =
-            limitarHistorialSofia(historialChatSofia);
-
-        guardarChatSofiaActual();
+        if (historialChatSofia.length > 12) {
+            historialChatSofia =
+                historialChatSofia.slice(-12);
+        }
 
         renderizarMensajesSofia();
 
@@ -1669,6 +1535,131 @@ ${contextoGlobal}`;
         container.scrollTop =
             container.scrollHeight;
     }
+}
+
+/* =============================================================
+   NOTAS DE SOFÍA
+   ============================================================= */
+
+function abrirNotaSofiaDesdeMensaje(indice) {
+    const mensaje = historialChatSofia[indice];
+    if (!mensaje || mensaje.role !== 'model' || !mensaje.parts || !mensaje.parts[0]) return;
+
+    notaSofiaEditandoId = null;
+    const texto = mensaje.parts[0].text || '';
+    const fecha = new Date();
+    const fechaTexto = fecha.toLocaleDateString('es-AR');
+
+    document.getElementById('nota-sofia-titulo').value =
+        `Consejo de Sofía — ${fechaTexto}`;
+    document.getElementById('nota-sofia-contenido').value = texto;
+    document.getElementById('modal-nota-sofia').style.display = 'flex';
+}
+
+function abrirNuevaNotaSofia() {
+    notaSofiaEditandoId = null;
+    document.getElementById('nota-sofia-titulo').value = '';
+    document.getElementById('nota-sofia-contenido').value = '';
+    document.getElementById('modal-nota-sofia').style.display = 'flex';
+}
+
+function cerrarModalNotaSofia() {
+    document.getElementById('modal-nota-sofia').style.display = 'none';
+}
+
+async function guardarNotaSofia() {
+    const titulo = document.getElementById('nota-sofia-titulo').value.trim();
+    const contenido = document.getElementById('nota-sofia-contenido').value.trim();
+
+    if (!titulo || !contenido) {
+        alert('Completá el título y el contenido de la nota.');
+        return;
+    }
+
+    const ahora = Date.now();
+
+    if (notaSofiaEditandoId) {
+        const nota = notasSofia.find(n => n.id === notaSofiaEditandoId);
+        if (nota) {
+            nota.titulo = titulo;
+            nota.contenido = contenido;
+            nota.actualizado = ahora;
+        }
+    } else {
+        notasSofia.unshift({
+            id: ahora,
+            titulo: titulo,
+            contenido: contenido,
+            fecha: new Date().toLocaleDateString('es-AR'),
+            actualizado: ahora
+        });
+    }
+
+    notaSofiaEditandoId = null;
+    guardarLocal();
+    await guardarTodoEnNube();
+    cerrarModalNotaSofia();
+    renderizarNotasSofia();
+}
+
+function editarNotaSofia(id) {
+    const nota = notasSofia.find(n => n.id === id);
+    if (!nota) return;
+
+    notaSofiaEditandoId = id;
+    document.getElementById('nota-sofia-titulo').value = nota.titulo || '';
+    document.getElementById('nota-sofia-contenido').value = nota.contenido || '';
+    document.getElementById('modal-nota-sofia').style.display = 'flex';
+}
+
+async function eliminarNotaSofia(id) {
+    const nota = notasSofia.find(n => n.id === id);
+    if (!nota) return;
+
+    if (!confirm(`¿Eliminar la nota "${nota.titulo}"?`)) return;
+
+    notasSofia = notasSofia.filter(n => n.id !== id);
+    guardarLocal();
+    await guardarTodoEnNube();
+    renderizarNotasSofia();
+}
+
+function renderizarNotasSofia() {
+    const container = document.getElementById('lista-notas-sofia-container');
+    if (!container) return;
+
+    if (!notasSofia.length) {
+        container.innerHTML = `
+            <div style="padding:14px; background:var(--bg-input); border-radius:8px; color:var(--text-muted); font-size:0.85rem; text-align:center;">
+                Todavía no guardaste ninguna nota de Sofía.<br>
+                Cuando una respuesta te resulte útil, tocá <strong>📝 Guardar como nota</strong>.
+            </div>`;
+        return;
+    }
+
+    let html = '';
+
+    notasSofia
+        .slice()
+        .sort((a,b) => (b.actualizado || b.id || 0) - (a.actualizado || a.id || 0))
+        .forEach(nota => {
+            html += `
+            <div style="background:var(--bg-input); border:1px solid var(--border); border-radius:10px; padding:12px; margin-bottom:10px;">
+                <div class="flex-row" style="justify-content:space-between; align-items:flex-start; gap:8px;">
+                    <div style="flex:1;">
+                        <strong style="color:var(--sofia-accent); font-size:0.9rem;">📝 ${escapeHtml(nota.titulo)}</strong>
+                        <div style="font-size:0.7rem; color:var(--text-muted); margin-top:3px;">${escapeHtml(nota.fecha || '')}</div>
+                    </div>
+                    <div class="flex-row" style="gap:5px;">
+                        <button class="btn btn-secondary" style="width:auto; margin:0; padding:4px 7px; font-size:0.7rem;" onclick="editarNotaSofia(${nota.id})">✏️</button>
+                        <button class="btn btn-danger" style="width:auto; margin:0; padding:4px 7px; font-size:0.7rem;" onclick="eliminarNotaSofia(${nota.id})">🗑️</button>
+                    </div>
+                </div>
+                <div style="white-space:pre-wrap; font-size:0.82rem; line-height:1.45; margin-top:9px; color:var(--text-main);">${escapeHtml(nota.contenido)}</div>
+            </div>`;
+        });
+
+    container.innerHTML = html;
 }
 
 /* =============================================================
@@ -1725,16 +1716,23 @@ if (nubeData.perfil) {
 perfilCloud = nubeData.perfil;
 localStorage.setItem(claves.perfil, JSON.stringify(perfilCloud));
 }
+if (Array.isArray(nubeData.notasSofia)) {
+notasSofia = nubeData.notasSofia;
+localStorage.setItem(claves.notasSofia, JSON.stringify(notasSofia));
+}
 }
 } else {
 rutinasPersonalizadas = { "Rutina A": [] };
 registrosCloud = [];
 perfilCloud = { peso: 90 };
+notasSofia = [];
 await guardarTodoEnNube();
 } 
 
 let borradorGuardado = localStorage.getItem(claves.borrador);
-borradorSesion = borradorGuardado ? JSON.parse(borradorGuardado) : null; 
+borradorSesion = borradorGuardado ? JSON.parse(borradorGuardado) : null;
+let notasGuardadas = localStorage.getItem(claves.notasSofia);
+if (notasGuardadas) notasSofia = JSON.parse(notasGuardadas); 
 
 actualizarEstadoCloud(true, "☁️ Sincronizado");
 actualizarDashboard();
@@ -1748,6 +1746,8 @@ let perfilLocal = localStorage.getItem(claves.perfil);
 if (perfilLocal) perfilCloud = JSON.parse(perfilLocal);
 let borradorLocal = localStorage.getItem(claves.borrador);
 if (borradorLocal) borradorSesion = JSON.parse(borradorLocal); 
+let notasLocal = localStorage.getItem(claves.notasSofia);
+if (notasLocal) notasSofia = JSON.parse(notasLocal);
 
 actualizarEstadoCloud(false, "⚠️ Modo Local");
 actualizarDashboard();
@@ -1767,6 +1767,7 @@ dataVersion: DATA_VERSION,
 rutinas: rutinasPersonalizadas,
 registrosCloud: registrosCloud,
 perfil: perfilCloud,
+notasSofia: notasSofia,
 ultimaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
 }; 
 await dbCloud.collection("datos_gym").doc(uid).set(payloadData, { merge: true });
@@ -1786,6 +1787,7 @@ if (!claves) return;
 localStorage.setItem(claves.rutinas, JSON.stringify(rutinasPersonalizadas));
 localStorage.setItem(claves.registros, JSON.stringify(registrosCloud));
 localStorage.setItem(claves.perfil, JSON.stringify(perfilCloud));
+localStorage.setItem(claves.notasSofia, JSON.stringify(notasSofia));
 if (borradorSesion) {
 localStorage.setItem(claves.borrador, JSON.stringify(borradorSesion));
 } else {
@@ -1818,6 +1820,9 @@ renderizarCalendario();
 } else if(viewId === 'view-historial') {
 document.querySelectorAll('.nav-btn')[2].classList.add('active');
 renderizarHistorial();
+} else if(viewId === 'view-notas-sofia') {
+document.querySelectorAll('.nav-btn')[3].classList.add('active');
+renderizarNotasSofia();
 }
 window.scrollTo(0,0);
 } 
