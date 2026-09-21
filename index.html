@@ -1036,9 +1036,12 @@ async function consultarGeminiAPI(apiKey, contents) {
      * 3) los errores de clave/permisos/cuota no se reintentan.
      */
 
+    // No usamos Gemini 2.5 como fallback: en algunas cuentas nuevas
+    // ese modelo puede devolver 404 aunque figure en la documentación.
+    // Usamos solamente modelos Flash 3.x actuales y estables.
     const modelos = [
         'gemini-3.6-flash',
-        'gemini-2.5-flash'
+        'gemini-3.5-flash-lite'
     ];
 
     let ultimoError = null;
