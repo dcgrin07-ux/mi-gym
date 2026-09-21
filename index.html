@@ -885,6 +885,7 @@ let calMesActual = new Date().getMonth();
 // =============================================================
 // =============================================================
 // MOTOR REAL DE SOFÍA IA - GEMINI
+// V3.6: autenticación x-goog-api-key + diagnóstico detallado de 401
 // =============================================================
 
 let historialChatSofia = [];
@@ -965,8 +966,8 @@ async function consultarGeminiAPI(apiKey, contents) {
     /*
      * Gemini puede devolver 503 cuando el modelo está temporalmente
      * saturado. Por eso:
-     * 1) reintentamos con espera creciente;
-     * 2) si sigue ocupado, pasamos a otro modelo;
+     * 1) autenticamos mediante x-goog-api-key, según la API REST actual;
+     * 2) reintentamos errores transitorios con espera creciente;
      * 3) los errores de clave/permisos/cuota no se reintentan.
      */
 
@@ -983,23 +984,35 @@ async function consultarGeminiAPI(apiKey, contents) {
             try {
 
                 const url =
-                    `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`;
+                    `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent`;
 
                 console.log(
-                    `🤖 Consultando Gemini: ${modelo} | intento ${intento + 1}/3`
+                    `🤖 Consultando Gemini: ${modelo} | intento ${intento + 1}/3 | autenticación: x-goog-api-key`
                 );
 
                 const response = await fetch(url, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'x-goog-api-key': apiKey
                     },
                     body: JSON.stringify({
                         contents: contents
                     })
                 });
 
-                const data = await response.json();
+                const textoRespuesta = await response.text();
+                let data = {};
+
+                try {
+                    data = textoRespuesta ? JSON.parse(textoRespuesta) : {};
+                } catch (parseError) {
+                    data = {
+                        error: {
+                            message: textoRespuesta || 'Respuesta no JSON de Gemini.'
+                        }
+                    };
+                }
 
                 console.log(
                     '📡 Respuesta Gemini:',
@@ -1042,9 +1055,42 @@ async function consultarGeminiAPI(apiKey, contents) {
                 const estado =
                     data?.error?.status || 'SIN_ESTADO';
 
+                const detalles =
+                    Array.isArray(data?.error?.details)
+                        ? data.error.details
+                            .map(detalle => {
+                                if (!detalle || typeof detalle !== 'object') return String(detalle);
+                                const razon = detalle.reason || detalle.metadata?.reason || '';
+                                const servicio = detalle.metadata?.service || '';
+                                const metodo = detalle.metadata?.methodName || '';
+                                return [razon, servicio, metodo]
+                                    .filter(Boolean)
+                                    .join(' | ');
+                            })
+                            .filter(Boolean)
+                            .join(' ; ')
+                        : '';
+
+                const mensajeDiagnostico =
+                    detalles
+                        ? `${mensaje} | Detalles: ${detalles}`
+                        : mensaje;
+
                 ultimoError = new Error(
-                    `Gemini ${codigo} (${estado}): ${mensaje}`
+                    `Gemini ${codigo} (${estado}): ${mensajeDiagnostico}`
                 );
+
+                if (response.status === 401) {
+                    console.error(
+                        '🔐 GEMINI 401 - Diagnóstico de autenticación:',
+                        {
+                            codigo,
+                            estado,
+                            mensaje,
+                            detalles: data?.error?.details || []
+                        }
+                    );
+                }
 
                 /*
                  * 503 / 429 / 408 / 5xx son errores transitorios.
