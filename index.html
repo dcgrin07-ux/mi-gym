@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mi Gym La Cima — Sofía IA V3.5</title> 
+<title>Mi Gym La Cima — Sofía IA V4 Firebase AI Logic</title> 
 
 <!-- PWA Manifest & Meta -->
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -384,12 +384,13 @@ font-size: 0.9rem;
 
 <!-- Perfil Resumen -->
 <div class="card">
-<div class="flex-row" style="justify-content: space-between; align-items: center;">
-<div>
-<p style="font-size: 0.85rem; color: var(--text-muted);">Peso Corporal Actual</p>
-<h2 id="label-peso-corporal" style="font-size: 1.5rem; color: var(--accent);">-- kg</h2>
+<div class="flex-row" style="justify-content: space-between; align-items: center; gap:12px;">
+<div style="flex:1;">
+<p style="font-size: 0.85rem; color: var(--text-muted);">Perfil</p>
+<h2 id="label-nombre-usuario" style="font-size: 1.35rem; color: var(--sofia-accent);">Hola 👋</h2>
+<p style="font-size: 0.85rem; color: var(--text-muted); margin-top:4px;">Peso corporal: <strong id="label-peso-corporal" style="color:var(--accent);">-- kg</strong></p>
 </div>
-<button class="btn btn-secondary" style="width: auto; margin:0; padding: 8px 12px; font-size: 0.8rem;" onclick="abrirModalPesoCorporal()">Actualizar</button>
+<button class="btn btn-secondary" style="width: auto; margin:0; padding: 8px 12px; font-size: 0.8rem;" onclick="abrirModalPerfil()">👤 Editar perfil</button>
 </div>
 </div> 
 
@@ -694,30 +695,34 @@ font-size: 0.9rem;
 </div>
 </div> 
 
-<!-- Modal Peso Corporal -->
-<div id="modal-peso-corporal" class="modal">
+<!-- Modal Perfil Personal -->
+<div id="modal-perfil-personal" class="modal">
 <div class="modal-content">
-<h3 style="color: var(--accent); margin-bottom: 10px;">Actualizar Peso Corporal</h3>
-<label>Peso actual (kg):</label>
-<input type="number" id="input-nuevo-peso-corp" step="0.1">
+<h3 style="color: var(--sofia-accent); margin-bottom: 10px;">👤 Mi perfil</h3>
+<label>Nombre</label>
+<input type="text" id="input-nombre-usuario" maxlength="80" placeholder="¿Cómo querés que te llame Sofía?">
+<label style="margin-top:10px;">Peso actual (kg)</label>
+<input type="number" id="input-nuevo-peso-corp" step="0.1" min="0" max="500">
+<p style="font-size:0.75rem;color:var(--text-muted);margin:8px 0 12px;">Estos datos se guardan en tu perfil de Mi Gym y Sofía los usará para personalizar sus respuestas.</p>
 <div class="flex-row">
-<button class="btn btn-secondary" onclick="cerrarModalPesoCorporal()">Cancelar</button>
-<button class="btn btn-primary" onclick="guardarPesoCorporalCloud()">Guardar</button>
+<button class="btn btn-secondary" onclick="cerrarModalPerfil()">Cancelar</button>
+<button class="btn btn-primary" onclick="guardarPerfilCloud()">Guardar perfil</button>
 </div>
 </div>
 </div> 
 
 <!-- ================= SCRIPT GENERAL Y DE SOFÍA IA ================= -->
 <script>
-const firebaseConfig = {
+window.MI_GYM_FIREBASE_CONFIG = {
 apiKey: "AIzaSyA3N-mLUaTF9jUshNosUiWpso0-934H_fo",
 authDomain: "mygymlacima.firebaseapp.com",
 projectId: "mygymlacima",
 storageBucket: "mygymlacima.firebasestorage.app",
 messagingSenderId: "398491160791",
 appId: "1:398491160791:web:91346182b9c06588d6e092"
-}; 
+};
 
+const firebaseConfig = window.MI_GYM_FIREBASE_CONFIG;
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const dbCloud = firebase.firestore(); 
@@ -866,7 +871,7 @@ const catalogoEjercicios = [
 
 let rutinasPersonalizadas = { "Rutina A": [] };
 let registrosCloud = [];
-let perfilCloud = { peso: 90 };
+let perfilCloud = { nombre: "", peso: 90 };
 let borradorSesion = null; 
 let notasSofia = [];
 let notaSofiaEditandoId = null;
@@ -884,324 +889,121 @@ let calMesActual = new Date().getMonth();
 
 // =============================================================
 // =============================================================
-// MOTOR REAL DE SOFÍA IA - GEMINI
-// V3.6: autenticación x-goog-api-key + diagnóstico detallado de 401
+// =============================================================
+// SOFÍA IA V4 — FIREBASE AI LOGIC + PERFIL + MEMORIA LOCAL
 // =============================================================
 
 let historialChatSofia = [];
+let sofiaChatKeyActual = 'general';
 
-/* =============================================================
-   GESTIÓN DE API KEY
-   ============================================================= */
+const SOFIA_MEMORIA_VERSION = 'v2';
+const SOFIA_MAX_MENSAJES_POR_CHAT = 12;
+const SOFIA_MAX_CHATS_GUARDADOS = 20;
 
-function obtenerApiKey() {
-    /*
-     * V3.5: la clave definida en config.js tiene prioridad absoluta.
-     * Si quedó una clave vieja guardada en el dispositivo, la eliminamos
-     * para evitar que vuelva a interferir con la autenticación.
-     */
-    if (typeof CONFIG !== 'undefined' && CONFIG.GEMINI_API_KEY) {
-        const keyConfig = String(CONFIG.GEMINI_API_KEY).trim();
+function obtenerUidSofia() {
+    return auth.currentUser ? auth.currentUser.uid : 'anonimo';
+}
 
-        try {
-            localStorage.removeItem('gemini_api_key');
-        } catch (e) {
-            console.warn('No se pudo limpiar la API Key local:', e);
-        }
+function obtenerClaveMemoriaSofia() {
+    return `mi_gym_${obtenerUidSofia()}_sofia_memoria_${SOFIA_MEMORIA_VERSION}`;
+}
 
-        return keyConfig;
-    }
-
-    /*
-     * Solo usamos una clave local si config.js no contiene ninguna.
-     */
-    let key = '';
-
+function cargarMemoriaSofia() {
     try {
-        key = String(localStorage.getItem('gemini_api_key') || '').trim();
+        const raw = localStorage.getItem(obtenerClaveMemoriaSofia());
+        if (!raw) return {};
+        const data = JSON.parse(raw);
+        return data && typeof data === 'object' ? data : {};
     } catch (e) {
-        console.warn('No se pudo leer la API Key local:', e);
-    }
-
-    if (key) return key;
-
-    /* Último recurso: pedir la clave al usuario. */
-    key = prompt(
-        "Ingresá tu API Key de Gemini para activar la Inteligencia Artificial de Sofía:"
-    );
-
-    if (key !== null && key.trim() !== '') {
-        key = key.trim();
-        try {
-            localStorage.setItem('gemini_api_key', key);
-        } catch (e) {
-            console.warn('No se pudo guardar la API Key local:', e);
-        }
-        return key;
-    }
-
-    return null;
-}
-
-function configurarApiKey() {
-    const actualKey = localStorage.getItem('gemini_api_key') || '';
-
-    const newKey = prompt(
-        "Modificar API Key de Gemini:",
-        actualKey
-    );
-
-    if (newKey !== null) {
-        localStorage.setItem('gemini_api_key', newKey.trim());
-        alert("API Key actualizada.");
+        console.warn('No se pudo cargar la memoria de Sofía:', e);
+        return {};
     }
 }
 
-/* =============================================================
-   MOTOR CENTRAL DE GEMINI
-   ============================================================= */
+function guardarMemoriaSofia(memoria) {
+    try {
+        localStorage.setItem(obtenerClaveMemoriaSofia(), JSON.stringify(memoria));
+    } catch (e) {
+        console.warn('No se pudo guardar la memoria de Sofía:', e);
+    }
+}
 
-async function consultarGeminiAPI(apiKey, contents) {
+function limitarHistorialSofia(historial) {
+    if (!Array.isArray(historial)) return [];
+    return historial
+        .filter(m => m && (m.role === 'user' || m.role === 'model') && m.parts && m.parts[0] && typeof m.parts[0].text === 'string')
+        .slice(-SOFIA_MAX_MENSAJES_POR_CHAT);
+}
 
-    /*
-     * Gemini puede devolver 503 cuando el modelo está temporalmente
-     * saturado. Por eso:
-     * 1) autenticamos mediante x-goog-api-key, según la API REST actual;
-     * 2) reintentamos errores transitorios con espera creciente;
-     * 3) los errores de clave/permisos/cuota no se reintentan.
-     */
+function guardarChatSofiaActual() {
+    if (!sofiaChatKeyActual || sofiaChatKeyActual === 'nuevo') return;
+    const memoria = cargarMemoriaSofia();
+    memoria[sofiaChatKeyActual] = {
+        mensajes: limitarHistorialSofia(historialChatSofia),
+        actualizado: Date.now()
+    };
 
-    const modelos = [
-        'gemini-3.6-flash'
+    const entradas = Object.entries(memoria)
+        .sort((a,b) => (b[1]?.actualizado || 0) - (a[1]?.actualizado || 0));
+    const limitada = Object.fromEntries(entradas.slice(0, SOFIA_MAX_CHATS_GUARDADOS));
+    guardarMemoriaSofia(limitada);
+}
+
+function cargarChatSofia(clave, historialInicial) {
+    sofiaChatKeyActual = clave || 'general';
+    const memoria = cargarMemoriaSofia();
+    const guardado = memoria[sofiaChatKeyActual];
+
+    if (guardado && Array.isArray(guardado.mensajes) && guardado.mensajes.length) {
+        historialChatSofia = limitarHistorialSofia(guardado.mensajes);
+    } else {
+        historialChatSofia = Array.isArray(historialInicial) ? historialInicial.slice() : [];
+    }
+}
+
+function nombreUsuarioSofia() {
+    const nombre = perfilCloud && perfilCloud.nombre ? String(perfilCloud.nombre).trim() : '';
+    return nombre || 'el usuario';
+}
+
+function escapeHtml(text) {
+    const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+    return String(text || '').replace(/[&<>"']/g, m => map[m]);
+}
+
+function recopilarContextoGlobalSofia() {
+    const pesoActual = perfilCloud && perfilCloud.peso ? perfilCloud.peso : 'No registrado';
+    const nombre = nombreUsuarioSofia();
+    const rutinaNombre = rutinaSeleccionadaKey || 'Ninguna';
+    const totalEntrenos = registrosCloud ? registrosCloud.length : 0;
+    const ultimoEntreno = registrosCloud && registrosCloud.length > 0 ? registrosCloud[0] : null;
+    const rutinaActual = rutinasPersonalizadas && rutinaSeleccionadaKey ? (rutinasPersonalizadas[rutinaSeleccionadaKey] || []) : [];
+
+    return `
+[DATOS PERSISTENTES DEL USUARIO]
+Nombre: ${nombre}
+Peso corporal actual: ${pesoActual} kg
+
+[DATOS ACTUALES DE MI GYM LA CIMA]
+Rutina actualmente seleccionada: ${rutinaNombre}
+Cantidad de entrenamientos registrados: ${totalEntrenos}
+Último entrenamiento: ${ultimoEntreno ? JSON.stringify(ultimoEntreno) : 'No hay entrenamientos registrados'}
+Ejercicios de la rutina actual: ${JSON.stringify(rutinaActual)}
+Historial completo de entrenamientos: ${JSON.stringify(registrosCloud || [])}
+Perfil del usuario: ${JSON.stringify(perfilCloud || {})}
+`;
+}
+
+function historialBaseSofia(textoInicial, respuestaInicial) {
+    return [
+        { role: 'user', parts: [{ text: textoInicial }] },
+        { role: 'model', parts: [{ text: respuestaInicial }] }
     ];
-
-    let ultimoError = null;
-
-    for (const modelo of modelos) {
-
-        for (let intento = 0; intento < 3; intento++) {
-
-            try {
-
-                const url =
-                    `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent`;
-
-                console.log(
-                    `🤖 Consultando Gemini: ${modelo} | intento ${intento + 1}/3 | autenticación: x-goog-api-key`
-                );
-
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'x-goog-api-key': apiKey
-                    },
-                    body: JSON.stringify({
-                        contents: contents
-                    })
-                });
-
-                const textoRespuesta = await response.text();
-                let data = {};
-
-                try {
-                    data = textoRespuesta ? JSON.parse(textoRespuesta) : {};
-                } catch (parseError) {
-                    data = {
-                        error: {
-                            message: textoRespuesta || 'Respuesta no JSON de Gemini.'
-                        }
-                    };
-                }
-
-                console.log(
-                    '📡 Respuesta Gemini:',
-                    response.status,
-                    data
-                );
-
-                if (response.ok) {
-
-                    if (
-                        data &&
-                        data.candidates &&
-                        data.candidates[0] &&
-                        data.candidates[0].content &&
-                        data.candidates[0].content.parts &&
-                        data.candidates[0].content.parts[0] &&
-                        data.candidates[0].content.parts[0].text
-                    ) {
-                        return data.candidates[0].content.parts[0].text;
-                    }
-
-                    if (data && data.error) {
-                        throw new Error(
-                            `Gemini ${data.error.code || ''}: ${data.error.message || 'Error sin descripción'}`
-                        );
-                    }
-
-                    throw new Error(
-                        'Gemini respondió correctamente pero no devolvió texto.'
-                    );
-                }
-
-                const codigo =
-                    data?.error?.code || response.status;
-
-                const mensaje =
-                    data?.error?.message ||
-                    'Gemini devolvió un error sin descripción.';
-
-                const estado =
-                    data?.error?.status || 'SIN_ESTADO';
-
-                const detalles =
-                    Array.isArray(data?.error?.details)
-                        ? data.error.details
-                            .map(detalle => {
-                                if (!detalle || typeof detalle !== 'object') return String(detalle);
-                                const razon = detalle.reason || detalle.metadata?.reason || '';
-                                const servicio = detalle.metadata?.service || '';
-                                const metodo = detalle.metadata?.methodName || '';
-                                return [razon, servicio, metodo]
-                                    .filter(Boolean)
-                                    .join(' | ');
-                            })
-                            .filter(Boolean)
-                            .join(' ; ')
-                        : '';
-
-                const mensajeDiagnostico =
-                    detalles
-                        ? `${mensaje} | Detalles: ${detalles}`
-                        : mensaje;
-
-                ultimoError = new Error(
-                    `Gemini ${codigo} (${estado}): ${mensajeDiagnostico}`
-                );
-
-                if (response.status === 401) {
-                    console.error(
-                        '🔐 GEMINI 401 - Diagnóstico de autenticación:',
-                        {
-                            codigo,
-                            estado,
-                            mensaje,
-                            detalles: data?.error?.details || []
-                        }
-                    );
-                }
-
-                /*
-                 * 503 / 429 / 408 / 5xx son errores transitorios.
-                 * Esperamos y reintentamos.
-                 */
-                const transitorio =
-                    response.status === 408 ||
-                    response.status === 429 ||
-                    response.status >= 500;
-
-                if (!transitorio) {
-                    throw ultimoError;
-                }
-
-                if (intento < 2) {
-
-                    const espera =
-                        Math.min(
-                            8000,
-                            1500 * Math.pow(2, intento)
-                        );
-
-                    console.warn(
-                        `⚠️ Gemini ${response.status}. Reintentando en ${espera} ms...`
-                    );
-
-                    await new Promise(
-                        resolve => setTimeout(resolve, espera)
-                    );
-
-                    continue;
-                }
-
-                /*
-                 * Se agotaron los 3 intentos de este modelo.
-                 * Pasamos al siguiente.
-                 */
-                console.warn(
-                    `⚠️ Se agotaron los intentos para ${modelo}.`
-                );
-
-                break;
-
-            } catch (err) {
-
-                ultimoError = err;
-
-                /*
-                 * Si es un error de red, también vale la pena
-                 * reintentar porque puede ser transitorio.
-                 */
-                if (
-                    intento < 2 &&
-                    (
-                        err instanceof TypeError ||
-                        /503|UNAVAILABLE|429|408|500|502|504/i.test(
-                            err.message || ''
-                        )
-                    )
-                ) {
-
-                    const espera =
-                        Math.min(
-                            8000,
-                            1500 * Math.pow(2, intento)
-                        );
-
-                    console.warn(
-                        `⚠️ Error transitorio. Reintentando en ${espera} ms...`
-                    );
-
-                    await new Promise(
-                        resolve => setTimeout(resolve, espera)
-                    );
-
-                    continue;
-                }
-
-                /*
-                 * Si no es transitorio, no seguimos golpeando
-                 * la API: mostramos el error real.
-                 */
-                if (
-                    !/503|UNAVAILABLE|429|408|500|502|504/i.test(
-                        err.message || ''
-                    )
-                ) {
-                    throw err;
-                }
-
-                break;
-            }
-        }
-    }
-
-    throw ultimoError ||
-        new Error(
-            'Gemini no está disponible temporalmente. Reintentá en unos segundos.'
-        );
 }
-
-/* =============================================================
-   APERTURA DEL CHAT GENERAL
-   ============================================================= */
 
 function abrirSofiaChatGeneral() {
-    historialChatSofia = [
-        {
-            role: 'user',
-            parts: [{
-                text:
+    const nombre = nombreUsuarioSofia();
+    const base = historialBaseSofia(
 `Actuá como Sofía, la asistente personal de Mi Gym La Cima.
 
 Sos una entrenadora física y asesora general de hábitos y nutrición.
@@ -1210,551 +1012,161 @@ Ayudá al usuario a interpretar sus entrenamientos, progresos, cargas, series, r
 
 Respondé en español argentino, de manera natural, clara, directa y amigable.
 
+El usuario se llama ${nombre}. Cuando sea natural, llamalo por su nombre.
+
 No inventes datos que no estén disponibles.
 
-Cuando el usuario pregunte sobre cuestiones médicas, lesiones o síntomas, aclarale que la información no reemplaza la evaluación de un profesional de la salud.`
-            }]
-        },
-        {
-            role: 'model',
-            parts: [{
-                text: 'Entendido. Soy Sofía, tu copiloto de Mi Gym La Cima. Estoy lista para ayudarte.'
-            }]
-        }
-    ];
-
-    document.getElementById('sofia-modal-titulo').innerText =
-        '🤖 Sofía IA - Copiloto';
-
+Cuando el usuario pregunte sobre cuestiones médicas, lesiones o síntomas, aclarale que la información no reemplaza la evaluación de un profesional de la salud.`,
+        `Entendido. Soy Sofía, tu copiloto de Mi Gym La Cima. Estoy lista para ayudarte, ${nombre}.`
+    );
+    cargarChatSofia('general', base);
+    document.getElementById('sofia-modal-titulo').innerText = '🤖 Sofía IA - Copiloto';
     renderizarMensajesSofia();
     document.getElementById('modal-sofia-chat').style.display = 'flex';
 }
 
-/* =============================================================
-   ASESOR DE RUTINA
-   ============================================================= */
-
 function abrirSofiaAsesorRutina() {
-    const rutinaActualObj =
-        rutinasPersonalizadas[rutinaSeleccionadaKey] || [];
-
-    const resumenRutina = rutinaActualObj
-        .map(e => e.nombre)
-        .join(', ');
-
-    historialChatSofia = [
-        {
-            role: 'user',
-            parts: [{
-                text:
+    const rutinaActualObj = rutinasPersonalizadas[rutinaSeleccionadaKey] || [];
+    const resumenRutina = rutinaActualObj.map(e => e.nombre).join(', ');
+    const nombre = nombreUsuarioSofia();
+    const base = historialBaseSofia(
 `Actuá como Sofía, entrenadora personal de Mi Gym La Cima.
 
-Vas a analizar específicamente la rutina:
-"${rutinaSeleccionadaKey}"
+El usuario se llama ${nombre}.
 
-Ejercicios configurados:
-${resumenRutina || 'Rutina vacía'}
+Vas a analizar específicamente la rutina: "${rutinaSeleccionadaKey}"
+
+Ejercicios configurados: ${resumenRutina || 'Rutina vacía'}
 
 Podés ayudar a evaluar distribución de ejercicios, series, repeticiones, cargas, progresión, volumen y descanso.
 
-No inventes información que no esté presente.`
-            }]
-        },
-        {
-            role: 'model',
-            parts: [{
-                text: `Perfecto. Estoy analizando la rutina "${rutinaSeleccionadaKey}".`
-            }]
-        }
-    ];
-
-    document.getElementById('sofia-modal-titulo').innerText =
-        `🤖 Sofía IA - Asesora de ${rutinaSeleccionadaKey}`;
-
+No inventes información que no esté presente.`,
+        `Perfecto, ${nombre}. Estoy analizando la rutina "${rutinaSeleccionadaKey}".`
+    );
+    cargarChatSofia(`rutina:${rutinaSeleccionadaKey || 'ninguna'}`, base);
+    document.getElementById('sofia-modal-titulo').innerText = `🤖 Sofía IA - Asesora de ${rutinaSeleccionadaKey}`;
     renderizarMensajesSofia();
     document.getElementById('modal-sofia-chat').style.display = 'flex';
 }
 
-/* =============================================================
-   ASESOR DEL EJERCICIO ACTUAL
-   ============================================================= */
-
 function abrirSofiaEjercicioActual() {
-    if (
-        !borradorSesion ||
-        !borradorSesion.ejercicios ||
-        borradorSesion.ejercicios.length === 0
-    ) {
-        return;
-    }
-
+    if (!borradorSesion || !borradorSesion.ejercicios || borradorSesion.ejercicios.length === 0) return;
     const ej = borradorSesion.ejercicios[guiadoIndice];
     if (!ej) return;
-
-    historialChatSofia = [
-        {
-            role: 'user',
-            parts: [{
-                text:
+    const nombre = nombreUsuarioSofia();
+    const base = historialBaseSofia(
 `Actuá como Sofía, entrenadora personal.
 
-El usuario está realizando actualmente el ejercicio:
-"${ej.nombre}"
+El usuario se llama ${nombre}.
 
-Notas técnicas configuradas:
-"${ej.notas || 'Sin notas'}"
+El usuario está realizando actualmente el ejercicio: "${ej.nombre}"
+
+Notas técnicas configuradas: "${ej.notas || 'Sin notas'}"
 
 Ayudalo con dudas relacionadas con técnica, ejecución, carga, repeticiones, descanso y progresión.
 
-No inventes datos sobre el usuario.`
-            }]
-        },
-        {
-            role: 'model',
-            parts: [{
-                text: `Estás haciendo "${ej.nombre}". Estoy lista para ayudarte con la técnica, el peso, las repeticiones o la ejecución.`
-            }]
-        }
-    ];
-
-    document.getElementById('sofia-modal-titulo').innerText =
-        `🤖 Sofía IA - ${ej.nombre}`;
-
+No inventes datos sobre el usuario.`,
+        `Estás haciendo "${ej.nombre}", ${nombre}. Estoy lista para ayudarte con la técnica, el peso, las repeticiones o la ejecución.`
+    );
+    cargarChatSofia(`ejercicio:${rutinaSeleccionadaKey || 'ninguna'}:${guiadoIndice}:${ej.nombre}`, base);
+    document.getElementById('sofia-modal-titulo').innerText = `🤖 Sofía IA - ${ej.nombre}`;
     renderizarMensajesSofia();
     document.getElementById('modal-sofia-chat').style.display = 'flex';
 }
 
-/* =============================================================
-   CERRAR CHAT
-   ============================================================= */
-
 function cerrarModalSofia() {
+    guardarChatSofiaActual();
     document.getElementById('modal-sofia-chat').style.display = 'none';
 }
 
-/* =============================================================
-   RENDERIZAR MENSAJES
-   ============================================================= */
-
-function renderizarMensajesSofia() {
-    const container = document.getElementById('sofia-messages-list');
-    if (!container) return;
-
-    let html = '';
-
-    historialChatSofia.forEach(msg => {
-        const roleClass = msg.role === 'user' ? 'user' : 'assistant';
-        const textContent = msg.parts && msg.parts[0]
-            ? msg.parts[0].text
-            : '';
-
-        html += `<div class="sofia-bubble ${roleClass}">${escapeHtml(textContent)}${msg.role === 'model' && textContent && !/^Entendido\. Soy Sofía/.test(textContent) ? `<button class="btn btn-secondary" style="width:auto; margin:8px 0 0 0; padding:4px 8px; font-size:0.72rem; color:var(--sofia-accent); border-color:var(--sofia-accent);" onclick="abrirNotaSofiaDesdeMensaje(${historialChatSofia.indexOf(msg)})">📝 Guardar como nota</button>` : ''}</div>`;
-    });
-
-    container.innerHTML = html;
-    container.scrollTop = container.scrollHeight;
-}
-
-/* =============================================================
-   ESCAPAR HTML
-   ============================================================= */
-
-function escapeHtml(text) {
-    const map = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#039;'
-    };
-
-    return String(text || '').replace(/[&<>"']/g, function(m) {
-        return map[m];
-    });
-}
-
-/* =============================================================
-   CONTEXTO REAL DE MI GYM
-   ============================================================= */
-
-function recopilarContextoGlobalSofia() {
-    const pesoActual =
-        perfilCloud && perfilCloud.peso
-            ? perfilCloud.peso
-            : 'No registrado';
-
-    const rutinaNombre = rutinaSeleccionadaKey || 'Ninguna';
-
-    const totalEntrenos = registrosCloud
-        ? registrosCloud.length
-        : 0;
-
-    const ultimoEntreno =
-        registrosCloud && registrosCloud.length > 0
-            ? registrosCloud[0]
-            : null;
-
-    const rutinaActual =
-        rutinasPersonalizadas && rutinaSeleccionadaKey
-            ? (rutinasPersonalizadas[rutinaSeleccionadaKey] || [])
-            : [];
-
-    return `
-[DATOS ACTUALES DE MI GYM LA CIMA]
-
-Peso corporal:
-${pesoActual} kg
-
-Rutina actualmente seleccionada:
-${rutinaNombre}
-
-Cantidad de entrenamientos registrados:
-${totalEntrenos}
-
-Último entrenamiento:
-${ultimoEntreno ? JSON.stringify(ultimoEntreno) : 'No hay entrenamientos registrados'}
-
-Ejercicios de la rutina actual:
-${JSON.stringify(rutinaActual)}
-
-Historial completo de entrenamientos:
-${JSON.stringify(registrosCloud || [])}
-
-Perfil del usuario:
-${JSON.stringify(perfilCloud || {})}
-`;
-}
-
-/* =============================================================
-   ENVIAR MENSAJE A SOFÍA
-   ============================================================= */
-
-async function enviarMensajeSofia() {
-
-    const input =
-        document.getElementById('sofia-input-text');
-
-    if (!input) return;
-
-    const texto =
-        input.value.trim();
-
-    if (!texto) return;
-
-    const apiKey =
-        obtenerApiKey();
-
-    if (!apiKey) {
-
-        alert(
-            'Se necesita una API Key de Gemini para utilizar Sofía.'
-        );
-
-        return;
+async function consultarGeminiAI(contents) {
+    if (!window.sofiaAIModelPromise) {
+        throw new Error('Firebase AI Logic todavía no terminó de inicializarse. Esperá unos segundos y probá nuevamente.');
     }
 
-    /*
-     * Guardamos el mensaje limpio.
-     * No mezclamos el contexto de la app dentro del mensaje histórico,
-     * porque eso hacía crecer innecesariamente la solicitud en cada turno.
-     */
-    historialChatSofia.push({
-        role: 'user',
-        parts: [
-            {
-                text: texto
-            }
-        ]
+    const model = await window.sofiaAIModelPromise;
+    if (!model) throw new Error('No se pudo inicializar Firebase AI Logic.');
+
+    const historial = Array.isArray(contents) ? contents : [];
+    const ultimo = historial[historial.length - 1];
+    const textoActual = ultimo?.parts?.[0]?.text || '';
+    const historiaInicial = historial.slice(0, -1);
+
+    const chat = model.startChat({
+        history: historiaInicial,
+        generationConfig: { maxOutputTokens: 700 }
     });
 
-    input.value = '';
+    const result = await chat.sendMessage(textoActual);
+    return result.response.text();
+}
 
+async function enviarMensajeSofia() {
+    const input = document.getElementById('sofia-input-text');
+    if (!input) return;
+    const texto = input.value.trim();
+    if (!texto) return;
+
+    historialChatSofia.push({ role: 'user', parts: [{ text: texto }] });
+    historialChatSofia = limitarHistorialSofia(historialChatSofia);
+    guardarChatSofiaActual();
+    input.value = '';
     renderizarMensajesSofia();
 
-    const pensandoId =
-        'sofia_pensando_' + Date.now();
-
-    const container =
-        document.getElementById('sofia-messages-list');
-
+    const pensandoId = 'sofia_pensando_' + Date.now();
+    const container = document.getElementById('sofia-messages-list');
     if (!container) return;
-
-    container.innerHTML +=
-        `<div id="${pensandoId}"
-              class="sofia-bubble assistant">
-            ... Pensando ...
-        </div>`;
-
-    container.scrollTop =
-        container.scrollHeight;
+    container.innerHTML += `<div id="${pensandoId}" class="sofia-bubble assistant">... Pensando ...</div>`;
+    container.scrollTop = container.scrollHeight;
 
     try {
-
-        const contextoGlobal =
-            recopilarContextoGlobalSofia();
-
-        /*
-         * Solo enviamos las últimas intervenciones.
-         * Así Sofía conserva contexto sin hacer crecer indefinidamente
-         * el tamaño de cada petición.
-         */
-        const historialReciente =
-            historialChatSofia.slice(-8);
-
+        const contextoGlobal = recopilarContextoGlobalSofia();
+        const historialReciente = historialChatSofia.slice(-8);
         const instrucciones =
 `Sos Sofía, la asistente personal de Mi Gym La Cima.
 
-Actuás como entrenadora física y asesora general de hábitos y nutrición.
-
 Respondé en español argentino, de manera natural, clara, directa y amigable.
 
+El usuario se llama ${nombreUsuarioSofia()}. Usá su nombre cuando sea natural.
+
 Utilizá los datos actuales de la aplicación que aparecen abajo.
-
 No inventes entrenamientos, pesos, repeticiones, fechas o estadísticas.
-
 Si falta información, decilo claramente.
-
 Podés analizar entrenamientos, progresión, volumen, series, repeticiones, frecuencia, descanso, recuperación, evolución del peso y objetivos.
-
 En cuestiones médicas, lesiones, dolor o síntomas, brindá información general y aclarale al usuario que esa información no reemplaza la evaluación de un profesional de salud.
-
-[DATOS ACTUALES DE MI GYM LA CIMA]
 
 ${contextoGlobal}`;
 
-        /*
-         * Gemini recibe la instrucción actual por separado del historial.
-         * Esto evita repetir el contexto completo en cada mensaje.
-         */
         const contentsPayload = [
-            {
-                role: 'user',
-                parts: [
-                    {
-                        text: instrucciones
-                    }
-                ]
-            },
-            {
-                role: 'model',
-                parts: [
-                    {
-                        text:
-                            'Entendido. Voy a utilizar esos datos para responder.'
-                    }
-                ]
-            },
+            { role: 'user', parts: [{ text: instrucciones }] },
+            { role: 'model', parts: [{ text: `Entendido. Tengo presente el perfil de ${nombreUsuarioSofia()} y los datos actuales de Mi Gym.` }] },
             ...historialReciente
         ];
 
-        const respuestaTexto =
-            await consultarGeminiAPI(
-                apiKey,
-                contentsPayload
-            );
+        const respuestaTexto = await consultarGeminiAI(contentsPayload);
+        document.getElementById(pensandoId)?.remove();
 
-        document
-            .getElementById(pensandoId)
-            ?.remove();
-
-        historialChatSofia.push({
-            role: 'model',
-            parts: [
-                {
-                    text: respuestaTexto
-                }
-            ]
-        });
-
-        /*
-         * Conservamos una ventana de conversación razonable.
-         */
-        if (historialChatSofia.length > 12) {
-            historialChatSofia =
-                historialChatSofia.slice(-12);
-        }
-
+        historialChatSofia.push({ role: 'model', parts: [{ text: respuestaTexto }] });
+        historialChatSofia = limitarHistorialSofia(historialChatSofia);
+        guardarChatSofiaActual();
         renderizarMensajesSofia();
-
     } catch (error) {
-
-        console.error(
-            'Error al consultar a Sofía:',
-            error
-        );
-
-        document
-            .getElementById(pensandoId)
-            ?.remove();
-
-        const mensajeError =
-            error && error.message
-                ? error.message
-                : 'Error desconocido';
-
-        container.innerHTML +=
-            `<div class="sofia-bubble assistant"
-                  style="color: var(--danger);">
-                ⚠️ No pude conectarme con Gemini.
-                <br><br>
-                <small>${escapeHtml(mensajeError)}</small>
-            </div>`;
-
-        container.scrollTop =
-            container.scrollHeight;
+        console.error('Error Firebase AI Logic / Sofía:', error);
+        document.getElementById(pensandoId)?.remove();
+        const mensajeError = error?.message || 'Error desconocido';
+        container.innerHTML += `<div class="sofia-bubble assistant" style="color:var(--danger);">⚠️ No pude conectarme con Sofía.<br><br><small>${escapeHtml(mensajeError)}</small></div>`;
+        container.scrollTop = container.scrollHeight;
     }
 }
-
-/* =============================================================
-   NOTAS DE SOFÍA
-   ============================================================= */
-
-function abrirNotaSofiaDesdeMensaje(indice) {
-    const mensaje = historialChatSofia[indice];
-    if (!mensaje || mensaje.role !== 'model' || !mensaje.parts || !mensaje.parts[0]) return;
-
-    notaSofiaEditandoId = null;
-    const texto = mensaje.parts[0].text || '';
-    const fecha = new Date();
-    const fechaTexto = fecha.toLocaleDateString('es-AR');
-
-    document.getElementById('nota-sofia-titulo').value =
-        `Consejo de Sofía — ${fechaTexto}`;
-    document.getElementById('nota-sofia-contenido').value = texto;
-    document.getElementById('modal-nota-sofia').style.display = 'flex';
-}
-
-function abrirNuevaNotaSofia() {
-    notaSofiaEditandoId = null;
-    document.getElementById('nota-sofia-titulo').value = '';
-    document.getElementById('nota-sofia-contenido').value = '';
-    document.getElementById('modal-nota-sofia').style.display = 'flex';
-}
-
-function cerrarModalNotaSofia() {
-    document.getElementById('modal-nota-sofia').style.display = 'none';
-}
-
-async function guardarNotaSofia() {
-    const titulo = document.getElementById('nota-sofia-titulo').value.trim();
-    const contenido = document.getElementById('nota-sofia-contenido').value.trim();
-
-    if (!titulo || !contenido) {
-        alert('Completá el título y el contenido de la nota.');
-        return;
-    }
-
-    const ahora = Date.now();
-
-    if (notaSofiaEditandoId) {
-        const nota = notasSofia.find(n => n.id === notaSofiaEditandoId);
-        if (nota) {
-            nota.titulo = titulo;
-            nota.contenido = contenido;
-            nota.actualizado = ahora;
-        }
-    } else {
-        notasSofia.unshift({
-            id: ahora,
-            titulo: titulo,
-            contenido: contenido,
-            fecha: new Date().toLocaleDateString('es-AR'),
-            actualizado: ahora
-        });
-    }
-
-    notaSofiaEditandoId = null;
-    guardarLocal();
-    await guardarTodoEnNube();
-    cerrarModalNotaSofia();
-    renderizarNotasSofia();
-}
-
-function editarNotaSofia(id) {
-    const nota = notasSofia.find(n => n.id === id);
-    if (!nota) return;
-
-    notaSofiaEditandoId = id;
-    document.getElementById('nota-sofia-titulo').value = nota.titulo || '';
-    document.getElementById('nota-sofia-contenido').value = nota.contenido || '';
-    document.getElementById('modal-nota-sofia').style.display = 'flex';
-}
-
-async function eliminarNotaSofia(id) {
-    const nota = notasSofia.find(n => n.id === id);
-    if (!nota) return;
-
-    if (!confirm(`¿Eliminar la nota "${nota.titulo}"?`)) return;
-
-    notasSofia = notasSofia.filter(n => n.id !== id);
-    guardarLocal();
-    await guardarTodoEnNube();
-    renderizarNotasSofia();
-}
-
-function renderizarNotasSofia() {
-    const container = document.getElementById('lista-notas-sofia-container');
-    if (!container) return;
-
-    if (!notasSofia.length) {
-        container.innerHTML = `
-            <div style="padding:14px; background:var(--bg-input); border-radius:8px; color:var(--text-muted); font-size:0.85rem; text-align:center;">
-                Todavía no guardaste ninguna nota de Sofía.<br>
-                Cuando una respuesta te resulte útil, tocá <strong>📝 Guardar como nota</strong>.
-            </div>`;
-        return;
-    }
-
-    let html = '';
-
-    notasSofia
-        .slice()
-        .sort((a,b) => (b.actualizado || b.id || 0) - (a.actualizado || a.id || 0))
-        .forEach(nota => {
-            html += `
-            <div style="background:var(--bg-input); border:1px solid var(--border); border-radius:10px; padding:12px; margin-bottom:10px;">
-                <div class="flex-row" style="justify-content:space-between; align-items:flex-start; gap:8px;">
-                    <div style="flex:1;">
-                        <strong style="color:var(--sofia-accent); font-size:0.9rem;">📝 ${escapeHtml(nota.titulo)}</strong>
-                        <div style="font-size:0.7rem; color:var(--text-muted); margin-top:3px;">${escapeHtml(nota.fecha || '')}</div>
-                    </div>
-                    <div class="flex-row" style="gap:5px;">
-                        <button class="btn btn-secondary" style="width:auto; margin:0; padding:4px 7px; font-size:0.7rem;" onclick="editarNotaSofia(${nota.id})">✏️</button>
-                        <button class="btn btn-danger" style="width:auto; margin:0; padding:4px 7px; font-size:0.7rem;" onclick="eliminarNotaSofia(${nota.id})">🗑️</button>
-                    </div>
-                </div>
-                <div style="white-space:pre-wrap; font-size:0.82rem; line-height:1.45; margin-top:9px; color:var(--text-main);">${escapeHtml(nota.contenido)}</div>
-            </div>`;
-        });
-
-    container.innerHTML = html;
-}
-
-/* =============================================================
-   PRUEBA MANUAL DE CONEXIÓN
-   ============================================================= */
 
 async function probarConexionIA() {
-    const apiKey = obtenerApiKey();
-    if (!apiKey) return;
-
     try {
-        const respuesta = await consultarGeminiAPI(
-            apiKey,
-            [
-                {
-                    role: 'user',
-                    parts: [{
-                        text: 'Respondé únicamente: CONEXIÓN EXITOSA'
-                    }]
-                }
-            ]
-        );
-
+        const respuesta = await consultarGeminiAI([
+            { role: 'user', parts: [{ text: 'Respondé únicamente: CONEXIÓN EXITOSA' }] }
+        ]);
         alert('🤖 Sofía IA respondió correctamente:\n\n' + respuesta);
-
     } catch (error) {
-        alert('❌ No se pudo conectar con Gemini:\n\n' + error.message);
+        alert('❌ No se pudo conectar con Firebase AI Logic:\n\n' + (error?.message || error));
     }
 }
 
@@ -1792,7 +1204,7 @@ localStorage.setItem(claves.notasSofia, JSON.stringify(notasSofia));
 } else {
 rutinasPersonalizadas = { "Rutina A": [] };
 registrosCloud = [];
-perfilCloud = { peso: 90 };
+perfilCloud = { nombre: "", peso: 90 };
 notasSofia = [];
 await guardarTodoEnNube();
 } 
@@ -1896,8 +1308,13 @@ window.scrollTo(0,0);
 } 
 
 function actualizarDashboard() {
+const nombreUsuario = document.getElementById('label-nombre-usuario');
+if (nombreUsuario) {
+    const nombre = (perfilCloud && perfilCloud.nombre) ? String(perfilCloud.nombre).trim() : '';
+    nombreUsuario.innerText = nombre ? `Hola, ${nombre} 👋` : 'Hola 👋';
+}
 const pesoCorp = document.getElementById('label-peso-corporal');
-if (pesoCorp) pesoCorp.innerText = `${perfilCloud.peso || '--'} kg`; 
+if (pesoCorp) pesoCorp.innerText = `${perfilCloud && perfilCloud.peso ? perfilCloud.peso : '--'} kg`; 
 
 const bannerBorrador = document.getElementById('banner-borrador-activo');
 if(bannerBorrador) {
@@ -1986,7 +1403,7 @@ return;
 } 
 rutinasPersonalizadas = { "Rutina A": [] };
 registrosCloud = [];
-perfilCloud = { peso: 90 };
+perfilCloud = { nombre: "", peso: 90 };
 borradorSesion = null; 
 guardarTodoEnNube();
 alert("🔄 Aplicación restablecida a cero.");
@@ -2458,19 +1875,47 @@ resto -= cant * d;
 resDiv.innerHTML = detalle;
 } 
 
-function abrirModalPesoCorporal() {
-document.getElementById('input-nuevo-peso-corp').value = perfilCloud.peso || '';
-document.getElementById('modal-peso-corporal').style.display = 'flex';
+function abrirModalPerfil() {
+    document.getElementById('input-nombre-usuario').value = perfilCloud.nombre || '';
+    document.getElementById('input-nuevo-peso-corp').value = perfilCloud.peso ?? '';
+    document.getElementById('modal-perfil-personal').style.display = 'flex';
 }
-function cerrarModalPesoCorporal() { document.getElementById('modal-peso-corporal').style.display = 'none'; }
+function cerrarModalPerfil() {
+    document.getElementById('modal-perfil-personal').style.display = 'none';
+}
+async function guardarPerfilCloud() {
+    const nombre = document.getElementById('input-nombre-usuario').value.trim();
+    const p = parseFloat(document.getElementById('input-nuevo-peso-corp').value);
+
+    if (!nombre) {
+        alert('Escribí tu nombre para que Sofía pueda llamarte por tu nombre.');
+        return;
+    }
+    if (isNaN(p) || p <= 0) {
+        alert('Ingresá un peso válido.');
+        return;
+    }
+
+    perfilCloud.nombre = nombre;
+    perfilCloud.peso = p;
+    guardarLocal();
+    await guardarTodoEnNube();
+    cerrarModalPerfil();
+    actualizarDashboard();
+}
+
+// Compatibilidad con el botón/funciones anteriores.
+function abrirModalPesoCorporal() { abrirModalPerfil(); }
+function cerrarModalPesoCorporal() { cerrarModalPerfil(); }
 async function guardarPesoCorporalCloud() {
-let p = parseFloat(document.getElementById('input-nuevo-peso-corp').value);
-if(!isNaN(p)) {
-perfilCloud.peso = p;
-guardarTodoEnNube();
-cerrarModalPesoCorporal();
-actualizarDashboard();
-}
+    const p = parseFloat(document.getElementById('input-nuevo-peso-corp').value);
+    if (!isNaN(p) && p > 0) {
+        perfilCloud.peso = p;
+        guardarLocal();
+        await guardarTodoEnNube();
+        cerrarModalPerfil();
+        actualizarDashboard();
+    }
 } 
 
 function renderizarCalendario() {
@@ -2507,5 +1952,28 @@ if(calMesActual < 0) { calMesActual = 11; calAnioActual--; }
 renderizarCalendario();
 }
 </script>
+
+<script type="module">
+import { initializeApp as initializeAppModular } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
+import { getAI, getGenerativeModel, GoogleAIBackend } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-ai.js";
+
+window.sofiaAIModelPromise = (async () => {
+    try {
+        const config = window.MI_GYM_FIREBASE_CONFIG;
+        if (!config) throw new Error('No se encontró la configuración de Firebase.');
+
+        // App nombrada para coexistir sin romper la instancia Compat que usa la app actual.
+        const aiApp = initializeAppModular(config, 'MiGymAI');
+        const ai = getAI(aiApp, { backend: new GoogleAIBackend() });
+        const model = getGenerativeModel(ai, { model: 'gemini-3.6-flash' });
+        console.log('🤖 Firebase AI Logic inicializado correctamente.');
+        return model;
+    } catch (error) {
+        console.error('❌ Error inicializando Firebase AI Logic:', error);
+        throw error;
+    }
+})();
+</script>
+
 </body>
 </html>
