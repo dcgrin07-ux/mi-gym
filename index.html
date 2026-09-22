@@ -2332,6 +2332,10 @@ window.MI_GYM_FIREBASE_CONFIG = firebaseConfig;
 // registrada en Firebase App Check para el dominio de GitHub Pages.
 const RECAPTCHA_ENTERPRISE_SITE_KEY = '6LcjwcctAAAAAD0VP61LYiRHjIQ91Hrt5cdZvtHJ';
 const APP_CHECK_DEBUG = true;
+    if (APP_CHECK_DEBUG) {
+    self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+    console.warn('🧪 App Check DEBUG activo.');
+}
 window.sofiaAIModelPromise = (async () => {
     try {
         const aiApp = getApps().length ? getApp() : initializeAppModular(window.MI_GYM_FIREBASE_CONFIG);
