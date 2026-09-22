@@ -2341,11 +2341,11 @@ window.sofiaAIModelPromise = (async () => {
             throw new Error('Falta configurar la Site Key pública de reCAPTCHA Enterprise en RECAPTCHA_ENTERPRISE_SITE_KEY.');
         }
 
-        initializeAppCheck(aiApp, {
+      const appCheck = initializeAppCheck(aiApp, {
             provider: new ReCaptchaEnterpriseProvider(RECAPTCHA_ENTERPRISE_SITE_KEY),
             isTokenAutoRefreshEnabled: true
         });
-
+window.miGymAppCheck = appCheck;
         console.log('🛡️ Firebase App Check inicializado.');
 
         const ai = getAI(aiApp, { backend: new GoogleAIBackend() });
