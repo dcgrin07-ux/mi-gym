@@ -919,10 +919,34 @@ function guardarMemoriaSofia(memoria) {
 
 function limitarHistorialSofia(historial) {
     if (!Array.isArray(historial)) return [];
-    return historial.filter(m =>
-        m && (m.role === 'user' || m.role === 'model') &&
-        m.parts && m.parts[0] && typeof m.parts[0].text === 'string'
-    ).slice(-SOFIA_MAX_MENSAJES_POR_CHAT);
+
+    // Firebase AI Logic exige alternancia estricta user -> model -> user -> model.
+    // Si una consulta falló después de guardar el mensaje del usuario, podemos
+    // quedar con user -> user. Normalizamos la memoria antes de volver a enviarla.
+    const limpio = [];
+
+    for (const m of historial) {
+        if (!m || (m.role !== 'user' && m.role !== 'model')) continue;
+        if (!m.parts || !m.parts[0] || typeof m.parts[0].text !== 'string') continue;
+
+        const mensaje = {
+            role: m.role,
+            parts: [{ text: String(m.parts[0].text) }]
+        };
+
+        if (limpio.length && limpio[limpio.length - 1].role === mensaje.role) {
+            // Conservamos el mensaje más reciente del mismo rol. Esto elimina
+            // mensajes pendientes de una consulta que falló.
+            limpio[limpio.length - 1] = mensaje;
+        } else {
+            limpio.push(mensaje);
+        }
+    }
+
+    // Una conversación enviada a startChat debe comenzar con user.
+    if (limpio.length && limpio[0].role !== 'user') limpio.shift();
+
+    return limpio.slice(-SOFIA_MAX_MENSAJES_POR_CHAT);
 }
 
 function guardarChatSofiaActual() {
@@ -1322,6 +1346,16 @@ ${contextoGlobal}`;
     } catch (error) {
         console.error('Error al consultar a Sofía:', error);
         document.getElementById(pensandoId)?.remove();
+
+        // El mensaje del usuario no recibió respuesta. No lo dejamos guardado
+        // porque en el próximo intento produciría user -> user y Firebase AI
+        // Logic rechazaría el historial como contenido inválido.
+        if (historialChatSofia.length && historialChatSofia[historialChatSofia.length - 1]?.role === 'user') {
+            historialChatSofia.pop();
+            historialChatSofia = limitarHistorialSofia(historialChatSofia);
+            guardarChatSofiaActual();
+        }
+
         const mensajeError = error?.message || 'Error desconocido';
         container.innerHTML += `<div class="sofia-bubble assistant" style="color: var(--danger);">⚠️ No pude conectarme con Sofía.<br><br><small>${escapeHtml(mensajeError)}</small></div>`;
         container.scrollTop = container.scrollHeight;
