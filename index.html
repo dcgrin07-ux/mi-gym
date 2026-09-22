@@ -802,11 +802,14 @@ document.getElementById('auth-screen').classList.remove('hidden');
 }
 }); 
 
+let unsubscribeAdminUsers = null;
+
 async function loadAdminUsersTable() {
 const tbody = document.getElementById('admin-users-tbody');
 tbody.innerHTML = '<tr><td colspan="3" style="padding: 8px;">Cargando usuarios...</td></tr>'; 
 
-dbCloud.collection('usuarios').onSnapshot(snapshot => {
+if (unsubscribeAdminUsers) unsubscribeAdminUsers();
+unsubscribeAdminUsers = dbCloud.collection('usuarios').onSnapshot(snapshot => {
 tbody.innerHTML = '';
 if (snapshot.empty) {
 tbody.innerHTML = '<tr><td colspan="3" style="padding: 8px;">No hay usuarios registrados.</td></tr>';
@@ -980,7 +983,7 @@ function nombreUsuarioSofia() {
 
 function abrirModalPerfilPersonal() {
     document.getElementById('input-nombre-usuario').value = perfilCloud?.nombre || '';
-    document.getElementById('input-nuevo-peso-corp').value = perfilCloud?.peso || '';
+    document.getElementById('input-peso-perfil').value = perfilCloud?.peso || '';
     document.getElementById('modal-perfil-personal').style.display = 'flex';
 }
 
@@ -2332,10 +2335,7 @@ window.MI_GYM_FIREBASE_CONFIG = firebaseConfig;
 // registrada en Firebase App Check para el dominio de GitHub Pages.
 const RECAPTCHA_ENTERPRISE_SITE_KEY = '6LcjwcctAAAAAD0VP61LYiRHjIQ91Hrt5cdZvtHJ';
 const APP_CHECK_DEBUG = false;
-    if (APP_CHECK_DEBUG) {
-    self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
-    console.warn('🧪 App Check DEBUG activo.');
-}
+
 window.sofiaAIModelPromise = (async () => {
     try {
         const aiApp = getApps().length ? getApp() : initializeAppModular(window.MI_GYM_FIREBASE_CONFIG);
@@ -2344,11 +2344,11 @@ window.sofiaAIModelPromise = (async () => {
             throw new Error('Falta configurar la Site Key pública de reCAPTCHA Enterprise en RECAPTCHA_ENTERPRISE_SITE_KEY.');
         }
 
-      const appCheck = initializeAppCheck(aiApp, {
+        initializeAppCheck(aiApp, {
             provider: new ReCaptchaEnterpriseProvider(RECAPTCHA_ENTERPRISE_SITE_KEY),
             isTokenAutoRefreshEnabled: true
         });
-window.miGymAppCheck = appCheck;
+
         console.log('🛡️ Firebase App Check inicializado.');
 
         const ai = getAI(aiApp, { backend: new GoogleAIBackend() });
