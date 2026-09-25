@@ -1,0 +1,24 @@
+name: Deploy Sofia Worker
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "sofia-worker.js"
+      - "wrangler.jsonc"
+      - ".github/workflows/deploy-worker.yml"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Desplegar Worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}                                                                         
