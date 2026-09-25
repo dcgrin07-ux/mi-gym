@@ -1,5 +1,8 @@
 {
   "name": "sofia-mi-gym",
   "main": "sofia-worker.js",
-  "compatibility_date": "2026-09-22"
+  "compatibility_date": "2026-09-22",
+  "ai": {
+    "binding": "AI"
+  }
 }
