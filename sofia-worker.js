@@ -1,10 +1,28 @@
+/**
+ * SOFIA WORKER — MI GYM LA CIMA
+ * Backend seguro de Sofía IA
+ *
+ * - Autenticación mediante Firebase ID Token
+ * - Verificación de autorización en Firestore
+ * - Control básico de solicitudes
+ * - CORS restringido al sitio de MI GYM
+ * - Workers AI como proveedor de IA
+ * - Sin API keys de IA en el frontend
+ */
+
 const ALLOWED_ORIGIN = "https://dcgrin07-ux.github.io";
 const FIREBASE_PROJECT_ID = "mygymlacima";
+
+const AI_MODEL = "@cf/zai-org/glm-4.7-flash";
 
 const RATE_LIMIT_MAX = 20;
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 
 const rateMap = new Map();
+
+/* ============================================================
+   CORS
+   ============================================================ */
 
 function corsHeaders() {
   return {
@@ -14,6 +32,10 @@ function corsHeaders() {
     "Vary": "Origin"
   };
 }
+
+/* ============================================================
+   RESPUESTAS JSON
+   ============================================================ */
 
 function json(data, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(data), {
@@ -26,6 +48,10 @@ function json(data, status = 200, extraHeaders = {}) {
   });
 }
 
+/* ============================================================
+   TOKEN FIREBASE
+   ============================================================ */
+
 function getBearerToken(request) {
   const header = request.headers.get("Authorization") || "";
 
@@ -34,8 +60,58 @@ function getBearerToken(request) {
   }
 
   const token = header.slice(7).trim();
+
   return token || null;
 }
+
+/* ============================================================
+   RATE LIMIT
+   ============================================================ */
+
+function checkRateLimit(uid) {
+  const now = Date.now();
+  const current = rateMap.get(uid);
+
+  if (
+    !current ||
+    now - current.startedAt >= RATE_LIMIT_WINDOW_MS
+  ) {
+    rateMap.set(uid, {
+      startedAt: now,
+      count: 1
+    });
+
+    return {
+      allowed: true,
+      remaining: RATE_LIMIT_MAX - 1
+    };
+  }
+
+  if (current.count >= RATE_LIMIT_MAX) {
+    const retryAfter = Math.ceil(
+      (RATE_LIMIT_WINDOW_MS -
+        (now - current.startedAt)) /
+        1000
+    );
+
+    return {
+      allowed: false,
+      retryAfter
+    };
+  }
+
+  current.count += 1;
+
+  return {
+    allowed: true,
+    remaining:
+      RATE_LIMIT_MAX - current.count
+  };
+}
+
+/* ============================================================
+   DECODIFICAR JWT FIREBASE
+   ============================================================ */
 
 function decodeJwtPayload(token) {
   try {
@@ -50,14 +126,19 @@ function decodeJwtPayload(token) {
       .replace(/_/g, "/");
 
     const padded =
-      base64 + "=".repeat((4 - (base64.length % 4)) % 4);
+      base64 +
+      "=".repeat(
+        (4 - (base64.length % 4)) % 4
+      );
 
     const binary = atob(padded);
 
     let text = "";
 
     for (let i = 0; i < binary.length; i++) {
-      text += String.fromCharCode(binary.charCodeAt(i));
+      text += String.fromCharCode(
+        binary.charCodeAt(i)
+      );
     }
 
     return JSON.parse(text);
@@ -67,33 +148,49 @@ function decodeJwtPayload(token) {
   }
 }
 
-async function verificarUsuario(idToken) {
+/* ============================================================
+   VERIFICAR USUARIO EN FIREBASE
+   ============================================================ */
 
-  const payload = decodeJwtPayload(idToken);
+async function getUserFromFirebase(idToken) {
 
-  if (!payload || !payload.sub || !payload.exp) {
+  const payload =
+    decodeJwtPayload(idToken);
+
+  if (
+    !payload ||
+    !payload.sub ||
+    !payload.exp
+  ) {
     return {
       ok: false,
       status: 401,
-      error: "Token de Firebase inválido."
+      error:
+        "Token de Firebase inválido."
     };
   }
 
-  const ahora = Math.floor(Date.now() / 1000);
+  const nowSeconds =
+    Math.floor(Date.now() / 1000);
 
-  if (payload.exp <= ahora) {
+  if (payload.exp <= nowSeconds) {
     return {
       ok: false,
       status: 401,
-      error: "La sesión de Firebase expiró."
+      error:
+        "La sesión de Firebase expiró."
     };
   }
 
-  if (payload.aud !== FIREBASE_PROJECT_ID) {
+  if (
+    payload.aud !==
+    FIREBASE_PROJECT_ID
+  ) {
     return {
       ok: false,
       status: 401,
-      error: "Token no válido para este proyecto."
+      error:
+        "Token de Firebase no válido para este proyecto."
     };
   }
 
@@ -104,21 +201,22 @@ async function verificarUsuario(idToken) {
     return {
       ok: false,
       status: 401,
-      error: "Emisor de token no válido."
+      error:
+        "Emisor de token no válido."
     };
   }
 
   const uid = payload.sub;
 
   const url =
-    `https://firestore.googleapis.com/v1/projects/` +
-    `${FIREBASE_PROJECT_ID}/databases/(default)/documents/` +
-    `usuarios/${encodeURIComponent(uid)}`;
+    `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}` +
+    `/databases/(default)/documents/usuarios/${encodeURIComponent(uid)}`;
 
   const response = await fetch(url, {
     method: "GET",
     headers: {
-      "Authorization": `Bearer ${idToken}`
+      "Authorization":
+        `Bearer ${idToken}`
     }
   });
 
@@ -126,7 +224,8 @@ async function verificarUsuario(idToken) {
     return {
       ok: false,
       status: 401,
-      error: "Firebase rechazó el token."
+      error:
+        "Firebase rechazó el token."
     };
   }
 
@@ -134,7 +233,8 @@ async function verificarUsuario(idToken) {
     return {
       ok: false,
       status: 403,
-      error: "Firebase no permite acceder al usuario."
+      error:
+        "Firebase no permite acceder al usuario."
     };
   }
 
@@ -142,7 +242,8 @@ async function verificarUsuario(idToken) {
     return {
       ok: false,
       status: 403,
-      error: "La cuenta no está registrada en MI GYM."
+      error:
+        "La cuenta no está registrada en MI GYM."
     };
   }
 
@@ -150,21 +251,27 @@ async function verificarUsuario(idToken) {
     return {
       ok: false,
       status: 502,
-      error: "No se pudo verificar el usuario en Firebase."
+      error:
+        "No se pudo verificar la autorización en Firebase."
     };
   }
 
-  const doc = await response.json();
-  const fields = doc.fields || {};
+  const doc =
+    await response.json();
+
+  const fields =
+    doc.fields || {};
 
   const autorizado =
     fields.autorizado?.booleanValue === true;
 
   const rol =
-    fields.rol?.stringValue || "cliente";
+    fields.rol?.stringValue ||
+    "cliente";
 
   const email =
-    fields.email?.stringValue || "";
+    fields.email?.stringValue ||
+    "";
 
   return {
     ok: true,
@@ -175,54 +282,117 @@ async function verificarUsuario(idToken) {
   };
 }
 
-function comprobarLimite(uid) {
+/* ============================================================
+   CONVERTIR HISTORIAL DE MI GYM A FORMATO DEL MODELO
+   ============================================================ */
 
-  const ahora = Date.now();
-  const actual = rateMap.get(uid);
+function convertirHistorial(history) {
+
+  if (!Array.isArray(history)) {
+    return [];
+  }
+
+  return history
+    .filter(item =>
+      item &&
+      typeof item === "object" &&
+      typeof item.role === "string" &&
+      Array.isArray(item.parts) &&
+      typeof item.parts[0]?.text === "string"
+    )
+    .map(item => {
+
+      let role = item.role;
+
+      if (role === "model") {
+        role = "assistant";
+      }
+
+      if (
+        role !== "user" &&
+        role !== "assistant"
+      ) {
+        return null;
+      }
+
+      return {
+        role,
+        content:
+          item.parts[0].text
+      };
+    })
+    .filter(Boolean);
+}
+
+/* ============================================================
+   EXTRAER RESPUESTA DEL MODELO
+   ============================================================ */
+
+function extraerRespuestaIA(result) {
+
+  if (!result) {
+    return "";
+  }
+
+  /*
+   * Algunos modelos/bindings pueden devolver
+   * directamente una propiedad response.
+   */
 
   if (
-    !actual ||
-    ahora - actual.inicio >= RATE_LIMIT_WINDOW_MS
+    typeof result.response === "string"
   ) {
-    rateMap.set(uid, {
-      inicio: ahora,
-      cantidad: 1
-    });
-
-    return {
-      permitido: true,
-      restantes: RATE_LIMIT_MAX - 1
-    };
+    return result.response.trim();
   }
 
-  if (actual.cantidad >= RATE_LIMIT_MAX) {
+  /*
+   * Formato tipo Chat Completions
+   */
 
-    const espera = Math.ceil(
-      (
-        RATE_LIMIT_WINDOW_MS -
-        (ahora - actual.inicio)
-      ) / 1000
-    );
+  const content =
+    result?.choices?.[0]?.message?.content;
 
-    return {
-      permitido: false,
-      espera
-    };
+  if (typeof content === "string") {
+    return content.trim();
   }
 
-  actual.cantidad++;
+  /*
+   * Algunas respuestas pueden utilizar text.
+   */
 
-  return {
-    permitido: true,
-    restantes: RATE_LIMIT_MAX - actual.cantidad
-  };
+  if (
+    typeof result.text === "string"
+  ) {
+    return result.text.trim();
+  }
+
+  /*
+   * Formato output_text
+   */
+
+  if (
+    typeof result.output_text === "string"
+  ) {
+    return result.output_text.trim();
+  }
+
+  return "";
 }
+
+/* ============================================================
+   WORKER
+   ============================================================ */
 
 export default {
 
-  async fetch(request) {
+  async fetch(request, env) {
 
-    const origin = request.headers.get("Origin");
+    const origin =
+      request.headers.get("Origin");
+
+    /*
+     * Rechazar otros sitios.
+     */
 
     if (
       origin &&
@@ -231,21 +401,32 @@ export default {
       return json(
         {
           ok: false,
-          error: "Origen no permitido."
+          error:
+            "Origen no permitido."
         },
         403
       );
     }
 
-    if (request.method === "OPTIONS") {
+    /*
+     * Preflight CORS
+     */
 
+    if (
+      request.method === "OPTIONS"
+    ) {
       return new Response(null, {
         status: 204,
         headers: corsHeaders()
       });
     }
 
-    const url = new URL(request.url);
+    const url =
+      new URL(request.url);
+
+    /* ========================================================
+       HEALTH CHECK
+       ======================================================== */
 
     if (
       request.method === "GET" &&
@@ -256,9 +437,14 @@ export default {
         ok: true,
         servicio: "sofia-mi-gym",
         estado: "activo",
-        proveedorIA: "no configurado"
+        proveedorIA: "Cloudflare Workers AI",
+        modelo: AI_MODEL
       });
     }
+
+    /* ========================================================
+       RUTA SOFIA
+       ======================================================== */
 
     if (
       request.method !== "POST" ||
@@ -268,11 +454,16 @@ export default {
       return json(
         {
           ok: false,
-          error: "Ruta no encontrada."
+          error:
+            "Ruta no encontrada."
         },
         404
       );
     }
+
+    /* ========================================================
+       AUTENTICACIÓN
+       ======================================================== */
 
     const idToken =
       getBearerToken(request);
@@ -289,12 +480,14 @@ export default {
       );
     }
 
-    let usuario;
+    let user;
 
     try {
 
-      usuario =
-        await verificarUsuario(idToken);
+      user =
+        await getUserFromFirebase(
+          idToken
+        );
 
     } catch (error) {
 
@@ -313,20 +506,24 @@ export default {
       );
     }
 
-    if (!usuario.ok) {
+    if (!user.ok) {
 
       return json(
         {
           ok: false,
-          error: usuario.error
+          error: user.error
         },
-        usuario.status
+        user.status
       );
     }
 
+    /* ========================================================
+       AUTORIZACIÓN
+       ======================================================== */
+
     if (
-      !usuario.autorizado &&
-      usuario.rol !== "admin"
+      !user.autorizado &&
+      user.rol !== "admin"
     ) {
 
       return json(
@@ -339,10 +536,14 @@ export default {
       );
     }
 
-    const limite =
-      comprobarLimite(usuario.uid);
+    /* ========================================================
+       RATE LIMIT
+       ======================================================== */
 
-    if (!limite.permitido) {
+    const rate =
+      checkRateLimit(user.uid);
+
+    if (!rate.allowed) {
 
       return json(
         {
@@ -350,15 +551,19 @@ export default {
           error:
             "Límite temporal de consultas alcanzado.",
           retryAfterSeconds:
-            limite.espera
+            rate.retryAfter
         },
         429,
         {
           "Retry-After":
-            String(limite.espera)
+            String(rate.retryAfter)
         }
       );
     }
+
+    /* ========================================================
+       LEER BODY
+       ======================================================== */
 
     let body;
 
@@ -367,7 +572,7 @@ export default {
       const raw =
         await request.text();
 
-      if (raw.length > 32000) {
+      if (raw.length > 32_000) {
 
         return json(
           {
@@ -387,11 +592,16 @@ export default {
       return json(
         {
           ok: false,
-          error: "JSON inválido."
+          error:
+            "JSON inválido."
         },
         400
       );
     }
+
+    /* ========================================================
+       MENSAJE ACTUAL
+       ======================================================== */
 
     const message =
       typeof body.message === "string"
@@ -410,7 +620,7 @@ export default {
       );
     }
 
-    if (message.length > 8000) {
+    if (message.length > 8_000) {
 
       return json(
         {
@@ -422,18 +632,148 @@ export default {
       );
     }
 
-    return json(
+    /* ========================================================
+       SYSTEM PROMPT
+       ======================================================== */
+
+    const systemPrompt =
+      typeof body.systemPrompt === "string" &&
+      body.systemPrompt.trim()
+        ? body.systemPrompt.trim()
+        : `
+Actuá como Sofía, asistente personal de Mi Gym La Cima.
+
+Respondé en español argentino, de manera clara,
+natural, directa y amigable.
+
+Ayudá al usuario con entrenamiento,
+hábitos, alimentación general,
+progreso, descanso y recuperación.
+
+No inventes datos.
+
+Cuando se trate de cuestiones médicas,
+síntomas o lesiones, aclarale que la
+información no reemplaza la evaluación
+de un profesional de la salud.
+`.trim();
+
+    /* ========================================================
+       HISTORIAL
+       ======================================================== */
+
+    const history =
+      convertirHistorial(
+        body.history
+      );
+
+    /*
+     * Evitamos que el historial crezca
+     * indefinidamente.
+     */
+
+    const historialLimitado =
+      history.slice(-12);
+
+    /* ========================================================
+       ARMAR MENSAJES
+       ======================================================== */
+
+    const messages = [
+
       {
-        ok: false,
-        code: "AI_PROVIDER_NOT_CONFIGURED",
-        error:
-          "Sofía está preparada, pero el proveedor de IA todavía no está configurado.",
-        usuario: {
-          uid: usuario.uid,
-          rol: usuario.rol
-        }
+        role: "system",
+        content: systemPrompt
       },
-      503
-    );
+
+      ...historialLimitado,
+
+      {
+        role: "user",
+        content: message
+      }
+
+    ];
+
+    /* ========================================================
+       LLAMADA A CLOUDFLARE WORKERS AI
+       ======================================================== */
+
+    let aiResult;
+
+    try {
+
+      aiResult =
+        await env.AI.run(
+          AI_MODEL,
+          {
+            messages,
+            max_tokens: 700,
+            temperature: 0.7,
+            user: user.uid
+          },
+          {
+            rejectIfBusy: true
+          }
+        );
+
+    } catch (error) {
+
+      console.error(
+        "Error Workers AI:",
+        error
+      );
+
+      return json(
+        {
+          ok: false,
+          code:
+            "AI_PROVIDER_ERROR",
+          error:
+            "Sofía no pudo procesar la consulta en este momento. Probá nuevamente en unos segundos."
+        },
+        503
+      );
+    }
+
+    /* ========================================================
+       EXTRAER RESPUESTA
+       ======================================================== */
+
+    const answer =
+      extraerRespuestaIA(
+        aiResult
+      );
+
+    if (!answer) {
+
+      console.error(
+        "Workers AI devolvió una respuesta sin texto:",
+        aiResult
+      );
+
+      return json(
+        {
+          ok: false,
+          code:
+            "AI_EMPTY_RESPONSE",
+          error:
+            "Sofía recibió una respuesta vacía del proveedor de IA."
+        },
+        502
+      );
+    }
+
+    /* ========================================================
+       RESPUESTA AL FRONTEND
+       ======================================================== */
+
+    return json({
+      ok: true,
+      answer,
+      model: AI_MODEL,
+      remaining:
+        rate.remaining
+    });
   }
 };
