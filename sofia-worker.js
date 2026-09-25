@@ -1,16 +1,32 @@
 /**
- * SOFIA WORKER — MI GYM LA CIMA
- * Backend seguro de Sofía IA
+ * ============================================================
+ * SOFÍA WORKER — MI GYM LA CIMA
+ * ============================================================
  *
- * - Autenticación mediante Firebase ID Token
- * - Verificación de autorización en Firestore
- * - Control básico de solicitudes
- * - CORS restringido al sitio de MI GYM
- * - Workers AI como proveedor de IA
- * - Sin API keys de IA en el frontend
+ * Arquitectura:
+ *
+ * MI GYM
+ *   ↓
+ * Firebase Authentication
+ *   ↓
+ * Cloudflare Worker
+ *   ↓
+ * Firebase / Firestore
+ *   ↓
+ * Cloudflare Workers AI
+ *   ↓
+ * GLM-4.7-Flash
+ *
+ * IMPORTANTE:
+ * - No contiene API keys de Gemini/OpenAI.
+ * - La IA se ejecuta mediante Cloudflare Workers AI.
+ * - Firebase sigue siendo responsable de autenticación.
+ * - Firestore determina si el usuario está autorizado.
+ * ============================================================
  */
 
 const ALLOWED_ORIGIN = "https://dcgrin07-ux.github.io";
+
 const FIREBASE_PROJECT_ID = "mygymlacima";
 
 const AI_MODEL = "@cf/zai-org/glm-4.7-flash";
@@ -18,7 +34,10 @@ const AI_MODEL = "@cf/zai-org/glm-4.7-flash";
 const RATE_LIMIT_MAX = 20;
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 
+// Estado temporal del límite de solicitudes.
+// Adecuado para etapa de desarrollo.
 const rateMap = new Map();
+
 
 /* ============================================================
    CORS
@@ -33,8 +52,9 @@ function corsHeaders() {
   };
 }
 
+
 /* ============================================================
-   RESPUESTAS JSON
+   RESPUESTA JSON
    ============================================================ */
 
 function json(data, status = 200, extraHeaders = {}) {
@@ -48,8 +68,9 @@ function json(data, status = 200, extraHeaders = {}) {
   });
 }
 
+
 /* ============================================================
-   TOKEN FIREBASE
+   TOKEN BEARER
    ============================================================ */
 
 function getBearerToken(request) {
@@ -64,12 +85,14 @@ function getBearerToken(request) {
   return token || null;
 }
 
+
 /* ============================================================
    RATE LIMIT
    ============================================================ */
 
 function checkRateLimit(uid) {
   const now = Date.now();
+
   const current = rateMap.get(uid);
 
   if (
@@ -89,9 +112,10 @@ function checkRateLimit(uid) {
 
   if (current.count >= RATE_LIMIT_MAX) {
     const retryAfter = Math.ceil(
-      (RATE_LIMIT_WINDOW_MS -
-        (now - current.startedAt)) /
-        1000
+      (
+        RATE_LIMIT_WINDOW_MS -
+        (now - current.startedAt)
+      ) / 1000
     );
 
     return {
@@ -104,13 +128,13 @@ function checkRateLimit(uid) {
 
   return {
     allowed: true,
-    remaining:
-      RATE_LIMIT_MAX - current.count
+    remaining: RATE_LIMIT_MAX - current.count
   };
 }
 
+
 /* ============================================================
-   DECODIFICAR JWT FIREBASE
+   DECODIFICAR PAYLOAD DEL FIREBASE ID TOKEN
    ============================================================ */
 
 function decodeJwtPayload(token) {
@@ -148,14 +172,14 @@ function decodeJwtPayload(token) {
   }
 }
 
+
 /* ============================================================
    VERIFICAR USUARIO EN FIREBASE
    ============================================================ */
 
 async function getUserFromFirebase(idToken) {
 
-  const payload =
-    decodeJwtPayload(idToken);
+  const payload = decodeJwtPayload(idToken);
 
   if (
     !payload ||
@@ -165,8 +189,7 @@ async function getUserFromFirebase(idToken) {
     return {
       ok: false,
       status: 401,
-      error:
-        "Token de Firebase inválido."
+      error: "Token de Firebase inválido."
     };
   }
 
@@ -177,15 +200,11 @@ async function getUserFromFirebase(idToken) {
     return {
       ok: false,
       status: 401,
-      error:
-        "La sesión de Firebase expiró."
+      error: "La sesión de Firebase expiró."
     };
   }
 
-  if (
-    payload.aud !==
-    FIREBASE_PROJECT_ID
-  ) {
+  if (payload.aud !== FIREBASE_PROJECT_ID) {
     return {
       ok: false,
       status: 401,
@@ -201,22 +220,23 @@ async function getUserFromFirebase(idToken) {
     return {
       ok: false,
       status: 401,
-      error:
-        "Emisor de token no válido."
+      error: "Emisor de token no válido."
     };
   }
 
   const uid = payload.sub;
 
   const url =
-    `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}` +
-    `/databases/(default)/documents/usuarios/${encodeURIComponent(uid)}`;
+    `https://firestore.googleapis.com/v1/projects/` +
+    `${FIREBASE_PROJECT_ID}` +
+    `/databases/(default)/documents/usuarios/` +
+    `${encodeURIComponent(uid)}`;
 
   const response = await fetch(url, {
     method: "GET",
+
     headers: {
-      "Authorization":
-        `Bearer ${idToken}`
+      "Authorization": `Bearer ${idToken}`
     }
   });
 
@@ -224,8 +244,7 @@ async function getUserFromFirebase(idToken) {
     return {
       ok: false,
       status: 401,
-      error:
-        "Firebase rechazó el token."
+      error: "Firebase rechazó el token."
     };
   }
 
@@ -256,22 +275,18 @@ async function getUserFromFirebase(idToken) {
     };
   }
 
-  const doc =
-    await response.json();
+  const doc = await response.json();
 
-  const fields =
-    doc.fields || {};
+  const fields = doc.fields || {};
 
   const autorizado =
     fields.autorizado?.booleanValue === true;
 
   const rol =
-    fields.rol?.stringValue ||
-    "cliente";
+    fields.rol?.stringValue || "cliente";
 
   const email =
-    fields.email?.stringValue ||
-    "";
+    fields.email?.stringValue || "";
 
   return {
     ok: true,
@@ -282,50 +297,74 @@ async function getUserFromFirebase(idToken) {
   };
 }
 
+
 /* ============================================================
-   CONVERTIR HISTORIAL DE MI GYM A FORMATO DEL MODELO
+   NORMALIZAR CONTENIDO DE RESPUESTA DE LA IA
    ============================================================ */
 
-function convertirHistorial(history) {
+function normalizarContenido(content) {
 
-  if (!Array.isArray(history)) {
-    return [];
+  if (typeof content === "string") {
+    return content.trim();
   }
 
-  return history
-    .filter(item =>
-      item &&
-      typeof item === "object" &&
-      typeof item.role === "string" &&
-      Array.isArray(item.parts) &&
-      typeof item.parts[0]?.text === "string"
-    )
-    .map(item => {
+  if (Array.isArray(content)) {
 
-      let role = item.role;
+    const texto = content
+      .map(item => {
 
-      if (role === "model") {
-        role = "assistant";
-      }
+        if (typeof item === "string") {
+          return item;
+        }
 
-      if (
-        role !== "user" &&
-        role !== "assistant"
-      ) {
-        return null;
-      }
+        if (
+          item &&
+          typeof item.text === "string"
+        ) {
+          return item.text;
+        }
 
-      return {
-        role,
-        content:
-          item.parts[0].text
-      };
-    })
-    .filter(Boolean);
+        if (
+          item &&
+          typeof item.content === "string"
+        ) {
+          return item.content;
+        }
+
+        return "";
+      })
+      .join("")
+      .trim();
+
+    if (texto) {
+      return texto;
+    }
+  }
+
+  if (
+    content &&
+    typeof content === "object"
+  ) {
+
+    if (
+      typeof content.text === "string"
+    ) {
+      return content.text.trim();
+    }
+
+    if (
+      typeof content.content === "string"
+    ) {
+      return content.content.trim();
+    }
+  }
+
+  return "";
 }
 
+
 /* ============================================================
-   EXTRAER RESPUESTA DEL MODELO
+   EXTRAER RESPUESTA DE WORKERS AI
    ============================================================ */
 
 function extraerRespuestaIA(result) {
@@ -334,50 +373,211 @@ function extraerRespuestaIA(result) {
     return "";
   }
 
+
   /*
-   * Algunos modelos/bindings pueden devolver
-   * directamente una propiedad response.
+   * Caso 1:
+   *
+   * {
+   *   response: "Hola..."
+   * }
    */
 
   if (
-    typeof result.response === "string"
+    typeof result.response === "string" &&
+    result.response.trim()
   ) {
     return result.response.trim();
   }
 
+
   /*
-   * Formato tipo Chat Completions
+   * Caso 2:
+   *
+   * {
+   *   choices: [
+   *     {
+   *       message: {
+   *         content: "Hola..."
+   *       }
+   *     }
+   *   ]
+   * }
    */
 
-  const content =
+  const choiceContent =
     result?.choices?.[0]?.message?.content;
 
-  if (typeof content === "string") {
-    return content.trim();
+  const textoChoices =
+    normalizarContenido(choiceContent);
+
+  if (textoChoices) {
+    return textoChoices;
   }
+
 
   /*
-   * Algunas respuestas pueden utilizar text.
+   * Caso 3:
+   *
+   * result.response.choices[0]
    */
 
-  if (
-    typeof result.text === "string"
-  ) {
-    return result.text.trim();
+  const responseChoices =
+    result?.response?.choices?.[0]?.message?.content;
+
+  const textoResponseChoices =
+    normalizarContenido(responseChoices);
+
+  if (textoResponseChoices) {
+    return textoResponseChoices;
   }
+
 
   /*
-   * Formato output_text
+   * Caso 4:
+   *
+   * result.result.response
    */
 
-  if (
-    typeof result.output_text === "string"
-  ) {
-    return result.output_text.trim();
+  const resultResponse =
+    result?.result?.response;
+
+  const textoResultResponse =
+    normalizarContenido(resultResponse);
+
+  if (textoResultResponse) {
+    return textoResultResponse;
   }
+
+
+  /*
+   * Caso 5:
+   *
+   * result.result.choices[0].message.content
+   */
+
+  const resultChoices =
+    result?.result?.choices?.[0]?.message?.content;
+
+  const textoResultChoices =
+    normalizarContenido(resultChoices);
+
+  if (textoResultChoices) {
+    return textoResultChoices;
+  }
+
+
+  /*
+   * Caso 6: formatos alternativos
+   */
+
+  const posiblesCampos = [
+    result.text,
+    result.output_text,
+    result.result?.text,
+    result.result?.output_text
+  ];
+
+  for (const campo of posiblesCampos) {
+
+    const texto =
+      normalizarContenido(campo);
+
+    if (texto) {
+      return texto;
+    }
+  }
+
 
   return "";
 }
+
+
+/* ============================================================
+   CONSTRUIR MENSAJES PARA EL MODELO
+   ============================================================ */
+
+function construirMensajes(body) {
+
+  const systemPrompt =
+    typeof body.systemPrompt === "string" &&
+    body.systemPrompt.trim()
+      ? body.systemPrompt.trim()
+      : `
+Sos Sofía, la asistente personal de Mi Gym La Cima.
+
+Respondé en español argentino.
+
+Sé clara, natural, cálida, directa y práctica.
+
+No inventes datos del usuario.
+
+Cuando no tengas información suficiente,
+decilo claramente.
+
+Podés ayudar con entrenamiento,
+actividad física, hábitos,
+recuperación, alimentación general,
+progreso y uso de la aplicación.
+
+Cuando una consulta sea médica,
+no presentes diagnósticos como certezas
+y recomendá consultar a un profesional
+cuando corresponda.
+`;
+
+
+  const history =
+    Array.isArray(body.history)
+      ? body.history
+      : [];
+
+
+  const messages = [
+    {
+      role: "system",
+      content: systemPrompt
+    }
+  ];
+
+
+  /*
+   * Incorporamos el historial.
+   * Limitamos a los últimos 10 mensajes.
+   */
+
+  const historialLimpio =
+    history
+      .filter(item =>
+        item &&
+        (
+          item.role === "user" ||
+          item.role === "assistant"
+        )
+      )
+      .slice(-10);
+
+
+  for (const item of historialLimpio) {
+
+    const content =
+      typeof item.content === "string"
+        ? item.content.trim()
+        : "";
+
+    if (!content) {
+      continue;
+    }
+
+    messages.push({
+      role: item.role,
+      content
+    });
+  }
+
+
+  return messages;
+}
+
 
 /* ============================================================
    WORKER
@@ -387,12 +587,14 @@ export default {
 
   async fetch(request, env) {
 
+    /*
+     * ----------------------------------------------------------
+     * ORIGEN
+     * ----------------------------------------------------------
+     */
+
     const origin =
       request.headers.get("Origin");
-
-    /*
-     * Rechazar otros sitios.
-     */
 
     if (
       origin &&
@@ -401,32 +603,44 @@ export default {
       return json(
         {
           ok: false,
-          error:
-            "Origen no permitido."
+          error: "Origen no permitido."
         },
         403
       );
     }
 
+
     /*
-     * Preflight CORS
+     * ----------------------------------------------------------
+     * PREFLIGHT CORS
+     * ----------------------------------------------------------
      */
 
-    if (
-      request.method === "OPTIONS"
-    ) {
+    if (request.method === "OPTIONS") {
+
       return new Response(null, {
         status: 204,
         headers: corsHeaders()
       });
+
     }
+
+
+    /*
+     * ----------------------------------------------------------
+     * URL
+     * ----------------------------------------------------------
+     */
 
     const url =
       new URL(request.url);
 
-    /* ========================================================
-       HEALTH CHECK
-       ======================================================== */
+
+    /*
+     * ----------------------------------------------------------
+     * HEALTH CHECK
+     * ----------------------------------------------------------
+     */
 
     if (
       request.method === "GET" &&
@@ -434,17 +648,31 @@ export default {
     ) {
 
       return json({
+
         ok: true,
-        servicio: "sofia-mi-gym",
-        estado: "activo",
-        proveedorIA: "Cloudflare Workers AI",
-        modelo: AI_MODEL
+
+        servicio:
+          "sofia-mi-gym",
+
+        estado:
+          "activo",
+
+        proveedorIA:
+          "Cloudflare Workers AI",
+
+        modelo:
+          AI_MODEL
+
       });
+
     }
 
-    /* ========================================================
-       RUTA SOFIA
-       ======================================================== */
+
+    /*
+     * ----------------------------------------------------------
+     * RUTA PRINCIPAL DE SOFÍA
+     * ----------------------------------------------------------
+     */
 
     if (
       request.method !== "POST" ||
@@ -454,16 +682,19 @@ export default {
       return json(
         {
           ok: false,
-          error:
-            "Ruta no encontrada."
+          error: "Ruta no encontrada."
         },
         404
       );
+
     }
 
-    /* ========================================================
-       AUTENTICACIÓN
-       ======================================================== */
+
+    /*
+     * ----------------------------------------------------------
+     * TOKEN FIREBASE
+     * ----------------------------------------------------------
+     */
 
     const idToken =
       getBearerToken(request);
@@ -478,16 +709,22 @@ export default {
         },
         401
       );
+
     }
+
+
+    /*
+     * ----------------------------------------------------------
+     * VERIFICAR USUARIO
+     * ----------------------------------------------------------
+     */
 
     let user;
 
     try {
 
       user =
-        await getUserFromFirebase(
-          idToken
-        );
+        await getUserFromFirebase(idToken);
 
     } catch (error) {
 
@@ -504,7 +741,9 @@ export default {
         },
         502
       );
+
     }
+
 
     if (!user.ok) {
 
@@ -515,11 +754,15 @@ export default {
         },
         user.status
       );
+
     }
 
-    /* ========================================================
-       AUTORIZACIÓN
-       ======================================================== */
+
+    /*
+     * ----------------------------------------------------------
+     * AUTORIZACIÓN
+     * ----------------------------------------------------------
+     */
 
     if (
       !user.autorizado &&
@@ -534,11 +777,15 @@ export default {
         },
         403
       );
+
     }
 
-    /* ========================================================
-       RATE LIMIT
-       ======================================================== */
+
+    /*
+     * ----------------------------------------------------------
+     * RATE LIMIT
+     * ----------------------------------------------------------
+     */
 
     const rate =
       checkRateLimit(user.uid);
@@ -548,8 +795,10 @@ export default {
       return json(
         {
           ok: false,
+
           error:
             "Límite temporal de consultas alcanzado.",
+
           retryAfterSeconds:
             rate.retryAfter
         },
@@ -559,11 +808,15 @@ export default {
             String(rate.retryAfter)
         }
       );
+
     }
 
-    /* ========================================================
-       LEER BODY
-       ======================================================== */
+
+    /*
+     * ----------------------------------------------------------
+     * LEER JSON
+     * ----------------------------------------------------------
+     */
 
     let body;
 
@@ -572,7 +825,8 @@ export default {
       const raw =
         await request.text();
 
-      if (raw.length > 32_000) {
+
+      if (raw.length > 32000) {
 
         return json(
           {
@@ -582,7 +836,9 @@ export default {
           },
           413
         );
+
       }
+
 
       body =
         JSON.parse(raw);
@@ -592,21 +848,25 @@ export default {
       return json(
         {
           ok: false,
-          error:
-            "JSON inválido."
+          error: "JSON inválido."
         },
         400
       );
+
     }
 
-    /* ========================================================
-       MENSAJE ACTUAL
-       ======================================================== */
+
+    /*
+     * ----------------------------------------------------------
+     * MENSAJE
+     * ----------------------------------------------------------
+     */
 
     const message =
       typeof body.message === "string"
         ? body.message.trim()
         : "";
+
 
     if (!message) {
 
@@ -618,9 +878,11 @@ export default {
         },
         400
       );
+
     }
 
-    if (message.length > 8_000) {
+
+    if (message.length > 8000) {
 
       return json(
         {
@@ -630,74 +892,62 @@ export default {
         },
         413
       );
+
     }
 
-    /* ========================================================
-       SYSTEM PROMPT
-       ======================================================== */
-
-    const systemPrompt =
-      typeof body.systemPrompt === "string" &&
-      body.systemPrompt.trim()
-        ? body.systemPrompt.trim()
-        : `
-Actuá como Sofía, asistente personal de Mi Gym La Cima.
-
-Respondé en español argentino, de manera clara,
-natural, directa y amigable.
-
-Ayudá al usuario con entrenamiento,
-hábitos, alimentación general,
-progreso, descanso y recuperación.
-
-No inventes datos.
-
-Cuando se trate de cuestiones médicas,
-síntomas o lesiones, aclarale que la
-información no reemplaza la evaluación
-de un profesional de la salud.
-`.trim();
-
-    /* ========================================================
-       HISTORIAL
-       ======================================================== */
-
-    const history =
-      convertirHistorial(
-        body.history
-      );
 
     /*
-     * Evitamos que el historial crezca
-     * indefinidamente.
+     * ----------------------------------------------------------
+     * VERIFICAR BINDING DE WORKERS AI
+     * ----------------------------------------------------------
      */
 
-    const historialLimitado =
-      history.slice(-12);
+    if (!env.AI) {
 
-    /* ========================================================
-       ARMAR MENSAJES
-       ======================================================== */
+      return json(
+        {
+          ok: false,
 
-    const messages = [
+          code:
+            "AI_BINDING_MISSING",
 
-      {
-        role: "system",
-        content: systemPrompt
-      },
+          error:
+            "El binding AI de Cloudflare no está disponible."
+        },
+        500
+      );
 
-      ...historialLimitado,
+    }
 
-      {
-        role: "user",
-        content: message
-      }
 
-    ];
+    /*
+     * ----------------------------------------------------------
+     * CONSTRUIR MENSAJES
+     * ----------------------------------------------------------
+     */
 
-    /* ========================================================
-       LLAMADA A CLOUDFLARE WORKERS AI
-       ======================================================== */
+    const messages =
+      construirMensajes(body);
+
+
+    /*
+     * Agregamos el mensaje actual.
+     *
+     * Evitamos duplicarlo si por alguna razón
+     * ya vino incluido en history.
+     */
+
+    messages.push({
+      role: "user",
+      content: message
+    });
+
+
+    /*
+     * ----------------------------------------------------------
+     * LLAMADA A CLOUDFLARE WORKERS AI
+     * ----------------------------------------------------------
+     */
 
     let aiResult;
 
@@ -708,8 +958,11 @@ de un profesional de la salud.
           AI_MODEL,
           {
             messages,
+
             max_tokens: 700,
+
             temperature: 0.7,
+
             user: user.uid
           },
           {
@@ -720,60 +973,100 @@ de un profesional de la salud.
     } catch (error) {
 
       console.error(
-        "Error Workers AI:",
+        "ERROR CLOUDFLARE WORKERS AI:",
         error
       );
 
       return json(
         {
           ok: false,
+
           code:
             "AI_PROVIDER_ERROR",
+
           error:
-            "Sofía no pudo procesar la consulta en este momento. Probá nuevamente en unos segundos."
+            "Sofía no pudo comunicarse con el proveedor de IA."
         },
-        503
+        502
       );
+
     }
 
-    /* ========================================================
-       EXTRAER RESPUESTA
-       ======================================================== */
+
+    /*
+     * ----------------------------------------------------------
+     * EXTRAER TEXTO
+     * ----------------------------------------------------------
+     */
 
     const answer =
-      extraerRespuestaIA(
-        aiResult
-      );
+      extraerRespuestaIA(aiResult);
+
+
+    /*
+     * ----------------------------------------------------------
+     * RESPUESTA VACÍA
+     * ----------------------------------------------------------
+     */
 
     if (!answer) {
 
+      /*
+       * Guardamos información limitada en logs
+       * para poder diagnosticar sin devolver
+       * información interna al navegador.
+       */
+
       console.error(
-        "Workers AI devolvió una respuesta sin texto:",
-        aiResult
+        "AI_EMPTY_RESPONSE:",
+        JSON.stringify(aiResult).slice(0, 5000)
       );
+
 
       return json(
         {
           ok: false,
+
           code:
             "AI_EMPTY_RESPONSE",
+
           error:
-            "Sofía recibió una respuesta vacía del proveedor de IA."
+            "Sofía recibió una respuesta del proveedor de IA, pero no se pudo extraer el texto."
         },
         502
       );
+
     }
 
-    /* ========================================================
-       RESPUESTA AL FRONTEND
-       ======================================================== */
+
+    /*
+     * ----------------------------------------------------------
+     * RESPUESTA CORRECTA
+     * ----------------------------------------------------------
+     */
 
     return json({
+
       ok: true,
+
       answer,
-      model: AI_MODEL,
+
+      model:
+        AI_MODEL,
+
       remaining:
-        rate.remaining
+        rate.remaining,
+
+      user: {
+        uid:
+          user.uid,
+
+        rol:
+          user.rol
+      }
+
     });
+
   }
+
 };
