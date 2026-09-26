@@ -3,8 +3,6 @@
  * SOFÍA WORKER — MI GYM LA CIMA
  * ============================================================
  *
- * Arquitectura:
- *
  * MI GYM
  *   ↓
  * Firebase Authentication
@@ -17,25 +15,23 @@
  *   ↓
  * GLM-4.7-Flash
  *
- * IMPORTANTE:
- * - No contiene API keys de Gemini/OpenAI.
- * - La IA se ejecuta mediante Cloudflare Workers AI.
- * - Firebase sigue siendo responsable de autenticación.
- * - Firestore determina si el usuario está autorizado.
  * ============================================================
  */
 
-const ALLOWED_ORIGIN = "https://dcgrin07-ux.github.io";
+const ALLOWED_ORIGIN =
+  "https://dcgrin07-ux.github.io";
 
-const FIREBASE_PROJECT_ID = "mygymlacima";
+const FIREBASE_PROJECT_ID =
+  "mygymlacima";
 
-const AI_MODEL = "@cf/zai-org/glm-4.7-flash";
+const AI_MODEL =
+  "@cf/zai-org/glm-4.7-flash";
 
 const RATE_LIMIT_MAX = 20;
-const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 
-// Estado temporal del límite de solicitudes.
-// Adecuado para etapa de desarrollo.
+const RATE_LIMIT_WINDOW_MS =
+  60 * 1000;
+
 const rateMap = new Map();
 
 
@@ -44,45 +40,72 @@ const rateMap = new Map();
    ============================================================ */
 
 function corsHeaders() {
+
   return {
-    "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
-    "Access-Control-Allow-Headers": "Authorization, Content-Type",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Vary": "Origin"
+    "Access-Control-Allow-Origin":
+      ALLOWED_ORIGIN,
+
+    "Access-Control-Allow-Headers":
+      "Authorization, Content-Type",
+
+    "Access-Control-Allow-Methods":
+      "POST, OPTIONS",
+
+    "Vary":
+      "Origin"
   };
+
 }
 
 
 /* ============================================================
-   RESPUESTA JSON
+   JSON
    ============================================================ */
 
-function json(data, status = 200, extraHeaders = {}) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: {
-      "Content-Type": "application/json; charset=utf-8",
-      ...corsHeaders(),
-      ...extraHeaders
+function json(
+  data,
+  status = 200,
+  extraHeaders = {}
+) {
+
+  return new Response(
+    JSON.stringify(data),
+    {
+      status,
+
+      headers: {
+        "Content-Type":
+          "application/json; charset=utf-8",
+
+        ...corsHeaders(),
+
+        ...extraHeaders
+      }
     }
-  });
+  );
+
 }
 
 
 /* ============================================================
-   TOKEN BEARER
+   BEARER TOKEN
    ============================================================ */
 
 function getBearerToken(request) {
-  const header = request.headers.get("Authorization") || "";
+
+  const header =
+    request.headers.get("Authorization") ||
+    "";
 
   if (!header.startsWith("Bearer ")) {
     return null;
   }
 
-  const token = header.slice(7).trim();
+  const token =
+    header.slice(7).trim();
 
   return token || null;
+
 }
 
 
@@ -91,63 +114,85 @@ function getBearerToken(request) {
    ============================================================ */
 
 function checkRateLimit(uid) {
+
   const now = Date.now();
 
-  const current = rateMap.get(uid);
+  const current =
+    rateMap.get(uid);
 
   if (
     !current ||
-    now - current.startedAt >= RATE_LIMIT_WINDOW_MS
+    now - current.startedAt >=
+      RATE_LIMIT_WINDOW_MS
   ) {
-    rateMap.set(uid, {
-      startedAt: now,
-      count: 1
-    });
+
+    rateMap.set(
+      uid,
+      {
+        startedAt: now,
+        count: 1
+      }
+    );
 
     return {
       allowed: true,
-      remaining: RATE_LIMIT_MAX - 1
+      remaining:
+        RATE_LIMIT_MAX - 1
     };
+
   }
 
-  if (current.count >= RATE_LIMIT_MAX) {
-    const retryAfter = Math.ceil(
-      (
-        RATE_LIMIT_WINDOW_MS -
-        (now - current.startedAt)
-      ) / 1000
-    );
+  if (
+    current.count >=
+    RATE_LIMIT_MAX
+  ) {
+
+    const retryAfter =
+      Math.ceil(
+        (
+          RATE_LIMIT_WINDOW_MS -
+          (now - current.startedAt)
+        ) / 1000
+      );
 
     return {
       allowed: false,
       retryAfter
     };
+
   }
 
   current.count += 1;
 
   return {
     allowed: true,
-    remaining: RATE_LIMIT_MAX - current.count
+    remaining:
+      RATE_LIMIT_MAX -
+      current.count
   };
+
 }
 
 
 /* ============================================================
-   DECODIFICAR PAYLOAD DEL FIREBASE ID TOKEN
+   DECODIFICAR JWT
    ============================================================ */
 
 function decodeJwtPayload(token) {
+
   try {
-    const parts = token.split(".");
+
+    const parts =
+      token.split(".");
 
     if (parts.length !== 3) {
       return null;
     }
 
-    const base64 = parts[1]
-      .replace(/-/g, "+")
-      .replace(/_/g, "/");
+    const base64 =
+      parts[1]
+        .replace(/-/g, "+")
+        .replace(/_/g, "/");
 
     const padded =
       base64 +
@@ -155,76 +200,110 @@ function decodeJwtPayload(token) {
         (4 - (base64.length % 4)) % 4
       );
 
-    const binary = atob(padded);
+    const binary =
+      atob(padded);
 
     let text = "";
 
-    for (let i = 0; i < binary.length; i++) {
-      text += String.fromCharCode(
-        binary.charCodeAt(i)
-      );
+    for (
+      let i = 0;
+      i < binary.length;
+      i++
+    ) {
+
+      text +=
+        String.fromCharCode(
+          binary.charCodeAt(i)
+        );
+
     }
 
     return JSON.parse(text);
 
   } catch {
+
     return null;
+
   }
+
 }
 
 
 /* ============================================================
-   VERIFICAR USUARIO EN FIREBASE
+   VERIFICAR USUARIO FIREBASE
    ============================================================ */
 
-async function getUserFromFirebase(idToken) {
+async function getUserFromFirebase(
+  idToken
+) {
 
-  const payload = decodeJwtPayload(idToken);
+  const payload =
+    decodeJwtPayload(idToken);
 
   if (
     !payload ||
     !payload.sub ||
     !payload.exp
   ) {
+
     return {
       ok: false,
       status: 401,
-      error: "Token de Firebase inválido."
+      error:
+        "Token de Firebase inválido."
     };
+
   }
 
   const nowSeconds =
-    Math.floor(Date.now() / 1000);
+    Math.floor(
+      Date.now() / 1000
+    );
 
-  if (payload.exp <= nowSeconds) {
+  if (
+    payload.exp <=
+    nowSeconds
+  ) {
+
     return {
       ok: false,
       status: 401,
-      error: "La sesión de Firebase expiró."
+      error:
+        "La sesión de Firebase expiró."
     };
+
   }
 
-  if (payload.aud !== FIREBASE_PROJECT_ID) {
+  if (
+    payload.aud !==
+    FIREBASE_PROJECT_ID
+  ) {
+
     return {
       ok: false,
       status: 401,
       error:
         "Token de Firebase no válido para este proyecto."
     };
+
   }
 
   if (
     payload.iss !==
     `https://securetoken.google.com/${FIREBASE_PROJECT_ID}`
   ) {
+
     return {
       ok: false,
       status: 401,
-      error: "Emisor de token no válido."
+      error:
+        "Emisor de token no válido."
     };
+
   }
 
-  const uid = payload.sub;
+  const uid =
+    payload.sub;
 
   const url =
     `https://firestore.googleapis.com/v1/projects/` +
@@ -232,61 +311,85 @@ async function getUserFromFirebase(idToken) {
     `/databases/(default)/documents/usuarios/` +
     `${encodeURIComponent(uid)}`;
 
-  const response = await fetch(url, {
-    method: "GET",
+  const response =
+    await fetch(
+      url,
+      {
+        method: "GET",
 
-    headers: {
-      "Authorization": `Bearer ${idToken}`
-    }
-  });
+        headers: {
+          "Authorization":
+            `Bearer ${idToken}`
+        }
+      }
+    );
 
-  if (response.status === 401) {
+  if (
+    response.status === 401
+  ) {
+
     return {
       ok: false,
       status: 401,
-      error: "Firebase rechazó el token."
+      error:
+        "Firebase rechazó el token."
     };
+
   }
 
-  if (response.status === 403) {
+  if (
+    response.status === 403
+  ) {
+
     return {
       ok: false,
       status: 403,
       error:
         "Firebase no permite acceder al usuario."
     };
+
   }
 
-  if (response.status === 404) {
+  if (
+    response.status === 404
+  ) {
+
     return {
       ok: false,
       status: 403,
       error:
         "La cuenta no está registrada en MI GYM."
     };
+
   }
 
   if (!response.ok) {
+
     return {
       ok: false,
       status: 502,
       error:
         "No se pudo verificar la autorización en Firebase."
     };
+
   }
 
-  const doc = await response.json();
+  const doc =
+    await response.json();
 
-  const fields = doc.fields || {};
+  const fields =
+    doc.fields || {};
 
   const autorizado =
     fields.autorizado?.booleanValue === true;
 
   const rol =
-    fields.rol?.stringValue || "cliente";
+    fields.rol?.stringValue ||
+    "cliente";
 
   const email =
-    fields.email?.stringValue || "";
+    fields.email?.stringValue ||
+    "";
 
   return {
     ok: true,
@@ -295,79 +398,102 @@ async function getUserFromFirebase(idToken) {
     rol,
     autorizado
   };
+
 }
 
 
 /* ============================================================
-   NORMALIZAR CONTENIDO DE RESPUESTA DE LA IA
+   EXTRAER TEXTO DE DIFERENTES FORMATOS
    ============================================================ */
 
-function normalizarContenido(content) {
+function extraerTexto(valor) {
 
-  if (typeof content === "string") {
-    return content.trim();
+  if (
+    typeof valor === "string"
+  ) {
+
+    return valor.trim();
+
   }
 
-  if (Array.isArray(content)) {
 
-    const texto = content
+  if (
+    Array.isArray(valor)
+  ) {
+
+    return valor
       .map(item => {
 
-        if (typeof item === "string") {
+        if (
+          typeof item === "string"
+        ) {
+
           return item;
+
         }
 
         if (
           item &&
           typeof item.text === "string"
         ) {
+
           return item.text;
+
         }
 
         if (
           item &&
           typeof item.content === "string"
         ) {
+
           return item.content;
+
         }
 
         return "";
+
       })
       .join("")
       .trim();
 
-    if (texto) {
-      return texto;
-    }
   }
 
+
   if (
-    content &&
-    typeof content === "object"
+    valor &&
+    typeof valor === "object"
   ) {
 
     if (
-      typeof content.text === "string"
+      typeof valor.text === "string"
     ) {
-      return content.text.trim();
+
+      return valor.text.trim();
+
     }
 
     if (
-      typeof content.content === "string"
+      typeof valor.content === "string"
     ) {
-      return content.content.trim();
+
+      return valor.content.trim();
+
     }
+
   }
 
   return "";
+
 }
 
 
 /* ============================================================
-   EXTRAER RESPUESTA DE WORKERS AI
+   EXTRAER RESPUESTA DE GLM-4.7-FLASH
    ============================================================ */
 
-function extraerRespuestaIA(result) {
+function extraerRespuestaIA(
+  result
+) {
 
   if (!result) {
     return "";
@@ -375,253 +501,327 @@ function extraerRespuestaIA(result) {
 
 
   /*
-   * Caso 1:
+   * FORMATO DIRECTO
    *
    * {
-   *   response: "Hola..."
+   *   response: "..."
    * }
    */
 
-  if (
-    typeof result.response === "string" &&
-    result.response.trim()
-  ) {
-    return result.response.trim();
+  let texto =
+    extraerTexto(
+      result.response
+    );
+
+  if (texto) {
+    return texto;
   }
 
 
   /*
-   * Caso 2:
+   * FORMATO CHAT COMPLETIONS
    *
-   * {
-   *   choices: [
-   *     {
-   *       message: {
-   *         content: "Hola..."
-   *       }
-   *     }
-   *   ]
-   * }
+   * choices[0].message.content
    */
 
-  const choiceContent =
-    result?.choices?.[0]?.message?.content;
+  texto =
+    extraerTexto(
+      result
+        ?.choices
+        ?. [0]
+        ?.message
+        ?.content
+    );
 
-  const textoChoices =
-    normalizarContenido(choiceContent);
-
-  if (textoChoices) {
-    return textoChoices;
+  if (texto) {
+    return texto;
   }
 
 
   /*
-   * Caso 3:
-   *
-   * result.response.choices[0]
+   * FORMATO ANIDADO
    */
 
-  const responseChoices =
-    result?.response?.choices?.[0]?.message?.content;
+  texto =
+    extraerTexto(
+      result
+        ?.result
+        ?.response
+    );
 
-  const textoResponseChoices =
-    normalizarContenido(responseChoices);
+  if (texto) {
+    return texto;
+  }
 
-  if (textoResponseChoices) {
-    return textoResponseChoices;
+
+  texto =
+    extraerTexto(
+      result
+        ?.result
+        ?.choices
+        ?. [0]
+        ?.message
+        ?.content
+    );
+
+  if (texto) {
+    return texto;
   }
 
 
   /*
-   * Caso 4:
-   *
-   * result.result.response
+   * ALGUNOS FORMATOS PUEDEN DEVOLVER
+   * EL TEXTO EN OTROS CAMPOS.
    */
 
-  const resultResponse =
-    result?.result?.response;
+  const campos = [
 
-  const textoResultResponse =
-    normalizarContenido(resultResponse);
-
-  if (textoResultResponse) {
-    return textoResultResponse;
-  }
-
-
-  /*
-   * Caso 5:
-   *
-   * result.result.choices[0].message.content
-   */
-
-  const resultChoices =
-    result?.result?.choices?.[0]?.message?.content;
-
-  const textoResultChoices =
-    normalizarContenido(resultChoices);
-
-  if (textoResultChoices) {
-    return textoResultChoices;
-  }
-
-
-  /*
-   * Caso 6: formatos alternativos
-   */
-
-  const posiblesCampos = [
     result.text,
+
     result.output_text,
+
     result.result?.text,
+
     result.result?.output_text
+
   ];
 
-  for (const campo of posiblesCampos) {
+  for (
+    const campo of campos
+  ) {
 
-    const texto =
-      normalizarContenido(campo);
+    texto =
+      extraerTexto(campo);
 
     if (texto) {
       return texto;
     }
+
+  }
+
+
+  /*
+   * IMPORTANTE:
+   *
+   * GLM es un modelo de razonamiento.
+   * Si por alguna razón solamente devuelve
+   * reasoning_content, lo usamos como último
+   * recurso para no perder la respuesta.
+   */
+
+  const reasoningCampos = [
+
+    result
+      ?.choices
+      ?. [0]
+      ?.message
+      ?.reasoning_content,
+
+    result
+      ?.result
+      ?.choices
+      ?. [0]
+      ?.message
+      ?.reasoning_content,
+
+    result.reasoning_content,
+
+    result.result?.reasoning_content
+
+  ];
+
+
+  for (
+    const campo of reasoningCampos
+  ) {
+
+    texto =
+      extraerTexto(campo);
+
+    if (texto) {
+      return texto;
+    }
+
   }
 
 
   return "";
+
 }
 
 
 /* ============================================================
-   CONSTRUIR MENSAJES PARA EL MODELO
+   CONSTRUIR MENSAJES
    ============================================================ */
 
-function construirMensajes(body) {
+function construirMensajes(
+  body
+) {
 
   const systemPrompt =
-    typeof body.systemPrompt === "string" &&
+
+    typeof body.systemPrompt ===
+      "string" &&
     body.systemPrompt.trim()
+
       ? body.systemPrompt.trim()
+
       : `
-Sos Sofía, la asistente personal de Mi Gym La Cima.
+Sos Sofía, la asistente personal
+de Mi Gym La Cima.
 
 Respondé en español argentino.
 
-Sé clara, natural, cálida, directa y práctica.
+Sé clara, natural, cálida,
+directa y práctica.
 
 No inventes datos del usuario.
 
-Cuando no tengas información suficiente,
+Si no tenés información suficiente,
 decilo claramente.
 
 Podés ayudar con entrenamiento,
 actividad física, hábitos,
 recuperación, alimentación general,
-progreso y uso de la aplicación.
+progreso y utilización de la aplicación.
 
 Cuando una consulta sea médica,
-no presentes diagnósticos como certezas
-y recomendá consultar a un profesional
-cuando corresponda.
+no presentes un diagnóstico
+como certeza y recomendá consultar
+a un profesional cuando corresponda.
 `;
 
 
-  const history =
-    Array.isArray(body.history)
-      ? body.history
-      : [];
-
-
   const messages = [
+
     {
       role: "system",
       content: systemPrompt
     }
+
   ];
 
 
-  /*
-   * Incorporamos el historial.
-   * Limitamos a los últimos 10 mensajes.
-   */
+  const history =
+
+    Array.isArray(body.history)
+
+      ? body.history
+
+      : [];
+
 
   const historialLimpio =
+
     history
-      .filter(item =>
-        item &&
-        (
-          item.role === "user" ||
-          item.role === "assistant"
-        )
+
+      .filter(
+        item =>
+          item &&
+          (
+            item.role === "user" ||
+            item.role === "assistant"
+          )
       )
+
       .slice(-10);
 
 
-  for (const item of historialLimpio) {
+  for (
+    const item of historialLimpio
+  ) {
 
     const content =
-      typeof item.content === "string"
+
+      typeof item.content ===
+        "string"
+
         ? item.content.trim()
+
         : "";
+
 
     if (!content) {
       continue;
     }
 
+
     messages.push({
-      role: item.role,
-      content
+
+      role:
+        item.role,
+
+      content:
+        content
+
     });
+
   }
 
 
   return messages;
+
 }
 
 
 /* ============================================================
-   WORKER
+   WORKER PRINCIPAL
    ============================================================ */
 
 export default {
 
-  async fetch(request, env) {
+  async fetch(
+    request,
+    env
+  ) {
+
 
     /*
      * ----------------------------------------------------------
-     * ORIGEN
+     * CORS
      * ----------------------------------------------------------
      */
 
     const origin =
       request.headers.get("Origin");
 
+
     if (
       origin &&
       origin !== ALLOWED_ORIGIN
     ) {
+
       return json(
         {
           ok: false,
-          error: "Origen no permitido."
+          error:
+            "Origen no permitido."
         },
         403
       );
+
     }
 
 
     /*
      * ----------------------------------------------------------
-     * PREFLIGHT CORS
+     * OPTIONS
      * ----------------------------------------------------------
      */
 
-    if (request.method === "OPTIONS") {
+    if (
+      request.method ===
+      "OPTIONS"
+    ) {
 
-      return new Response(null, {
-        status: 204,
-        headers: corsHeaders()
-      });
+      return new Response(
+        null,
+        {
+          status: 204,
+          headers:
+            corsHeaders()
+        }
+      );
 
     }
 
@@ -638,7 +838,7 @@ export default {
 
     /*
      * ----------------------------------------------------------
-     * HEALTH CHECK
+     * HEALTH
      * ----------------------------------------------------------
      */
 
@@ -670,7 +870,7 @@ export default {
 
     /*
      * ----------------------------------------------------------
-     * RUTA PRINCIPAL DE SOFÍA
+     * RUTA SOFÍA
      * ----------------------------------------------------------
      */
 
@@ -682,7 +882,8 @@ export default {
       return json(
         {
           ok: false,
-          error: "Ruta no encontrada."
+          error:
+            "Ruta no encontrada."
         },
         404
       );
@@ -692,12 +893,13 @@ export default {
 
     /*
      * ----------------------------------------------------------
-     * TOKEN FIREBASE
+     * TOKEN
      * ----------------------------------------------------------
      */
 
     const idToken =
       getBearerToken(request);
+
 
     if (!idToken) {
 
@@ -715,7 +917,7 @@ export default {
 
     /*
      * ----------------------------------------------------------
-     * VERIFICAR USUARIO
+     * FIREBASE
      * ----------------------------------------------------------
      */
 
@@ -724,12 +926,14 @@ export default {
     try {
 
       user =
-        await getUserFromFirebase(idToken);
+        await getUserFromFirebase(
+          idToken
+        );
 
     } catch (error) {
 
       console.error(
-        "Error verificando Firebase:",
+        "ERROR FIREBASE:",
         error
       );
 
@@ -750,7 +954,8 @@ export default {
       return json(
         {
           ok: false,
-          error: user.error
+          error:
+            user.error
         },
         user.status
       );
@@ -788,7 +993,10 @@ export default {
      */
 
     const rate =
-      checkRateLimit(user.uid);
+      checkRateLimit(
+        user.uid
+      );
+
 
     if (!rate.allowed) {
 
@@ -805,7 +1013,9 @@ export default {
         429,
         {
           "Retry-After":
-            String(rate.retryAfter)
+            String(
+              rate.retryAfter
+            )
         }
       );
 
@@ -814,7 +1024,7 @@ export default {
 
     /*
      * ----------------------------------------------------------
-     * LEER JSON
+     * LEER BODY
      * ----------------------------------------------------------
      */
 
@@ -826,7 +1036,10 @@ export default {
         await request.text();
 
 
-      if (raw.length > 32000) {
+      if (
+        raw.length >
+        32000
+      ) {
 
         return json(
           {
@@ -848,7 +1061,8 @@ export default {
       return json(
         {
           ok: false,
-          error: "JSON inválido."
+          error:
+            "JSON inválido."
         },
         400
       );
@@ -863,8 +1077,12 @@ export default {
      */
 
     const message =
-      typeof body.message === "string"
+
+      typeof body.message ===
+        "string"
+
         ? body.message.trim()
+
         : "";
 
 
@@ -882,7 +1100,10 @@ export default {
     }
 
 
-    if (message.length > 8000) {
+    if (
+      message.length >
+      8000
+    ) {
 
       return json(
         {
@@ -898,7 +1119,7 @@ export default {
 
     /*
      * ----------------------------------------------------------
-     * VERIFICAR BINDING DE WORKERS AI
+     * COMPROBAR IA
      * ----------------------------------------------------------
      */
 
@@ -922,30 +1143,46 @@ export default {
 
     /*
      * ----------------------------------------------------------
-     * CONSTRUIR MENSAJES
+     * MENSAJES
      * ----------------------------------------------------------
      */
 
     const messages =
-      construirMensajes(body);
+      construirMensajes(
+        body
+      );
 
 
     /*
      * Agregamos el mensaje actual.
-     *
-     * Evitamos duplicarlo si por alguna razón
-     * ya vino incluido en history.
      */
 
     messages.push({
-      role: "user",
-      content: message
+
+      role:
+        "user",
+
+      content:
+        message
+
     });
 
 
     /*
      * ----------------------------------------------------------
-     * LLAMADA A CLOUDFLARE WORKERS AI
+     * LLAMADA A GLM-4.7-FLASH
+     * ----------------------------------------------------------
+     *
+     * CAMBIO IMPORTANTE:
+     *
+     * - stream: false
+     * - max_completion_tokens
+     * - temperature
+     * - user
+     *
+     * Cloudflare documenta max_tokens como
+     * deprecated en favor de max_completion_tokens.
+     *
      * ----------------------------------------------------------
      */
 
@@ -957,25 +1194,40 @@ export default {
         await env.AI.run(
           AI_MODEL,
           {
-            messages,
 
-            max_tokens: 700,
+            messages:
 
-            temperature: 0.7,
+              messages,
 
-            user: user.uid
+            stream:
+              false,
+
+            max_completion_tokens:
+              1200,
+
+            temperature:
+              0.7,
+
+            user:
+              user.uid
+
           },
           {
-            rejectIfBusy: true
+
+            rejectIfBusy:
+              true
+
           }
         );
+
 
     } catch (error) {
 
       console.error(
-        "ERROR CLOUDFLARE WORKERS AI:",
+        "ERROR WORKERS AI:",
         error
       );
+
 
       return json(
         {
@@ -985,7 +1237,12 @@ export default {
             "AI_PROVIDER_ERROR",
 
           error:
-            "Sofía no pudo comunicarse con el proveedor de IA."
+            "Sofía no pudo comunicarse con el proveedor de IA.",
+
+          detail:
+            error?.message ||
+            String(error)
+
         },
         502
       );
@@ -995,31 +1252,43 @@ export default {
 
     /*
      * ----------------------------------------------------------
-     * EXTRAER TEXTO
+     * EXTRAER RESPUESTA
      * ----------------------------------------------------------
      */
 
     const answer =
-      extraerRespuestaIA(aiResult);
+      extraerRespuestaIA(
+        aiResult
+      );
 
 
     /*
      * ----------------------------------------------------------
-     * RESPUESTA VACÍA
+     * SI NO HAY TEXTO
      * ----------------------------------------------------------
      */
 
     if (!answer) {
 
-      /*
-       * Guardamos información limitada en logs
-       * para poder diagnosticar sin devolver
-       * información interna al navegador.
-       */
+      console.error(
+        "================================================"
+      );
 
       console.error(
-        "AI_EMPTY_RESPONSE:",
-        JSON.stringify(aiResult).slice(0, 5000)
+        "AI_EMPTY_RESPONSE"
+      );
+
+      console.error(
+        JSON.stringify(
+          aiResult
+        ).slice(
+          0,
+          10000
+        )
+      );
+
+      console.error(
+        "================================================"
       );
 
 
@@ -1031,7 +1300,35 @@ export default {
             "AI_EMPTY_RESPONSE",
 
           error:
-            "Sofía recibió una respuesta del proveedor de IA, pero no se pudo extraer el texto."
+            "Sofía recibió una respuesta del proveedor de IA, pero no se pudo extraer el texto.",
+
+          diagnostic:
+
+            aiResult
+              ? {
+                  tieneChoices:
+                    Array.isArray(
+                      aiResult.choices
+                    ),
+
+                  cantidadChoices:
+                    Array.isArray(
+                      aiResult.choices
+                    )
+                      ? aiResult.choices.length
+                      : 0,
+
+                  tieneResponse:
+                    typeof
+                      aiResult.response ===
+                    "string",
+
+                  tieneResult:
+                    !!aiResult.result
+                }
+
+              : null
+
         },
         502
       );
@@ -1041,15 +1338,17 @@ export default {
 
     /*
      * ----------------------------------------------------------
-     * RESPUESTA CORRECTA
+     * TODO CORRECTO
      * ----------------------------------------------------------
      */
 
     return json({
 
-      ok: true,
+      ok:
+        true,
 
-      answer,
+      answer:
+        answer,
 
       model:
         AI_MODEL,
@@ -1058,11 +1357,13 @@ export default {
         rate.remaining,
 
       user: {
+
         uid:
           user.uid,
 
         rol:
           user.rol
+
       }
 
     });
