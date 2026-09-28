@@ -298,6 +298,89 @@ margin: 0;
 padding: 8px;
 font-size: 0.9rem;
 }
+
+/* ============================================================
+   SOFÍA V5.5 — CHAT SIN RECORTE DE MENSAJES
+   Solo modifica la interfaz del chat.
+   Worker e IA permanecen intactos.
+   ============================================================ */
+
+.sofia-modal-content {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: min(700px, calc(100vh - 32px));
+    max-height: calc(100vh - 32px);
+    overflow: hidden !important;
+    box-sizing: border-box;
+}
+
+.sofia-modal-content > .flex-row {
+    flex: 0 0 auto;
+}
+
+.sofia-chat-container {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: auto !important;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden !important;
+}
+
+.sofia-messages {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: auto !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 12px;
+    box-sizing: border-box;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+}
+
+.sofia-bubble {
+    max-width: 80%;
+    width: fit-content;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    box-sizing: border-box;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    flex: 0 0 auto;
+}
+
+.sofia-bubble.user {
+    align-self: flex-end;
+}
+
+.sofia-bubble.assistant {
+    align-self: flex-start;
+}
+
+.sofia-input-area {
+    flex: 0 0 auto;
+}
+
+@media (max-width: 600px) {
+    .sofia-modal-content {
+        height: calc(100vh - 20px);
+        max-height: calc(100vh - 20px);
+        padding: 12px;
+    }
+
+    .sofia-bubble {
+        max-width: 90%;
+    }
+}
+
 </style>
 </head>
 <body> 
@@ -600,7 +683,7 @@ font-size: 0.9rem;
 
 <!-- Modal Chat Sofía IA -->
 <div id="modal-sofia-chat" class="modal">
-<div class="modal-content" style="max-width: 450px;">
+<div class="modal-content sofia-modal-content" style="max-width: 450px;">
 <div class="flex-row" style="justify-content: space-between; margin-bottom: 10px;">
 <h3 id="sofia-modal-titulo" style="color: var(--sofia-accent);">🤖 Sofía IA - Asesora</h3>
 <button class="btn btn-danger" style="width: auto; margin:0; padding: 2px 8px; font-size:0.75rem;" onclick="cerrarModalSofia()">✕</button>
@@ -1010,25 +1093,63 @@ async function guardarPerfilCloud() {
    GESTIÓN DE IA (Firebase AI Logic)
    ============================================================= */
 
-async function consultarGeminiAI(contents) {
-    if (!window.sofiaAIModelPromise) {
-        throw new Error('Firebase AI Logic todavía no terminó de inicializarse. Esperá unos segundos y probá nuevamente.');
+const SOFIA_WORKER_URL = 'https://sofia-mi-gym.dcgrin07.workers.dev/sofia';
+
+async function consultarSofiaWorker(contents) {
+    const user = auth.currentUser;
+    if (!user) {
+        throw new Error('Sesión no disponible. Volvé a iniciar sesión en Mi Gym La Cima.');
     }
-    const model = await window.sofiaAIModelPromise;
-    if (!model) throw new Error('No se pudo inicializar Firebase AI Logic.');
 
     const historial = Array.isArray(contents) ? contents : [];
     const ultimo = historial[historial.length - 1];
-    const textoActual = ultimo?.parts?.[0]?.text || '';
-    const historiaInicial = historial.slice(0, -1);
+    const mensajeActual = ultimo?.parts?.[0]?.text?.trim() || '';
+    const historiaAnterior = historial.slice(0, -1);
 
-    const chat = model.startChat({
-        history: historiaInicial,
-        generationConfig: { maxOutputTokens: 700 }
+    if (!mensajeActual) {
+        throw new Error('No hay un mensaje para enviar a Sofía.');
+    }
+
+    const primerMensaje = historiaAnterior.find(m => m?.role === 'user');
+    const systemPrompt = primerMensaje?.parts?.[0]?.text ||
+        'Sos Sofía, la asistente personal de Mi Gym La Cima. Respondé en español argentino, de manera clara y amigable.';
+
+    const history = historiaAnterior
+        .filter(m => m && (m.role === 'user' || m.role === 'model'))
+        .slice(-10)
+        .map(m => ({
+            role: m.role === 'model' ? 'assistant' : 'user',
+            content: String(m.parts?.[0]?.text || '').trim()
+        }))
+        .filter(m => m.content);
+
+    const idToken = await user.getIdToken();
+
+    const response = await fetch(SOFIA_WORKER_URL, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`
+        },
+        body: JSON.stringify({
+            message: mensajeActual,
+            systemPrompt,
+            history
+        })
     });
 
-    const result = await chat.sendMessage(textoActual);
-    return result.response.text();
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+        const detalle = data?.error || data?.detail || `Worker HTTP ${response.status}`;
+        throw new Error(detalle);
+    }
+
+    if (!data?.ok || typeof data?.answer !== 'string') {
+        throw new Error('El Worker respondió, pero no devolvió una respuesta válida de Sofía.');
+    }
+
+    return data.answer.trim();
 }
 
 /* =============================================================
@@ -1339,7 +1460,7 @@ ${contextoGlobal}`;
             ...historialReciente
         ];
 
-        const respuestaTexto = await consultarGeminiAI(contentsPayload);
+        const respuestaTexto = await consultarSofiaWorker(contentsPayload);
         document.getElementById(pensandoId)?.remove();
 
         historialChatSofia.push({ role: 'model', parts: [{ text: respuestaTexto }] });
@@ -1371,7 +1492,7 @@ ${contextoGlobal}`;
 
 async function probarConexionIA() {
     try {
-        const respuesta = await consultarGeminiAI([
+        const respuesta = await consultarSofiaWorker([
             { role: 'user', parts: [{ text: 'Respondé únicamente: CONEXIÓN EXITOSA' }] }
         ]);
         alert('🤖 Sofía IA respondió correctamente:\n\n' + respuesta);
@@ -2313,53 +2434,6 @@ renderizarCalendario();
 }
 </script>
 
-<script type="module">
-/*
- * FIREBASE APP CHECK + AI LOGIC
- *
- * IMPORTANTE:
- * - El valor de RECAPTCHA_ENTERPRISE_SITE_KEY NO es una API Key de Gemini.
- * - Es una clave pública de sitio de reCAPTCHA Enterprise y puede estar en el HTML.
- * - Para la primera prueba dejamos activado el modo DEBUG de App Check.
- * - El token de depuración que genere el navegador NO debe copiarse al repositorio.
- * - Una vez comprobado el funcionamiento, se cambia APP_CHECK_DEBUG a false.
- */
-import { initializeApp as initializeAppModular, getApps, getApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
-import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app-check.js";
-import { getAI, getGenerativeModel, GoogleAIBackend } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-ai.js";
 
-window.MI_GYM_FIREBASE_CONFIG = firebaseConfig;
-
-// CONFIGURACIÓN DE APP CHECK
-// Reemplazar SOLO este valor por la Site Key pública de reCAPTCHA Enterprise
-// registrada en Firebase App Check para el dominio de GitHub Pages.
-const RECAPTCHA_ENTERPRISE_SITE_KEY = '6LcjwcctAAAAAD0VP61LYiRHjIQ91Hrt5cdZvtHJ';
-const APP_CHECK_DEBUG = false;
-
-window.sofiaAIModelPromise = (async () => {
-    try {
-        const aiApp = getApps().length ? getApp() : initializeAppModular(window.MI_GYM_FIREBASE_CONFIG);
-
-        if (!RECAPTCHA_ENTERPRISE_SITE_KEY || RECAPTCHA_ENTERPRISE_SITE_KEY.startsWith('PONER_AQUI')) {
-            throw new Error('Falta configurar la Site Key pública de reCAPTCHA Enterprise en RECAPTCHA_ENTERPRISE_SITE_KEY.');
-        }
-
-        initializeAppCheck(aiApp, {
-            provider: new ReCaptchaEnterpriseProvider(RECAPTCHA_ENTERPRISE_SITE_KEY),
-            isTokenAutoRefreshEnabled: true
-        });
-
-        console.log('🛡️ Firebase App Check inicializado.');
-
-        const ai = getAI(aiApp, { backend: new GoogleAIBackend() });
-        const model = getGenerativeModel(ai, { model: 'gemini-3.8-flash' });
-        console.log('🤖 Firebase AI Logic inicializado correctamente.');
-        return model;
-    } catch (error) {
-        console.error('❌ Error inicializando Firebase AI Logic/App Check:', error);
-        throw error;
-    }
-})();
-</script>
 </body>
 </html>
