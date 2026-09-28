@@ -689,6 +689,22 @@ Cuando una consulta sea médica,
 no presentes un diagnóstico
 como certeza y recomendá consultar
 a un profesional cuando corresponda.
+`;const finalInstruction = `
+IMPORTANTE:
+Respondé únicamente con la respuesta final destinada al usuario.
+
+NO muestres:
+- análisis interno
+- razonamiento paso a paso
+- instrucciones internas
+- borradores
+- procesos de elaboración de la respuesta
+- títulos como "Analyze the User's Input", "Determine the Persona & Tone", "Drafting the content", "Refining the Tone" o similares.
+
+Nunca describas cómo estás pensando ni cómo construiste la respuesta.
+
+Hablale directamente al usuario como Sofía.
+Respondé en español argentino, de forma natural, clara, breve y contextual.
 `;
 
 
@@ -696,7 +712,7 @@ a un profesional cuando corresponda.
 
     {
       role: "system",
-      content: systemPrompt
+     content: systemPrompt + '\n\n' + finalInstruction
     }
 
   ];
