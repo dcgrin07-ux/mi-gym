@@ -557,12 +557,12 @@ font-size: 0.9rem;
 <div id="div-fuerza-inputs" style="margin-top: 10px;">
 <label>Cantidad de Series</label>
 <input type="number" id="input-series-nuevo" value="3" min="1" max="20" onchange="generarInputsSeriesNuevo()">
-<label style="margin-top:10px;">Posición en la rutina (1 = primero)</label>
-<input type="number" id="input-posicion-nuevo" min="1" value="1" step="1"> 
-
 <label style="margin-top: 10px;">Detalle por serie (Peso y Reps):</label>
 <div id="contenedor-series-nuevo" style="background: var(--bg-input); padding: 10px; border-radius: 8px; margin-bottom: 10px;"></div>
-</div> 
+</div>
+
+<label style="margin-top:10px;">Posición en la rutina (1 = primero)</label>
+<input type="number" id="input-posicion-nuevo" min="1" value="1" step="1">
 
 <div id="div-cardio-inputs" style="display:none; margin-top: 10px;">
 <div class="flex-row">
@@ -726,6 +726,7 @@ font-size: 0.9rem;
 <div class="modal-content">
 <h3 style="color: var(--accent); margin-bottom: 10px;">Editar Ejercicio / Progresión</h3>
 <input type="hidden" id="edit-ej-idx"> 
+<div id="edit-series-controls">
 <label>Cantidad de Series</label>
 <div class="flex-row" style="margin-bottom:8px;">
 <button type="button" class="btn btn-secondary" style="width:auto;margin:0;padding:8px 14px;" onclick="ajustarCantidadSeriesEdicion(-1)">− Quitar</button>
@@ -733,6 +734,7 @@ font-size: 0.9rem;
 <button type="button" class="btn btn-secondary" style="width:auto;margin:0;padding:8px 14px;" onclick="ajustarCantidadSeriesEdicion(1)">+ Agregar</button>
 </div> 
 <label style="margin-top: 6px;">Series (Peso y Reps individual):</label>
+</div>
 <div id="edit-contenedor-series" style="background: var(--bg-input); padding: 8px; border-radius: 6px; margin-bottom: 10px;"></div> 
 <label>Especificaciones / Notas técnicas</label>
 <textarea id="edit-ej-notas" rows="3" placeholder="Pautas técnicas, postura..." style="resize:none;"></textarea>
@@ -1544,34 +1546,6 @@ combinados.push(registro);
 return combinados;
 }
 
-function leerLocalSeguro(clave, valorPredeterminado) {
-try {
-const raw = localStorage.getItem(clave);
-return raw ? JSON.parse(raw) : valorPredeterminado;
-} catch (e) {
-console.warn("No se pudo leer un dato local; se conserva el valor disponible:", e);
-return valorPredeterminado;
-}
-}
-
-function combinarRegistrosSinPerdida(registrosNube, registrosLocales) {
-const combinados = [];
-const vistos = new Set();
-[registrosNube, registrosLocales].forEach(lista => {
-if (!Array.isArray(lista)) return;
-lista.forEach(registro => {
-if (!registro || typeof registro !== "object") return;
-const clave = registro.id != null
-? "id:" + String(registro.id)
-: "legacy:" + String(registro.fecha || "") + "|" + String(registro.rutina || "") + "|" + String(registro.duracionSegundos || "") + "|" + JSON.stringify(registro.resultados || []);
-if (vistos.has(clave)) return;
-vistos.add(clave);
-combinados.push(registro);
-});
-});
-return combinados;
-}
-
 async function sincronizarConNubeAlIniciar() {
 const user = auth.currentUser;
 if (!user) return;
@@ -1679,6 +1653,11 @@ txt.innerText = texto;
 } 
 
 function irA(viewId) {
+const vistaActual = document.querySelector('.view-section.active');
+if (vistaActual && vistaActual.id === 'view-guiado' && viewId !== 'view-guiado' && borradorSesion) {
+guardarEstadoGuiadoActual();
+guardarLocal();
+}
 document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
 const targetView = document.getElementById(viewId);
 if (targetView) targetView.classList.add('active'); 
@@ -1992,6 +1971,8 @@ return String(value || '')
 function abrirModalEditarEjercicio(idx) {
 document.getElementById('edit-ej-idx').value = idx;
 let ej = rutinasPersonalizadas[rutinaSeleccionadaKey][idx];
+const seriesControls = document.getElementById('edit-series-controls');
+if (seriesControls) seriesControls.style.display = ej.isCardio ? 'none' : 'block';
 normalizarVideosEjercicio(ej);
 document.getElementById('edit-ej-notas').value = ej.notas || '';
 generarInputsVideosEdicion(ej.videos);
@@ -2217,6 +2198,10 @@ function comenzarModoGuiado() {
 const listaEjercicios = rutinasPersonalizadas[rutinaSeleccionadaKey];
 if (!Array.isArray(listaEjercicios) || listaEjercicios.length === 0) {
 alert("Agregá al menos un ejercicio antes de comenzar.");
+return;
+}
+if (borradorSesion) {
+alert("Ya hay una sesión sin finalizar. Retomala o descartala antes de iniciar otra.");
 return;
 }
 borradorSesion = {
