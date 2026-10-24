@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mi Gym La Cima con Sofía IA</title> 
+<title>Mi Gym</title> 
 
 <!-- PWA Manifest & Meta -->
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -388,7 +388,7 @@ font-size: 0.9rem;
 <!-- ================= PANTALLA DE ACCESO / LOGIN ================= -->
 <div id="auth-screen" class="container" style="margin-top: 50px;">
 <div class="card" style="max-width: 400px; margin: 0 auto;">
-<h2 id="auth-title" style="color: var(--accent); text-align: center; margin-bottom: 16px;">Mi Gym La Cima</h2>
+<h2 id="auth-title" style="color: var(--accent); text-align: center; margin-bottom: 16px;">Mi Gym</h2>
 <div id="auth-error" class="alert-error hidden"></div>
 <form onsubmit="handleAuthSubmit(event)">
 <label>Correo Electrónico</label>
@@ -443,7 +443,7 @@ font-size: 0.9rem;
 <!-- ================= APLICACIÓN PRINCIPAL (PROTEGIDA) ================= -->
 <div id="app-main-wrapper" class="hidden">
 <header>
-<h1>🏋️‍♂️ Mi Gym La Cima</h1>
+<h1>🏋️‍♂️ Mi Gym</h1>
 <div class="flex-row" style="gap: 8px;">
 <div class="cloud-status">
 <div id="cloud-dot" class="cloud-dot offline"></div>
@@ -498,6 +498,10 @@ font-size: 0.9rem;
 <span style="font-size: 0.7rem; color: var(--text-muted);">Calorías Acumuladas</span>
 <h4 id="home-stat-kcal" style="font-size: 1.1rem; color: var(--orange);">0 kcal</h4>
 </div>
+<div style="background: var(--bg-input); padding: 8px; border-radius: 6px; text-align: center; grid-column: 1 / -1;">
+<span style="font-size: 0.7rem; color: var(--text-muted);">Volumen completado del mes (kg × reps)</span>
+<h4 id="home-stat-volumen" style="font-size: 1.1rem; color: var(--yellow);">0</h4>
+</div>
 </div>
 </div> 
 
@@ -534,7 +538,7 @@ font-size: 0.9rem;
 <button class="btn btn-secondary" style="width: auto; margin-bottom: 12px; padding: 6px 12px; font-size: 0.8rem;" onclick="irA('view-home')">⬅ Volver</button>
 <h2 id="titulo-rutina-activa" style="font-size: 1.25rem; color: var(--accent); margin-bottom: 12px;">Rutina</h2>
 <div class="flex-row" style="gap:8px; margin-bottom: 12px;">
-<button class="btn btn-success" style="margin:0; flex:1;" onclick="comenzarModoGuiado()">▶ Comenzar Entrenamiento</button>
+<button class="btn btn-success" style="margin:0; flex:1;" onclick="comenzarModoGuiado()">▶ Iniciar entrenamiento</button>
 <button class="btn btn-sofia" style="margin:0; width:auto; padding: 10px 14px;" onclick="abrirSofiaAsesorRutina()" title="Consultar con Sofía sobre esta rutina">🤖 Asesor Sofía</button>
 </div>
 </div> 
@@ -552,11 +556,13 @@ font-size: 0.9rem;
 
 <div id="div-fuerza-inputs" style="margin-top: 10px;">
 <label>Cantidad de Series</label>
-<input type="number" id="input-series-nuevo" value="3" min="1" max="10" onchange="generarInputsSeriesNuevo()"> 
-
+<input type="number" id="input-series-nuevo" value="3" min="1" max="20" onchange="generarInputsSeriesNuevo()">
 <label style="margin-top: 10px;">Detalle por serie (Peso y Reps):</label>
 <div id="contenedor-series-nuevo" style="background: var(--bg-input); padding: 10px; border-radius: 8px; margin-bottom: 10px;"></div>
-</div> 
+</div>
+
+<label style="margin-top:10px;">Posición en la rutina (1 = primero)</label>
+<input type="number" id="input-posicion-nuevo" min="1" value="1" step="1">
 
 <div id="div-cardio-inputs" style="display:none; margin-top: 10px;">
 <div class="flex-row">
@@ -592,7 +598,8 @@ font-size: 0.9rem;
 </div> 
 
 <h2 id="guiado-nombre" style="font-size: 1.35rem; color: var(--accent); margin-bottom: 6px;">Nombre Ejercicio</h2>
-<p id="guiado-meta" style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 12px;"></p> 
+<p id="guiado-meta" style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 12px;"></p>
+<div id="guiado-lista-ejercicios" style="display:flex; gap:6px; overflow-x:auto; margin-bottom:12px; padding-bottom:4px;"></div> 
 
 <div id="guiado-notas-propias" style="display:none; background: rgba(234, 179, 8, 0.1); border: 1px solid var(--yellow); padding: 10px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 12px; color: var(--yellow);"></div> 
 
@@ -610,9 +617,9 @@ font-size: 0.9rem;
 </div>
 </div> 
 
-<div class="flex-row" style="margin-bottom: 12px; align-items: center;">
-<input type="checkbox" id="check-realizado" style="width: auto; margin:0;" checked>
-<label for="check-realizado" style="margin:0; color:var(--text-main); font-size:0.9rem;">Ejercicio realizado en esta sesión</label>
+<div id="guiado-check-realizado-wrap" class="flex-row" style="margin-bottom: 12px; align-items: center;">
+<input type="checkbox" id="check-realizado" style="width: auto; margin:0;">
+<label for="check-realizado" style="margin:0; color:var(--text-main); font-size:0.9rem;">Cardio realizado en esta sesión</label>
 </div> 
 
 <!-- Botón Consultar con Sofía sobre este ejercicio puntual -->
@@ -620,7 +627,7 @@ font-size: 0.9rem;
 
 <!-- Temporizador de descanso -->
 <div id="timer-box-container" style="display:none; background: var(--bg-input); padding: 12px; border-radius: 8px; text-align: center; margin-bottom: 12px; border: 1px dashed var(--accent);">
-<span style="font-size: 0.8rem; color: var(--text-muted);">⏱️ Temporizador de Descanso</span>
+<span id="descanso-titulo" style="font-size: 0.8rem; color: var(--text-muted);">⏱️ Temporizador de Descanso</span>
 <h3 id="display-descanso" style="font-size: 1.5rem; color: var(--accent); margin: 4px 0;">01:30</h3>
 <div class="flex-row" style="justify-content: center; gap: 6px;">
 <button class="btn btn-secondary" style="width: auto; padding: 4px 8px; font-size:0.75rem; margin:0;" onclick="setearDescanso(60)">1 min</button>
@@ -634,10 +641,11 @@ font-size: 0.9rem;
 <button class="btn btn-primary" style="background: var(--success); color:#fff; margin:0;" onclick="iniciarCronometroDescanso(90)">⏱️ Iniciar Descanso (1:30)</button>
 </div> 
 
-<div class="flex-row">
+<div class="flex-row" style="gap:8px;">
 <button class="btn btn-secondary" onclick="guiadoAnterior()">⬅ Anterior</button>
-<button class="btn btn-primary" onclick="detenerDescanso(); guiadoSiguiente()">Siguiente ➡</button>
+<button class="btn btn-primary" onclick="guiadoSiguiente()">Siguiente ➡</button>
 </div>
+<button class="btn btn-success" style="margin-top:10px;" onclick="finalizarEntrenamientoCompleto()">✅ Finalizar entrenamiento</button>
 </div> 
 
 <div class="flex-row" style="margin-top: 10px;">
@@ -690,7 +698,7 @@ font-size: 0.9rem;
 </div>
 <div class="sofia-chat-container">
 <div id="sofia-messages-list" class="sofia-messages">
-<div class="sofia-bubble assistant">¡Hola! Soy Sofía, tu entrenadora personal virtual en Mi Gym La Cima. ¿En qué te puedo ayudar hoy con tus rutinas o progresos?</div>
+<div class="sofia-bubble assistant">¡Hola! Soy Sofía, tu entrenadora personal virtual en Mi Gym. ¿En qué te puedo ayudar hoy con tus rutinas o progresos?</div>
 </div>
 <div class="sofia-input-area">
 <input type="text" id="sofia-input-text" placeholder="Escribile a Sofía..." onkeypress="if(event.key==='Enter') enviarMensajeSofia()">
@@ -718,9 +726,15 @@ font-size: 0.9rem;
 <div class="modal-content">
 <h3 style="color: var(--accent); margin-bottom: 10px;">Editar Ejercicio / Progresión</h3>
 <input type="hidden" id="edit-ej-idx"> 
+<div id="edit-series-controls">
 <label>Cantidad de Series</label>
-<input type="number" id="edit-ej-series-cant" min="1" max="10" onchange="generarInputsSeriesEdicion()"> 
+<div class="flex-row" style="margin-bottom:8px;">
+<button type="button" class="btn btn-secondary" style="width:auto;margin:0;padding:8px 14px;" onclick="ajustarCantidadSeriesEdicion(-1)">− Quitar</button>
+<input type="number" id="edit-ej-series-cant" min="1" max="20" value="3" onchange="generarInputsSeriesEdicion()" style="margin:0;">
+<button type="button" class="btn btn-secondary" style="width:auto;margin:0;padding:8px 14px;" onclick="ajustarCantidadSeriesEdicion(1)">+ Agregar</button>
+</div> 
 <label style="margin-top: 6px;">Series (Peso y Reps individual):</label>
+</div>
 <div id="edit-contenedor-series" style="background: var(--bg-input); padding: 8px; border-radius: 6px; margin-bottom: 10px;"></div> 
 <label>Especificaciones / Notas técnicas</label>
 <textarea id="edit-ej-notas" rows="3" placeholder="Pautas técnicas, postura..." style="resize:none;"></textarea>
@@ -812,7 +826,7 @@ let isRegisteringMode = false;
 
 function toggleAuthMode() {
 isRegisteringMode = !isRegisteringMode;
-document.getElementById('auth-title').innerText = isRegisteringMode ? 'Crear Cuenta - La Cima' : 'Mi Gym La Cima';
+document.getElementById('auth-title').innerText = isRegisteringMode ? 'Crear Cuenta - Mi Gym' : 'Mi Gym';
 document.getElementById('auth-btn').innerText = isRegisteringMode ? 'Registrarse' : 'Iniciar Sesión';
 document.getElementById('auth-switch-text').innerText = isRegisteringMode ? 'Iniciá sesión acá' : 'Registrate acá';
 document.getElementById('auth-error').classList.add('hidden');
@@ -958,7 +972,10 @@ let guiadoIndice = 0;
 let cronometroSesionInterval = null;
 let segundosSesion = 0;
 let descansoInterval = null;
-let segundosDescansoRestantes = 90; 
+let segundosDescansoRestantes = 90;
+let descansoHasta = null;
+let descansoAvisadoHasta = null;
+let contextoAudioDescanso = null; 
 
 let homeCalAnioActual = new Date().getFullYear();
 let homeCalMesActual = new Date().getMonth();
@@ -1098,7 +1115,7 @@ const SOFIA_WORKER_URL = 'https://sofia-mi-gym.dcgrin07.workers.dev/sofia';
 async function consultarSofiaWorker(contents) {
     const user = auth.currentUser;
     if (!user) {
-        throw new Error('Sesión no disponible. Volvé a iniciar sesión en Mi Gym La Cima.');
+        throw new Error('Sesión no disponible. Volvé a iniciar sesión en Mi Gym.');
     }
 
     const historial = Array.isArray(contents) ? contents : [];
@@ -1181,7 +1198,7 @@ Cuando el usuario pregunte sobre cuestiones médicas, lesiones o síntomas, acla
         {
             role: 'model',
             parts: [{
-                text: `Entendido. Soy Sofía, tu copiloto de Mi Gym La Cima. Estoy lista para ayudarte, ${nombre}.`
+                text: `Entendido. Soy Sofía, tu copiloto de Mi Gym. Estoy lista para ayudarte, ${nombre}.`
             }]
         }
     ];
@@ -1501,67 +1518,101 @@ async function probarConexionIA() {
     }
 }
 
+function leerLocalSeguro(clave, valorPredeterminado) {
+try {
+const raw = localStorage.getItem(clave);
+return raw ? JSON.parse(raw) : valorPredeterminado;
+} catch (e) {
+console.warn("No se pudo leer un dato local; se conserva el valor disponible:", e);
+return valorPredeterminado;
+}
+}
+
+function claveIdentificacionRegistro(registro) {
+return registro.id != null
+? "id:" + String(registro.id)
+: "legacy:" + String(registro.fecha || "") + "|" + String(registro.rutina || "") + "|" + String(registro.duracionSegundos || "") + "|" + JSON.stringify(registro.resultados || []);
+}
+
+function combinarRegistrosSinPerdida(registrosNube, registrosLocales) {
+const combinados = [];
+const vistos = new Set();
+[registrosNube, registrosLocales].forEach(lista => {
+if (!Array.isArray(lista)) return;
+lista.forEach(registro => {
+if (!registro || typeof registro !== "object") return;
+const clave = claveIdentificacionRegistro(registro);
+if (vistos.has(clave)) return;
+vistos.add(clave);
+combinados.push(registro);
+});
+});
+return combinados;
+}
+
 async function sincronizarConNubeAlIniciar() {
 const user = auth.currentUser;
 if (!user) return;
 const uid = user.uid;
 const claves = obtenerClavesLocales(uid);
-let docRef = dbCloud.collection("datos_gym").doc(uid); 
+const docRef = dbCloud.collection("datos_gym").doc(uid);
+const rutinasLocales = leerLocalSeguro(claves.rutinas, null);
+const registrosLocales = leerLocalSeguro(claves.registros, []);
+const perfilLocal = leerLocalSeguro(claves.perfil, null);
 
 try {
 actualizarEstadoCloud(false, "Sincronizando...");
-let doc = await docRef.get(); 
+const doc = await docRef.get();
+let necesitaGuardarNube = false;
 
 if (doc.exists) {
-let nubeData = doc.data();
-if (nubeData) {
-if (nubeData.rutinas) {
+const nubeData = doc.data() || {};
+const registrosNube = combinarRegistrosSinPerdida(
+Array.isArray(nubeData.registrosCloud) ? nubeData.registrosCloud : [],
+Array.isArray(nubeData.registros) ? nubeData.registros : []
+);
+registrosCloud = combinarRegistrosSinPerdida(registrosNube, registrosLocales);
+const clavesNube = new Set(registrosNube.map(claveIdentificacionRegistro));
+if (registrosCloud.some(registro => !clavesNube.has(claveIdentificacionRegistro(registro)))) necesitaGuardarNube = true;
+
+if (nubeData.rutinas && typeof nubeData.rutinas === "object" && Object.keys(nubeData.rutinas).length) {
 rutinasPersonalizadas = nubeData.rutinas;
-localStorage.setItem(claves.rutinas, JSON.stringify(rutinasPersonalizadas));
+} else if (rutinasLocales && typeof rutinasLocales === "object") {
+rutinasPersonalizadas = rutinasLocales;
 }
-if (nubeData.registrosCloud || nubeData.registros) {
-registrosCloud = nubeData.registrosCloud || nubeData.registros;
-localStorage.setItem(claves.registros, JSON.stringify(registrosCloud));
-}
-if (nubeData.perfil) {
-perfilCloud = nubeData.perfil;
-localStorage.setItem(claves.perfil, JSON.stringify(perfilCloud));
-}
-}
+perfilCloud = nubeData.perfil || perfilLocal || perfilCloud;
 } else {
-rutinasPersonalizadas = { "Rutina A": [] };
-registrosCloud = [];
-perfilCloud = { nombre: '', peso: 90 };
-await guardarTodoEnNube();
-} 
+rutinasPersonalizadas = rutinasLocales && typeof rutinasLocales === "object"
+? rutinasLocales
+: { "Rutina A": [] };
+registrosCloud = Array.isArray(registrosLocales) ? registrosLocales : [];
+perfilCloud = perfilLocal || { nombre: "", peso: 90 };
+necesitaGuardarNube = true;
+}
 
-let borradorGuardado = localStorage.getItem(claves.borrador);
-borradorSesion = borradorGuardado ? JSON.parse(borradorGuardado) : null; 
-
+const borradorGuardado = leerLocalSeguro(claves.borrador, null);
+borradorSesion = borradorGuardado && typeof borradorGuardado === "object" ? borradorGuardado : null;
 actualizarEstadoCloud(true, "☁️ Sincronizado");
 actualizarDashboard();
-} catch(err) {
+if (necesitaGuardarNube) await guardarTodoEnNube();
+} catch (err) {
 console.error("Modo offline activado:", err);
-let rutinasLocales = localStorage.getItem(claves.rutinas);
-if (rutinasLocales) rutinasPersonalizadas = JSON.parse(rutinasLocales);
-let regsLocales = localStorage.getItem(claves.registros);
-if (regsLocales) registrosCloud = JSON.parse(regsLocales);
-let perfilLocal = localStorage.getItem(claves.perfil);
-if (perfilLocal) perfilCloud = JSON.parse(perfilLocal);
-let borradorLocal = localStorage.getItem(claves.borrador);
-if (borradorLocal) borradorSesion = JSON.parse(borradorLocal); 
-
+const rutinasOffline = leerLocalSeguro(claves.rutinas, null);
+const registrosOffline = leerLocalSeguro(claves.registros, []);
+const perfilOffline = leerLocalSeguro(claves.perfil, null);
+borradorSesion = leerLocalSeguro(claves.borrador, null);
+if (rutinasOffline && typeof rutinasOffline === "object") rutinasPersonalizadas = rutinasOffline;
+if (Array.isArray(registrosOffline)) registrosCloud = combinarRegistrosSinPerdida(registrosCloud, registrosOffline);
+if (perfilOffline) perfilCloud = perfilOffline;
 actualizarEstadoCloud(false, "⚠️ Modo Local");
 actualizarDashboard();
 }
-} 
 
 async function guardarTodoEnNube() {
 guardarLocal();
 const user = auth.currentUser;
-if (!user) return;
-const uid = user.uid; 
-
+if (!user) return false;
+const uid = user.uid;
 try {
 actualizarEstadoCloud(false, "Guardando...");
 const payloadData = {
@@ -1570,14 +1621,16 @@ rutinas: rutinasPersonalizadas,
 registrosCloud: registrosCloud,
 perfil: perfilCloud,
 ultimaActualizacion: firebase.firestore.FieldValue.serverTimestamp()
-}; 
+};
 await dbCloud.collection("datos_gym").doc(uid).set(payloadData, { merge: true });
 actualizarEstadoCloud(true, "☁️ Nube Actualizada");
+return true;
 } catch(e) {
 console.error("Error al guardar en Firestore:", e);
 actualizarEstadoCloud(false, "⚠️ Error de red");
+return false;
 }
-} 
+}
 
 function guardarLocal() {
 const user = auth.currentUser;
@@ -1605,6 +1658,11 @@ txt.innerText = texto;
 } 
 
 function irA(viewId) {
+const vistaActual = document.querySelector('.view-section.active');
+if (vistaActual && vistaActual.id === 'view-guiado' && viewId !== 'view-guiado' && borradorSesion) {
+guardarEstadoGuiadoActual();
+guardarLocal();
+}
 document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
 const targetView = document.getElementById(viewId);
 if (targetView) targetView.classList.add('active'); 
@@ -1655,50 +1713,54 @@ cont.innerHTML = html || '<p style="color:var(--text-muted); font-size:0.9rem;">
 function renderizarHomeCalendario() {
 const meses = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Setiembre", "Octubre", "Noviembre", "Diciembre"];
 const titulo = document.getElementById('home-cal-mes-titulo');
-if (titulo) titulo.innerText = `${meses[homeCalMesActual]} ${homeCalAnioActual}`; 
-
+if (titulo) titulo.innerText = meses[homeCalMesActual] + ' ' + homeCalAnioActual;
 let primerDia = new Date(homeCalAnioActual, homeCalMesActual, 1).getDay();
 primerDia = primerDia === 0 ? 6 : primerDia - 1;
-let totalDias = new Date(homeCalAnioActual, homeCalMesActual + 1, 0).getDate(); 
-
+let totalDias = new Date(homeCalAnioActual, homeCalMesActual + 1, 0).getDate();
 let diasEntrenados = {};
-let cantMes = 0;
-let kcalMes = 0; 
-
-registrosCloud.forEach(r => {
-if (!r.fecha) return;
-let p = r.fecha.split('/');
-if(p.length === 3 && parseInt(p[1]) === (homeCalMesActual + 1) && parseInt(p[2]) === homeCalAnioActual) {
-let dNum = parseInt(p[0]);
-diasEntrenados[dNum] = r.rutina;
-cantMes++;
-kcalMes += (r.calorias || 0);
+let kcalMes = 0;
+let volumenMes = 0;
+(registrosCloud || []).forEach(registro => {
+if (!registro || !registro.fecha) return;
+const partes = String(registro.fecha).split('/');
+if (partes.length !== 3 || parseInt(partes[1]) !== (homeCalMesActual + 1) || parseInt(partes[2]) !== homeCalAnioActual) return;
+const dia = parseInt(partes[0]);
+diasEntrenados[dia] = registro.rutina;
+kcalMes += Number(registro.calorias || 0);
+const resultados = Array.isArray(registro.resultados) ? registro.resultados : [];
+resultados.forEach(resultado => {
+if (!resultado || !Array.isArray(resultado.series)) return;
+resultado.series.forEach(serie => {
+const seRealizo = serie.completada === true || (serie.completada === undefined && resultado.realizado === true);
+if (seRealizo) {
+const carga = Number(serie.peso || 0);
+const repeticiones = Number(serie.reps || 0);
+if (Number.isFinite(carga) && Number.isFinite(repeticiones)) volumenMes += carga * repeticiones;
 }
-}); 
-
+});
+});
+});
 const statDias = document.getElementById('home-stat-dias');
 const statKcal = document.getElementById('home-stat-kcal');
+const statVolumen = document.getElementById('home-stat-volumen');
 if (statDias) statDias.innerText = Object.keys(diasEntrenados).length;
-if (statKcal) statKcal.innerText = `${kcalMes.toLocaleString()} kcal`; 
-
+if (statKcal) statKcal.innerText = kcalMes.toLocaleString() + ' kcal';
+if (statVolumen) statVolumen.innerText = Math.round(volumenMes).toLocaleString() + ' kg × reps';
 let grid = '';
-for(let i=0; i<primerDia; i++) grid += `<div class="cal-day" style="opacity:0; border:none; cursor:default;"></div>`; 
-
-let hoy = new Date();
+for(let i=0; i<primerDia; i++) grid += '<div class="cal-day" style="opacity:0;border:none;cursor:default;"></div>';
+const hoy = new Date();
 for(let d=1; d<=totalDias; d++) {
-let ent = diasEntrenados[d];
-let esHoy = (d === hoy.getDate() && homeCalMesActual === hoy.getMonth() && homeCalAnioActual === hoy.getFullYear());
-let cls = ent ? 'trained' : '';
-if(esHoy) cls += ' today'; 
-
-grid += `<div class="cal-day ${cls}" onclick="alert('Día ${d}: ${ent ? 'Entrenó ' + ent : 'Sin registro'}')">
-<strong>${d}</strong>
-${ent ? '<span style="font-size:0.5rem; color:var(--accent);">✔</span>' : ''}
-</div>`;
+const entrenamiento = diasEntrenados[d];
+const esHoy = d === hoy.getDate() && homeCalMesActual === hoy.getMonth() && homeCalAnioActual === hoy.getFullYear();
+let clases = entrenamiento ? 'trained' : '';
+if(esHoy) clases += ' today';
+const textoDia = entrenamiento ? 'Entrenó ' + String(entrenamiento).replace(/'/g, '') : 'Sin registro';
+grid += '<div class="cal-day ' + clases + '" onclick="alert(\'Día ' + d + ': ' + textoDia + '\')"><strong>' + d + '</strong>' +
+(entrenamiento ? '<span style="font-size:0.5rem;color:var(--accent);">✔</span>' : '') + '</div>';
 }
 const gridEl = document.getElementById('home-cal-grid');
 if (gridEl) gridEl.innerHTML = grid;
-} 
+}
 
 function cambiarMesHomeCalendario(dir) {
 homeCalMesActual += dir;
@@ -1758,18 +1820,18 @@ actualizarDashboard();
 
 function seleccionarRutina(key) {
 rutinaSeleccionadaKey = key;
-if (!Array.isArray(rutinasPersonalizadas[rutinaSeleccionadaKey])) {
-rutinasPersonalizadas[rutinaSeleccionadaKey] = [];
-} 
+if (!Array.isArray(rutinasPersonalizadas[rutinaSeleccionadaKey])) rutinasPersonalizadas[rutinaSeleccionadaKey] = [];
 document.getElementById('titulo-rutina-activa').innerText = key;
 const sel = document.getElementById('select-catalogo-agregar');
 let h = '';
-catalogoEjercicios.forEach(e => h += `<option value="${e}">${e}</option>`);
+catalogoEjercicios.forEach(e => h += '<option value="' + e + '">' + e + '</option>');
 sel.innerHTML = h;
+const posicion = document.getElementById('input-posicion-nuevo');
+if (posicion) posicion.value = rutinasPersonalizadas[rutinaSeleccionadaKey].length + 1;
 verificarOpcionCatalogo();
 renderizarEjerciciosRutinaActual();
 irA('view-rutina');
-} 
+}
 
 function verificarOpcionCatalogo() {
 const sel = document.getElementById('select-catalogo-agregar').value;
@@ -1782,19 +1844,19 @@ if (!isCardio) generarInputsSeriesNuevo();
 } 
 
 function generarInputsSeriesNuevo() {
-const cant = parseInt(document.getElementById('input-series-nuevo').value) || 3;
+let cant = parseInt(document.getElementById('input-series-nuevo').value) || 3;
+cant = Math.max(1, Math.min(20, cant));
+document.getElementById('input-series-nuevo').value = cant;
 let container = document.getElementById('contenedor-series-nuevo');
 let h = '';
 for(let i=0; i<cant; i++) {
-h += `
-<div class="flex-row" style="margin-bottom: 6px;">
-<span style="font-size:0.8rem; width:55px; color:var(--text-muted);">Serie ${i+1}</span>
-<input type="number" placeholder="Kg" id="nuevo-serie-peso-${i}" style="margin:0; padding:6px;">
-<input type="number" placeholder="Reps" id="nuevo-serie-reps-${i}" style="margin:0; padding:6px;">
-</div>`;
+h += '<div class="flex-row" style="margin-bottom:6px;">' +
+'<span style="font-size:0.8rem;width:55px;color:var(--text-muted);">Serie ' + (i+1) + '</span>' +
+'<input type="number" placeholder="Kg" id="nuevo-serie-peso-' + i + '" style="margin:0;padding:6px;">' +
+'<input type="number" placeholder="Reps" id="nuevo-serie-reps-' + i + '" style="margin:0;padding:6px;"></div>';
 }
 container.innerHTML = h;
-} 
+}
 
 function agregarEjercicioARutinaActual() {
 const sel = document.getElementById('select-catalogo-agregar').value;
@@ -1802,64 +1864,73 @@ let nombreEj = sel;
 if(sel.includes("OTRO")) {
 nombreEj = document.getElementById('input-ejercicio-custom').value.trim();
 if(!nombreEj) { alert("Ingresá un nombre para el ejercicio"); return; }
-} 
-
+}
 const isCardio = sel.includes("Caminar") || sel.includes("Trotar") || sel.includes("Ciclismo") || sel.includes("Natación");
 const notas = document.getElementById('input-notas-nuevo').value.trim();
-let ejercicioObj = { nombre: nombreEj, isCardio: isCardio, notas: notas, videos: [] }; 
-
+let ejercicioObj = { nombre: nombreEj, isCardio: isCardio, notas: notas, videos: [] };
 if(isCardio) {
 ejercicioObj.minutos = document.getElementById('cardio-minutos').value;
 ejercicioObj.km = document.getElementById('cardio-km').value;
 } else {
-const cant = parseInt(document.getElementById('input-series-nuevo').value) || 3;
+const cant = Math.max(1, Math.min(20, parseInt(document.getElementById('input-series-nuevo').value) || 3));
 let seriesArr = [];
 for(let i=0; i<cant; i++) {
-let p = document.getElementById(`nuevo-serie-peso-${i}`).value;
-let r = document.getElementById(`nuevo-serie-reps-${i}`).value;
+let p = document.getElementById('nuevo-serie-peso-' + i).value;
+let r = document.getElementById('nuevo-serie-reps-' + i).value;
 seriesArr.push({ peso: p, reps: r });
 }
 ejercicioObj.series = seriesArr;
-} 
-
-rutinasPersonalizadas[rutinaSeleccionadaKey].push(ejercicioObj);
+}
+const lista = rutinasPersonalizadas[rutinaSeleccionadaKey] || (rutinasPersonalizadas[rutinaSeleccionadaKey] = []);
+const posicionSolicitada = parseInt(document.getElementById('input-posicion-nuevo').value) || (lista.length + 1);
+const indiceInsercion = Math.max(0, Math.min(lista.length, posicionSolicitada - 1));
+lista.splice(indiceInsercion, 0, ejercicioObj);
 guardarTodoEnNube();
 document.getElementById('input-notas-nuevo').value = '';
 if(document.getElementById('input-ejercicio-custom')) document.getElementById('input-ejercicio-custom').value = '';
+document.getElementById('input-posicion-nuevo').value = lista.length + 1;
 renderizarEjerciciosRutinaActual();
-} 
+}
 
 function renderizarEjerciciosRutinaActual() {
 const container = document.getElementById('lista-ejercicios-container');
-let lista = rutinasPersonalizadas[rutinaSeleccionadaKey] || [];
+const lista = rutinasPersonalizadas[rutinaSeleccionadaKey] || [];
 let html = '';
 lista.forEach((ej, idx) => {
 let detalle = '';
 if(ej.isCardio) {
-detalle = `Cardio: ${ej.minutos || 0} mins ${ej.km ? '- ' + ej.km + ' km' : ''}`;
-} else if(ej.series) {
-detalle = ej.series.map((s, sidx) => `S${sidx+1}: ${s.peso || 0}kg x ${s.reps || 0}r`).join(' | ');
+detalle = 'Cardio: ' + (ej.minutos || 0) + ' mins ' + (ej.km ? '- ' + ej.km + ' km' : '');
+} else if(Array.isArray(ej.series)) {
+detalle = ej.series.map((s, sidx) => 'S' + (sidx+1) + ': ' + (s.peso || 0) + 'kg x ' + (s.reps || 0) + 'r').join(' | ');
 }
-html += `
-<div style="background: var(--bg-input); padding: 10px; border-radius: 8px; margin-bottom: 8px; font-size: 0.9rem;">
-<div class="flex-row" style="justify-content: space-between;">
-<strong>${idx+1}. ${ej.nombre}</strong>
-<div>
-<button class="btn btn-secondary" style="width: auto; margin:0; padding: 4px 8px; font-size:0.75rem;" onclick="abrirModalEditarEjercicio(${idx})">✏️</button>
-<button class="btn btn-danger" style="width: auto; margin:0; padding: 4px 8px; font-size:0.75rem;" onclick="eliminarEjercicioRutina(${idx})">🗑️</button>
-</div>
-</div>
-<div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">${detalle}</div>
-${ej.notas ? `<div style="font-size: 0.75rem; color: var(--yellow); margin-top:2px;">📝 ${ej.notas}</div>` : ''}
-<div style="margin-top:7px;">
-<button class="btn btn-secondary" style="width:auto; margin:0; padding:4px 8px; font-size:0.75rem;" onclick="${Array.isArray(ej.videos) && ej.videos.length ? `mostrarVideosEjercicio(rutinasPersonalizadas[rutinaSeleccionadaKey][${idx}])` : `abrirModalEditarEjercicio(${idx})`}">
-🎥 ${Array.isArray(ej.videos) && ej.videos.length ? `Ver ${ej.videos.length} video${ej.videos.length > 1 ? 's' : ''}` : 'Agregar videos'}
-</button>
-</div>
-</div>`;
+const videoAction = Array.isArray(ej.videos) && ej.videos.length
+? 'mostrarVideosEjercicio(rutinasPersonalizadas[rutinaSeleccionadaKey][' + idx + '])'
+: 'abrirModalEditarEjercicio(' + idx + ')';
+const videoLabel = Array.isArray(ej.videos) && ej.videos.length
+? 'Ver ' + ej.videos.length + ' video' + (ej.videos.length > 1 ? 's' : '')
+: 'Agregar videos';
+html += '<div style="background:var(--bg-input);padding:10px;border-radius:8px;margin-bottom:8px;font-size:0.9rem;">' +
+'<div class="flex-row" style="justify-content:space-between;"><strong>' + (idx+1) + '. ' + escapeHtml(ej.nombre || '') + '</strong><div>' +
+'<button class="btn btn-secondary" title="Subir" style="width:auto;margin:0;padding:4px 8px;font-size:0.75rem;" onclick="moverEjercicioRutina(' + idx + ',-1)" ' + (idx===0?'disabled':'') + '>⬆️</button>' +
+'<button class="btn btn-secondary" title="Bajar" style="width:auto;margin:0;padding:4px 8px;font-size:0.75rem;" onclick="moverEjercicioRutina(' + idx + ',1)" ' + (idx===lista.length-1?'disabled':'') + '>⬇️</button>' +
+'<button class="btn btn-secondary" title="Editar" style="width:auto;margin:0;padding:4px 8px;font-size:0.75rem;" onclick="abrirModalEditarEjercicio(' + idx + ')">✏️</button>' +
+'<button class="btn btn-danger" title="Eliminar" style="width:auto;margin:0;padding:4px 8px;font-size:0.75rem;" onclick="eliminarEjercicioRutina(' + idx + ')">🗑️</button>' +
+'</div></div><div style="font-size:0.8rem;color:var(--text-muted);margin-top:4px;">' + detalle + '</div>' +
+(ej.notas ? '<div style="font-size:0.75rem;color:var(--yellow);margin-top:2px;">📝 ' + escapeHtml(ej.notas) + '</div>' : '') +
+'<div style="margin-top:7px;"><button class="btn btn-secondary" style="width:auto;margin:0;padding:4px 8px;font-size:0.75rem;" onclick="' + videoAction + '">🎥 ' + videoLabel + '</button></div></div>';
 });
-container.innerHTML = html || '<p style="color:var(--text-muted); font-size:0.9rem;">No hay ejercicios agregados en esta rutina.</p>';
-} 
+container.innerHTML = html || '<p style="color:var(--text-muted);font-size:0.9rem;">No hay ejercicios agregados en esta rutina.</p>';
+}
+
+function moverEjercicioRutina(idx, direccion) {
+const lista = rutinasPersonalizadas[rutinaSeleccionadaKey] || [];
+const destino = idx + direccion;
+if (destino < 0 || destino >= lista.length) return;
+const ejercicio = lista.splice(idx, 1)[0];
+lista.splice(destino, 0, ejercicio);
+guardarTodoEnNube();
+renderizarEjerciciosRutinaActual();
+}
 
 function eliminarEjercicioRutina(idx) {
 rutinasPersonalizadas[rutinaSeleccionadaKey].splice(idx, 1);
@@ -1905,6 +1976,8 @@ return String(value || '')
 function abrirModalEditarEjercicio(idx) {
 document.getElementById('edit-ej-idx').value = idx;
 let ej = rutinasPersonalizadas[rutinaSeleccionadaKey][idx];
+const seriesControls = document.getElementById('edit-series-controls');
+if (seriesControls) seriesControls.style.display = ej.isCardio ? 'none' : 'block';
 normalizarVideosEjercicio(ej);
 document.getElementById('edit-ej-notas').value = ej.notas || '';
 generarInputsVideosEdicion(ej.videos);
@@ -1921,20 +1994,35 @@ document.getElementById('modal-editar-ejercicio').style.display = 'flex';
 }
 
 function generarInputsSeriesEdicion(seriesExistentes) {
-let cant = parseInt(document.getElementById('edit-ej-series-cant').value) || 3;
-let container = document.getElementById('edit-contenedor-series');
-let h = '';
-for(let i=0; i<cant; i++) {
-let pVal = (seriesExistentes && seriesExistentes[i]) ? seriesExistentes[i].peso : '';
-let rVal = (seriesExistentes && seriesExistentes[i]) ? seriesExistentes[i].reps : '';
-h += `
-<div class="flex-row" style="margin-bottom: 6px;">
-<span style="font-size:0.8rem; width:55px; color:var(--text-muted);">Serie ${i+1}</span>
-<input type="number" placeholder="Kg" id="edit-serie-peso-${i}" value="${pVal}" style="margin:0; padding:6px;">
-<input type="number" placeholder="Reps" id="edit-serie-reps-${i}" value="${rVal}" style="margin:0; padding:6px;">
-</div>`;
+const container = document.getElementById('edit-contenedor-series');
+let existentes = Array.isArray(seriesExistentes) ? seriesExistentes : [];
+if (!Array.isArray(seriesExistentes)) {
+existentes = [];
+for (let i=0; document.getElementById('edit-serie-peso-' + i); i++) {
+existentes.push({ peso: document.getElementById('edit-serie-peso-' + i).value, reps: document.getElementById('edit-serie-reps-' + i).value });
 }
-container.innerHTML = h;
+}
+let cant = Math.max(1, Math.min(20, parseInt(document.getElementById('edit-ej-series-cant').value) || 3));
+document.getElementById('edit-ej-series-cant').value = cant;
+let html = '';
+for(let i=0; i<cant; i++) {
+const serie = existentes[i] || {};
+html += '<div class="flex-row" style="margin-bottom:6px;"><span style="font-size:0.8rem;width:55px;color:var(--text-muted);">Serie ' + (i+1) + '</span>' +
+'<input type="number" placeholder="Kg" id="edit-serie-peso-' + i + '" value="' + escapeHtmlAttr(serie.peso || '') + '" style="margin:0;padding:6px;">' +
+'<input type="number" placeholder="Reps" id="edit-serie-reps-' + i + '" value="' + escapeHtmlAttr(serie.reps || '') + '" style="margin:0;padding:6px;"></div>';
+}
+container.innerHTML = html;
+}
+
+function ajustarCantidadSeriesEdicion(cambio) {
+const cantidad = document.getElementById('edit-ej-series-cant');
+const actual = parseInt(cantidad.value) || 1;
+const existentes = [];
+for (let i=0; document.getElementById('edit-serie-peso-' + i); i++) {
+existentes.push({ peso: document.getElementById('edit-serie-peso-' + i).value, reps: document.getElementById('edit-serie-reps-' + i).value });
+}
+cantidad.value = Math.max(1, Math.min(20, actual + cambio));
+generarInputsSeriesEdicion(existentes);
 }
 
 function cerrarModalEditarEjercicio() {
@@ -1952,7 +2040,11 @@ let input = document.getElementById(`edit-video-${i}`);
 if(input && input.value.trim()) {
 let url = input.value.trim();
 try {
-new URL(url);
+const urlValidada = new URL(url);
+if (urlValidada.protocol !== 'https:' && urlValidada.protocol !== 'http:') {
+alert('El enlace del video debe comenzar con http:// o https://.');
+return;
+}
 videos.push(url);
 } catch(e) {
 alert(`El enlace del Video ${i+1} no parece una URL válida. Revisalo antes de guardar.`);
@@ -2076,6 +2168,8 @@ if(borradorSesion) {
 borradorSesion.inicioTimestamp = Date.now();
 await solicitarWakeLockSesion();
 iniciarIntervaloCronometroSesion();
+descansoHasta = Number(borradorSesion.descansoHasta || 0) || null;
+actualizarTemporizadorDescanso();
 cargarPasoGuiado();
 }
 }
@@ -2085,25 +2179,55 @@ window.addEventListener('pagehide', guardarBorradorSeguro);
 window.addEventListener('beforeunload', guardarBorradorSeguro);
 }
 
-function comenzarModoGuiado() {
-let ejList = rutinasPersonalizadas[rutinaSeleccionadaKey];
-if(!ejList || ejList.length === 0) { alert("Agregá al menos un ejercicio antes de comenzar."); return; }
+function asegurarResultadosSesion() {
+if (!borradorSesion || !Array.isArray(borradorSesion.ejercicios)) return;
+const anteriores = Array.isArray(borradorSesion.resultados) ? borradorSesion.resultados : [];
+borradorSesion.resultados = borradorSesion.ejercicios.map((ejercicio, idx) => {
+const anterior = anteriores[idx] || {};
+const seriesPrevias = Array.isArray(anterior.series) ? anterior.series : (Array.isArray(ejercicio.series) ? ejercicio.series : []);
+return {
+realizado: Boolean(anterior.realizado),
+minutos: anterior.minutos || ejercicio.minutos || '',
+km: anterior.km || ejercicio.km || '',
+series: ejercicio.isCardio ? [] : seriesPrevias.map((serie, serieIdx) => ({
+numero: Number(serie.numero) || serieIdx + 1,
+peso: serie.peso || '',
+reps: serie.reps || '',
+completada: serie.completada === true
+}))
+};
+});
+}
 
+function comenzarModoGuiado() {
+const listaEjercicios = rutinasPersonalizadas[rutinaSeleccionadaKey];
+if (!Array.isArray(listaEjercicios) || listaEjercicios.length === 0) {
+alert("Agregá al menos un ejercicio antes de comenzar.");
+return;
+}
+if (borradorSesion) {
+alert("Ya hay una sesión sin finalizar. Retomala o descartala antes de iniciar otra.");
+return;
+}
 borradorSesion = {
 rutina: rutinaSeleccionadaKey,
-ejercicios: JSON.parse(JSON.stringify(ejList)),
+ejercicios: JSON.parse(JSON.stringify(listaEjercicios)),
 indiceActual: 0,
 segundosAcumulados: 0,
 inicioTimestamp: Date.now(),
-resultados: ejList.map(e => ({
-realizado: true,
-minutos: e.minutos || '',
-km: e.km || '',
-series: e.series ? e.series.map(s => ({ peso: s.peso, reps: s.reps })) : []
+descansoHasta: null,
+resultados: listaEjercicios.map(ejercicio => ({
+realizado: false,
+minutos: ejercicio.minutos || '',
+km: ejercicio.km || '',
+series: Array.isArray(ejercicio.series)
+? ejercicio.series.map((serie, serieIdx) => ({ numero: serieIdx + 1, peso: serie.peso || '', reps: serie.reps || '', completada: false }))
+: []
 }))
 };
 guiadoIndice = 0;
 segundosSesion = 0;
+descansoHasta = null;
 guardarLocal();
 instalarPersistenciaEntrenamiento();
 solicitarWakeLockSesion();
@@ -2113,12 +2237,14 @@ cargarPasoGuiado();
 }
 
 function retomarEntrenamientoBorrador() {
-if(!borradorSesion) return;
+if (!borradorSesion) return;
 rutinaSeleccionadaKey = borradorSesion.rutina;
-guiadoIndice = borradorSesion.indiceActual || 0;
+asegurarResultadosSesion();
+guiadoIndice = Math.max(0, Math.min(borradorSesion.ejercicios.length - 1, Number(borradorSesion.indiceActual) || 0));
 borradorSesion.segundosAcumulados = Number(borradorSesion.segundosAcumulados || 0);
 borradorSesion.inicioTimestamp = Date.now();
 segundosSesion = borradorSesion.segundosAcumulados;
+descansoHasta = Number(borradorSesion.descansoHasta || 0) || null;
 instalarPersistenciaEntrenamiento();
 solicitarWakeLockSesion();
 iniciarIntervaloCronometroSesion();
@@ -2148,158 +2274,330 @@ irA('view-home');
 }
 
 function guardarEstadoGuiadoActual() {
-if(!borradorSesion) return;
-let res = borradorSesion.resultados[guiadoIndice];
-if(!res) return;
-let check = document.getElementById('check-realizado');
-if(check) res.realizado = check.checked;
-let ej = borradorSesion.ejercicios[guiadoIndice];
-if(!ej) return;
-if(ej.isCardio) {
-let mins = document.getElementById('guiado-cardio-mins');
-let km = document.getElementById('guiado-cardio-km');
-if(mins) res.minutos = mins.value;
-if(km) res.km = km.value;
-} else if(res.series) {
-res.series.forEach((s, sidx) => {
-let pIn = document.getElementById(`g-serie-p-${sidx}`);
-let rIn = document.getElementById(`g-serie-r-${sidx}`);
-if(pIn) s.peso = pIn.value;
-if(rIn) s.reps = rIn.value;
+if (!borradorSesion) return;
+asegurarResultadosSesion();
+const res = borradorSesion.resultados[guiadoIndice];
+const ejercicio = borradorSesion.ejercicios[guiadoIndice];
+if (!res || !ejercicio) return;
+if (ejercicio.isCardio) {
+const checkbox = document.getElementById('check-realizado');
+const minutos = document.getElementById('guiado-cardio-mins');
+const km = document.getElementById('guiado-cardio-km');
+res.realizado = Boolean(checkbox && checkbox.checked);
+if (minutos) res.minutos = minutos.value;
+if (km) res.km = km.value;
+} else {
+res.series.forEach((serie, idx) => {
+const peso = document.getElementById('g-serie-p-' + idx);
+const reps = document.getElementById('g-serie-r-' + idx);
+if (peso) serie.peso = peso.value;
+if (reps) serie.reps = reps.value;
 });
+res.realizado = res.series.some(serie => serie.completada === true);
 }
 borradorSesion.indiceActual = guiadoIndice;
 borradorSesion.segundosAcumulados = segundosSesion;
 borradorSesion.inicioTimestamp = Date.now();
 }
 
+function marcarSerieHecha(indiceSerie) {
+if (!borradorSesion) return;
+guardarEstadoGuiadoActual();
+const res = borradorSesion.resultados[guiadoIndice];
+const serie = res && res.series ? res.series[indiceSerie] : null;
+if (!serie) return;
+serie.completada = !serie.completada;
+res.realizado = res.series.some(item => item.completada === true);
+guardarLocal();
+cargarPasoGuiado();
+}
+
+function seleccionarEjercicioSesion(indice) {
+if (!borradorSesion || indice < 0 || indice >= borradorSesion.ejercicios.length) return;
+guardarEstadoGuiadoActual();
+guardarLocal();
+guiadoIndice = indice;
+cargarPasoGuiado();
+}
+
+function renderizarVideosEnSesion(ejercicio) {
+const videos = normalizarVideosEjercicio(ejercicio);
+if (!videos.length) return '';
+const bloques = videos.map((url, idx) => {
+let parsed;
+try { parsed = new URL(url); } catch (e) {
+return '<a class="btn btn-secondary" href="' + escapeHtmlAttr(url) + '" target="_blank" rel="noopener noreferrer">🎥 Abrir video ' + (idx+1) + '</a>';
+}
+if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return '';
+const host = parsed.hostname.toLowerCase();
+let videoId = '';
+if (host === 'youtu.be') videoId = parsed.pathname.replace(/^\//, '').split('/')[0];
+if (host === 'youtube.com' || host === 'www.youtube.com' || host === 'm.youtube.com') {
+videoId = parsed.searchParams.get('v') || '';
+if (!videoId) {
+const match = parsed.pathname.match(/^\/(?:embed|shorts)\/([^/?]+)/);
+if (match) videoId = match[1];
+}
+}
+if (videoId) return '<iframe src="https://www.youtube-nocookie.com/embed/' + encodeURIComponent(videoId) + '" title="Video de técnica ' + (idx+1) + '" style="width:100%;aspect-ratio:16/9;border:0;border-radius:8px;margin-top:6px;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen loading="lazy"></iframe>';
+if (/\.(mp4|webm|ogg|mov|m4v)$/i.test(parsed.pathname)) return '<video controls playsinline preload="metadata" style="display:block;width:100%;max-height:320px;border-radius:8px;margin-top:6px;" src="' + escapeHtmlAttr(parsed.href) + '">Tu navegador no puede reproducir este video.</video>';
+if (host === 'instagram.com' || host === 'www.instagram.com') {
+const instagram = parsed.pathname.match(/^\/(p|reel|tv)\/([^/]+)/);
+if (instagram) return '<iframe src="https://www.instagram.com/' + instagram[1] + '/' + encodeURIComponent(instagram[2]) + '/embed/" title="Video de Instagram ' + (idx+1) + '" style="width:100%;min-height:420px;border:0;border-radius:8px;margin-top:6px;" loading="lazy" allowtransparency="true"></iframe>';
+}
+if (host === 'tiktok.com' || host === 'www.tiktok.com') {
+const tiktok = parsed.pathname.match(/\/@[^/]+\/video\/(\d+)/);
+if (tiktok) return '<iframe src="https://www.tiktok.com/embed/v2/' + tiktok[1] + '" title="Video de TikTok ' + (idx+1) + '" style="width:100%;height:600px;max-height:70vh;border:0;border-radius:8px;margin-top:6px;" allow="encrypted-media;" loading="lazy"></iframe>';
+}
+if (host === 'vimeo.com' || host === 'www.vimeo.com') {
+const vimeo = parsed.pathname.match(/^\/(\d+)/);
+if (vimeo) return '<iframe src="https://player.vimeo.com/video/' + vimeo[1] + '" title="Video de Vimeo ' + (idx+1) + '" style="width:100%;aspect-ratio:16/9;border:0;border-radius:8px;margin-top:6px;" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen loading="lazy"></iframe>';
+}
+return '<a class="btn btn-secondary" style="margin-top:6px;" href="' + escapeHtmlAttr(parsed.href) + '" target="_blank" rel="noopener noreferrer">🎥 Abrir video ' + (idx+1) + ' en otra pestaña</a>';
+}).join('');
+return '<div style="margin-bottom:12px;padding:8px;background:var(--bg-input);border-radius:8px;"><strong style="font-size:0.8rem;color:var(--accent);">🎥 Técnica</strong>' + bloques + '</div>';
+}
+
 function cargarPasoGuiado() {
-if(!borradorSesion || !borradorSesion.ejercicios?.length) return;
-let total = borradorSesion.ejercicios.length;
-if(guiadoIndice >= total) guiadoIndice = total - 1;
-let ej = borradorSesion.ejercicios[guiadoIndice];
-let res = borradorSesion.resultados[guiadoIndice];
+if (!borradorSesion || !Array.isArray(borradorSesion.ejercicios) || !borradorSesion.ejercicios.length) return;
+asegurarResultadosSesion();
+const total = borradorSesion.ejercicios.length;
+guiadoIndice = Math.max(0, Math.min(total - 1, guiadoIndice));
+const ejercicio = borradorSesion.ejercicios[guiadoIndice];
+const resultado = borradorSesion.resultados[guiadoIndice];
+document.getElementById('guiado-progreso').innerText = 'Ejercicio ' + (guiadoIndice + 1) + ' de ' + total;
+document.getElementById('guiado-nombre').innerText = ejercicio.nombre || 'Ejercicio';
+document.getElementById('guiado-meta').innerText = ejercicio.isCardio ? 'Cardio' : resultado.series.length + ' series configuradas';
 
-document.getElementById('guiado-progreso').innerText = `Ejercicio ${guiadoIndice + 1} de ${total}`;
-document.getElementById('guiado-nombre').innerText = ej.nombre;
+const navegacion = document.getElementById('guiado-lista-ejercicios');
+if (navegacion) {
+navegacion.innerHTML = borradorSesion.ejercicios.map((item, idx) => {
+const r = borradorSesion.resultados[idx] || {};
+const hecho = item.isCardio ? r.realizado === true : (r.series || []).some(serie => serie.completada === true);
+const activo = idx === guiadoIndice;
+return '<button class="btn ' + (activo ? 'btn-primary' : 'btn-secondary') + '" style="flex:0 0 auto;width:auto;margin:0;padding:6px 10px;' + (hecho ? 'border-color:var(--yellow);' : '') + '" onclick="seleccionarEjercicioSesion(' + idx + ')">' +
+(idx+1) + (hecho ? ' ✓ ' : ' ') + escapeHtml(item.nombre || 'Ejercicio') + '</button>';
+}).join('');
+}
 
-let metaTxt = ej.isCardio ? "Cardio" : `${res.series.length} series configuradas`;
-document.getElementById('guiado-meta').innerText = metaTxt;
-
-let notasBox = document.getElementById('guiado-notas-propias');
-if(ej.notas) {
-notasBox.innerText = `📝 ${ej.notas}`;
+const notasBox = document.getElementById('guiado-notas-propias');
+if (ejercicio.notas) {
+notasBox.innerText = '📝 ' + ejercicio.notas;
 notasBox.style.display = 'block';
 } else {
 notasBox.style.display = 'none';
 }
-
-// Mostrar videos de técnica si existen.
 let videoTecnicaBox = document.getElementById('guiado-videos-tecnica');
-if(!videoTecnicaBox) {
+if (!videoTecnicaBox) {
 videoTecnicaBox = document.createElement('div');
 videoTecnicaBox.id = 'guiado-videos-tecnica';
-videoTecnicaBox.style.cssText = 'margin-bottom:12px; padding:8px; background:var(--bg-input); border-radius:8px;';
 document.getElementById('guiado-notas-propias').insertAdjacentElement('afterend', videoTecnicaBox);
 }
-let videos = normalizarVideosEjercicio(ej);
-videoTecnicaBox.innerHTML = videos.length
-? `<strong style="font-size:0.8rem;color:var(--accent);">🎥 Técnica</strong>` +
-  videos.map((url,i)=>`<button class="btn btn-secondary" style="width:100%;margin:4px 0 0;padding:6px;font-size:0.78rem;" onclick="abrirVideoEjercicio('${escapeJsString(url)}')">Ver video ${i+1}</button>`).join('')
-: '';
+videoTecnicaBox.innerHTML = renderizarVideosEnSesion(ejercicio);
+videoTecnicaBox.style.display = videoTecnicaBox.innerHTML ? 'block' : 'none';
 
-videoTecnicaBox.style.display = videos.length ? 'block' : 'none';
-
-document.getElementById('check-realizado').checked = res.realizado;
-let secFuerza = document.getElementById('guiado-seccion-fuerza');
-let secCardio = document.getElementById('guiado-seccion-cardio');
-
-if(ej.isCardio) {
-secFuerza.style.display = 'none';
-secCardio.style.display = 'block';
-document.getElementById('guiado-cardio-mins').value = res.minutos || '';
-document.getElementById('guiado-cardio-km').value = res.km || '';
+const checkWrap = document.getElementById('guiado-check-realizado-wrap');
+const checkbox = document.getElementById('check-realizado');
+if (checkbox) checkbox.checked = resultado.realizado === true;
+if (checkWrap) checkWrap.style.display = ejercicio.isCardio ? 'flex' : 'none';
+const seccionFuerza = document.getElementById('guiado-seccion-fuerza');
+const seccionCardio = document.getElementById('guiado-seccion-cardio');
+if (ejercicio.isCardio) {
+seccionFuerza.style.display = 'none';
+seccionCardio.style.display = 'block';
+document.getElementById('guiado-cardio-mins').value = resultado.minutos || '';
+document.getElementById('guiado-cardio-km').value = resultado.km || '';
 } else {
-secFuerza.style.display = 'block';
-secCardio.style.display = 'none';
-let container = document.getElementById('guiado-series-inputs-container');
-let h = '';
-res.series.forEach((s, sidx) => {
-h += `
-<div class="flex-row" style="margin-bottom: 6px;">
-<span style="font-size:0.8rem; width:55px; color:var(--text-muted);">Serie ${sidx+1}</span>
-<input type="number" placeholder="Kg" id="g-serie-p-${sidx}" value="${s.peso}" style="margin:0; padding:6px;">
-<input type="number" placeholder="Reps" id="g-serie-r-${sidx}" value="${s.reps}" style="margin:0; padding:6px;">
-</div>`;
+seccionFuerza.style.display = 'block';
+seccionCardio.style.display = 'none';
+const contenedor = document.getElementById('guiado-series-inputs-container');
+let html = '';
+resultado.series.forEach((serie, idx) => {
+const hecha = serie.completada === true;
+const estilo = hecha ? 'background:var(--yellow);color:var(--bg-main);border:1px solid var(--yellow);' : '';
+html += '<div class="flex-row" style="margin-bottom:6px;align-items:center;">' +
+'<span style="font-size:0.8rem;width:48px;color:var(--text-muted);">Serie ' + (Number(serie.numero) || idx+1) + '</span>' +
+'<input type="number" placeholder="Kg" id="g-serie-p-' + idx + '" value="' + escapeHtmlAttr(serie.peso || '') + '" style="margin:0;padding:6px;min-width:0;">' +
+'<input type="number" placeholder="Reps" id="g-serie-r-' + idx + '" value="' + escapeHtmlAttr(serie.reps || '') + '" style="margin:0;padding:6px;min-width:0;">' +
+'<button class="btn btn-secondary" style="width:auto;margin:0;padding:6px 8px;font-size:0.72rem;' + estilo + '" onclick="marcarSerieHecha(' + idx + ')">' + (hecha ? '✓ Hecha' : 'Marcar hecha') + '</button></div>';
 });
-container.innerHTML = h;
+contenedor.innerHTML = html;
 }
-detenerDescanso();
 actualizarCronometroSesion();
+actualizarTemporizadorDescanso();
 }
 
 function guiadoAnterior() {
+if (!borradorSesion || !borradorSesion.ejercicios.length) return;
 guardarEstadoGuiadoActual();
 guardarLocal();
-if(guiadoIndice > 0) {
-guiadoIndice--;
+guiadoIndice = (guiadoIndice - 1 + borradorSesion.ejercicios.length) % borradorSesion.ejercicios.length;
 cargarPasoGuiado();
-}
 }
 
 function guiadoSiguiente() {
+if (!borradorSesion || !borradorSesion.ejercicios.length) return;
 guardarEstadoGuiadoActual();
 guardarLocal();
-let total = borradorSesion.ejercicios.length;
-if(guiadoIndice < total - 1) {
-guiadoIndice++;
+guiadoIndice = (guiadoIndice + 1) % borradorSesion.ejercicios.length;
 cargarPasoGuiado();
-} else {
-finalizarEntrenamientoCompleto();
-}
 }
 
-function finalizarEntrenamientoCompleto() {
+function seleccionarResultadosCompletados(sesion) {
+const ejercicios = [];
+const resultados = [];
+(sesion.ejercicios || []).forEach((ejercicio, idx) => {
+const resultado = JSON.parse(JSON.stringify((sesion.resultados || [])[idx] || {}));
+if (ejercicio.isCardio) {
+if (resultado.realizado === true) {
+ejercicios.push(ejercicio);
+resultados.push(resultado);
+}
+return;
+}
+const seriesHechas = (resultado.series || []).filter(serie => serie.completada === true);
+if (seriesHechas.length) {
+resultado.series = seriesHechas;
+resultado.realizado = true;
+ejercicios.push(ejercicio);
+resultados.push(resultado);
+}
+});
+return { ejercicios, resultados };
+}
+
+async function finalizarEntrenamientoCompleto() {
+if (!borradorSesion) return;
 guardarEstadoGuiadoActual();
-actualizarCronometroSesion();
-if(cronometroSesionInterval) clearInterval(cronometroSesionInterval);
+const completados = seleccionarResultadosCompletados(borradorSesion);
+if (!completados.ejercicios.length) {
+if (!confirm('No marcaste series ni ejercicios de cardio como hechos. ¿Querés finalizar sin guardar un día de actividad?')) return;
+if (cronometroSesionInterval) clearInterval(cronometroSesionInterval);
 liberarWakeLockSesion();
-let hoy = new Date();
-let fechaStr = `${hoy.getDate().toString().padStart(2,'0')}/${(hoy.getMonth()+1).toString().padStart(2,'0')}/${hoy.getFullYear()}`;
-
-let totalKcalEstimadas = Math.round(segundosSesion * 0.12);
-let registroFinal = {
+detenerDescanso();
+borradorSesion = null;
+guardarLocal();
+irA('view-home');
+actualizarDashboard();
+return;
+}
+if (!confirm('¿Finalizar y guardar este entrenamiento en el historial?')) return;
+actualizarCronometroSesion();
+if (cronometroSesionInterval) clearInterval(cronometroSesionInterval);
+liberarWakeLockSesion();
+detenerDescanso();
+const hoy = new Date();
+const fechaStr = String(hoy.getDate()).padStart(2,'0') + '/' + String(hoy.getMonth()+1).padStart(2,'0') + '/' + hoy.getFullYear();
+const registroFinal = {
 id: Date.now(),
 fecha: fechaStr,
 rutina: borradorSesion.rutina,
 duracionSegundos: segundosSesion,
-calorias: totalKcalEstimadas,
-ejercicios: borradorSesion.ejercicios,
-resultados: borradorSesion.resultados
+calorias: Math.round(segundosSesion * 0.12),
+ejercicios: completados.ejercicios,
+resultados: completados.resultados
 };
-
 registrosCloud.unshift(registroFinal);
 borradorSesion = null;
-guardarTodoEnNube();
-alert("🎉 ¡Entrenamiento finalizado y guardado con éxito!");
+const sincronizado = await guardarTodoEnNube();
+alert(sincronizado
+? '🎉 ¡Entrenamiento finalizado y guardado!'
+: 'El entrenamiento quedó guardado en este dispositivo, pero no se pudo sincronizar con la nube.');
 irA('view-home');
 actualizarDashboard();
 }
 
 // Temporizador de descanso
-function iniciarCronometroDescanso(segundos) {
-segundosDescansoRestantes = segundos;
-document.getElementById('timer-box-container').style.display = 'block';
-actualizarDisplayDescanso();
-if(descansoInterval) clearInterval(descansoInterval);
-descansoInterval = setInterval(() => {
-segundosDescansoRestantes--;
-actualizarDisplayDescanso();
-if(segundosDescansoRestantes <= 0) {
-detenerDescanso();
-if("vibrate" in navigator) navigator.vibrate([200, 100, 200]);
+function prepararAvisoDescanso() {
+try {
+if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission().catch(() => {});
+const ContextoAudio = window.AudioContext || window.webkitAudioContext;
+if (ContextoAudio && !contextoAudioDescanso) contextoAudioDescanso = new ContextoAudio();
+if (contextoAudioDescanso && contextoAudioDescanso.state === 'suspended') contextoAudioDescanso.resume().catch(() => {});
+} catch (e) {}
 }
-}, 1000);
+
+function reproducirAvisoDescanso() {
+try {
+if (!contextoAudioDescanso) return;
+const inicio = contextoAudioDescanso.currentTime;
+[0, 0.35, 0.7].forEach(retardo => {
+const oscilador = contextoAudioDescanso.createOscillator();
+const volumen = contextoAudioDescanso.createGain();
+oscilador.type = 'sine';
+oscilador.frequency.value = 880;
+volumen.gain.setValueAtTime(0.0001, inicio + retardo);
+volumen.gain.exponentialRampToValueAtTime(0.18, inicio + retardo + 0.02);
+volumen.gain.exponentialRampToValueAtTime(0.0001, inicio + retardo + 0.22);
+oscilador.connect(volumen);
+volumen.connect(contextoAudioDescanso.destination);
+oscilador.start(inicio + retardo);
+oscilador.stop(inicio + retardo + 0.24);
+});
+} catch (e) {}
+}
+
+function completarDescanso() {
+if (!descansoHasta) return;
+const vencimiento = descansoHasta;
+if (descansoInterval) clearInterval(descansoInterval);
+descansoInterval = null;
+descansoHasta = null;
+segundosDescansoRestantes = 0;
+if (borradorSesion) {
+borradorSesion.descansoHasta = null;
+borradorSesion.descansoAvisadoHasta = vencimiento;
+guardarLocal();
+}
+actualizarDisplayDescanso();
+const titulo = document.getElementById('descanso-titulo');
+if (titulo) titulo.innerText = '🔔 ¡Descanso terminado!';
+try {
+if ('Notification' in window && Notification.permission === 'granted') {
+new Notification('Mi Gym: descanso terminado', {
+body: 'Ya podés continuar con tu entrenamiento.',
+tag: 'mi-gym-descanso'
+});
+}
+} catch (e) {}
+reproducirAvisoDescanso();
+if ('vibrate' in navigator) navigator.vibrate([200, 100, 200]);
+}
+
+function actualizarTemporizadorDescanso() {
+if (!descansoHasta && borradorSesion && borradorSesion.descansoHasta) {
+descansoHasta = Number(borradorSesion.descansoHasta) || null;
+}
+if (!descansoHasta) return;
+segundosDescansoRestantes = Math.max(0, Math.ceil((descansoHasta - Date.now()) / 1000));
+const caja = document.getElementById('timer-box-container');
+if (caja) caja.style.display = 'block';
+if (segundosDescansoRestantes <= 0) {
+completarDescanso();
+return;
+}
+const titulo = document.getElementById('descanso-titulo');
+if (titulo) titulo.innerText = '⏱️ Temporizador de Descanso';
+actualizarDisplayDescanso();
+if (!descansoInterval) descansoInterval = setInterval(actualizarTemporizadorDescanso, 1000);
+}
+
+function iniciarCronometroDescanso(segundos) {
+const duracion = Math.max(1, Number(segundos) || 90);
+prepararAvisoDescanso();
+if (descansoInterval) clearInterval(descansoInterval);
+descansoInterval = null;
+descansoAvisadoHasta = null;
+descansoHasta = Date.now() + duracion * 1000;
+segundosDescansoRestantes = duracion;
+if (borradorSesion) {
+borradorSesion.descansoHasta = descansoHasta;
+borradorSesion.descansoAvisadoHasta = null;
+guardarLocal();
+}
+const titulo = document.getElementById('descanso-titulo');
+if (titulo) titulo.innerText = '⏱️ Temporizador de Descanso';
+actualizarTemporizadorDescanso();
 }
 
 function setearDescanso(secs) {
@@ -2307,9 +2605,15 @@ iniciarCronometroDescanso(secs);
 }
 
 function detenerDescanso() {
-if(descansoInterval) clearInterval(descansoInterval);
-const box = document.getElementById('timer-box-container');
-if(box) box.style.display = 'none';
+if (descansoInterval) clearInterval(descansoInterval);
+descansoInterval = null;
+descansoHasta = null;
+const caja = document.getElementById('timer-box-container');
+if (caja) caja.style.display = 'none';
+if (borradorSesion) {
+borradorSesion.descansoHasta = null;
+guardarLocal();
+}
 }
 
 function actualizarDisplayDescanso() {
@@ -2347,7 +2651,7 @@ let det = '';
 if(ej.isCardio && res) {
 det = `${res.minutos || 0} mins ${res.km ? '- ' + res.km + ' km' : ''}`;
 } else if(res && res.series) {
-det = res.series.map((s, sidx) => `S${sidx+1}: ${s.peso||0}kg x ${s.reps||0}r`).join(' | ');
+det = res.series.map((s, sidx) => `✓ S${s.numero || sidx+1}: ${s.peso||0}kg x ${s.reps||0}r`).join(' | ');
 }
 h += `<div style="border-bottom: 1px solid var(--border); padding-bottom: 6px; margin-bottom: 6px;">
 <strong>${eidx+1}. ${ej.nombre}</strong><br>
