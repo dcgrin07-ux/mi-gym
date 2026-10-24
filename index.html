@@ -1528,6 +1528,12 @@ return valorPredeterminado;
 }
 }
 
+function claveIdentificacionRegistro(registro) {
+return registro.id != null
+? "id:" + String(registro.id)
+: "legacy:" + String(registro.fecha || "") + "|" + String(registro.rutina || "") + "|" + String(registro.duracionSegundos || "") + "|" + JSON.stringify(registro.resultados || []);
+}
+
 function combinarRegistrosSinPerdida(registrosNube, registrosLocales) {
 const combinados = [];
 const vistos = new Set();
@@ -1535,9 +1541,7 @@ const vistos = new Set();
 if (!Array.isArray(lista)) return;
 lista.forEach(registro => {
 if (!registro || typeof registro !== "object") return;
-const clave = registro.id != null
-? "id:" + String(registro.id)
-: "legacy:" + String(registro.fecha || "") + "|" + String(registro.rutina || "") + "|" + String(registro.duracionSegundos || "") + "|" + JSON.stringify(registro.resultados || []);
+const clave = claveIdentificacionRegistro(registro);
 if (vistos.has(clave)) return;
 vistos.add(clave);
 combinados.push(registro);
@@ -1568,7 +1572,8 @@ Array.isArray(nubeData.registrosCloud) ? nubeData.registrosCloud : [],
 Array.isArray(nubeData.registros) ? nubeData.registros : []
 );
 registrosCloud = combinarRegistrosSinPerdida(registrosNube, registrosLocales);
-if (registrosCloud.length > registrosNube.length) necesitaGuardarNube = true;
+const clavesNube = new Set(registrosNube.map(claveIdentificacionRegistro));
+if (registrosCloud.some(registro => !clavesNube.has(claveIdentificacionRegistro(registro)))) necesitaGuardarNube = true;
 
 if (nubeData.rutinas && typeof nubeData.rutinas === "object" && Object.keys(nubeData.rutinas).length) {
 rutinasPersonalizadas = nubeData.rutinas;
