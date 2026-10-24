@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mi Gym La Cima con Sofía IA</title> 
+<title>Mi Gym</title> 
 
 <!-- PWA Manifest & Meta -->
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -388,7 +388,7 @@ font-size: 0.9rem;
 <!-- ================= PANTALLA DE ACCESO / LOGIN ================= -->
 <div id="auth-screen" class="container" style="margin-top: 50px;">
 <div class="card" style="max-width: 400px; margin: 0 auto;">
-<h2 id="auth-title" style="color: var(--accent); text-align: center; margin-bottom: 16px;">Mi Gym La Cima</h2>
+<h2 id="auth-title" style="color: var(--accent); text-align: center; margin-bottom: 16px;">Mi Gym</h2>
 <div id="auth-error" class="alert-error hidden"></div>
 <form onsubmit="handleAuthSubmit(event)">
 <label>Correo Electrónico</label>
@@ -443,7 +443,7 @@ font-size: 0.9rem;
 <!-- ================= APLICACIÓN PRINCIPAL (PROTEGIDA) ================= -->
 <div id="app-main-wrapper" class="hidden">
 <header>
-<h1>🏋️‍♂️ Mi Gym La Cima</h1>
+<h1>🏋️‍♂️ Mi Gym</h1>
 <div class="flex-row" style="gap: 8px;">
 <div class="cloud-status">
 <div id="cloud-dot" class="cloud-dot offline"></div>
@@ -690,7 +690,7 @@ font-size: 0.9rem;
 </div>
 <div class="sofia-chat-container">
 <div id="sofia-messages-list" class="sofia-messages">
-<div class="sofia-bubble assistant">¡Hola! Soy Sofía, tu entrenadora personal virtual en Mi Gym La Cima. ¿En qué te puedo ayudar hoy con tus rutinas o progresos?</div>
+<div class="sofia-bubble assistant">¡Hola! Soy Sofía, tu entrenadora personal virtual en Mi Gym. ¿En qué te puedo ayudar hoy con tus rutinas o progresos?</div>
 </div>
 <div class="sofia-input-area">
 <input type="text" id="sofia-input-text" placeholder="Escribile a Sofía..." onkeypress="if(event.key==='Enter') enviarMensajeSofia()">
@@ -812,7 +812,7 @@ let isRegisteringMode = false;
 
 function toggleAuthMode() {
 isRegisteringMode = !isRegisteringMode;
-document.getElementById('auth-title').innerText = isRegisteringMode ? 'Crear Cuenta - La Cima' : 'Mi Gym La Cima';
+document.getElementById('auth-title').innerText = isRegisteringMode ? 'Crear Cuenta - Mi Gym' : 'Mi Gym';
 document.getElementById('auth-btn').innerText = isRegisteringMode ? 'Registrarse' : 'Iniciar Sesión';
 document.getElementById('auth-switch-text').innerText = isRegisteringMode ? 'Iniciá sesión acá' : 'Registrate acá';
 document.getElementById('auth-error').classList.add('hidden');
@@ -1098,7 +1098,7 @@ const SOFIA_WORKER_URL = 'https://sofia-mi-gym.dcgrin07.workers.dev/sofia';
 async function consultarSofiaWorker(contents) {
     const user = auth.currentUser;
     if (!user) {
-        throw new Error('Sesión no disponible. Volvé a iniciar sesión en Mi Gym La Cima.');
+        throw new Error('Sesión no disponible. Volvé a iniciar sesión en Mi Gym.');
     }
 
     const historial = Array.isArray(contents) ? contents : [];
@@ -1181,7 +1181,7 @@ Cuando el usuario pregunte sobre cuestiones médicas, lesiones o síntomas, acla
         {
             role: 'model',
             parts: [{
-                text: `Entendido. Soy Sofía, tu copiloto de Mi Gym La Cima. Estoy lista para ayudarte, ${nombre}.`
+                text: `Entendido. Soy Sofía, tu copiloto de Mi Gym. Estoy lista para ayudarte, ${nombre}.`
             }]
         }
     ];
