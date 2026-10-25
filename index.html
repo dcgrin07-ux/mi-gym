@@ -1609,7 +1609,10 @@ actualizarDashboard();
 }
 }
 
+let ultimoErrorFirestore = "";
+
 async function guardarTodoEnNube() {
+ultimoErrorFirestore = "";
 guardarLocal();
 const user = auth.currentUser;
 if (!user) return false;
@@ -1627,8 +1630,9 @@ await dbCloud.collection("datos_gym").doc(uid).set(payloadData, { merge: true })
 actualizarEstadoCloud(true, "☁️ Nube Actualizada");
 return true;
 } catch(e) {
+ultimoErrorFirestore = e?.code || e?.message || "sin detalle";
 console.error("Error al guardar en Firestore:", e);
-actualizarEstadoCloud(false, "⚠️ Error de red");
+actualizarEstadoCloud(false, "⚠️ " + ultimoErrorFirestore);
 return false;
 }
 }
@@ -2503,7 +2507,7 @@ borradorSesion = null;
 const sincronizado = await guardarTodoEnNube();
 alert(sincronizado
 ? '🎉 ¡Entrenamiento finalizado y guardado!'
-: 'El entrenamiento quedó guardado en este dispositivo, pero no se pudo sincronizar con la nube.');
+: 'El entrenamiento quedó guardado en este dispositivo, pero no se pudo sincronizar con la nube. Motivo: ' + ultimoErrorFirestore);
 irA('view-home');
 actualizarDashboard();
 }
