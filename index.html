@@ -2204,6 +2204,68 @@ completada: serie.completada === true
 });
 }
 
+function normalizarNombreEjercicioParaRegistro(nombre) {
+return String(nombre || '').trim().toLocaleLowerCase();
+}
+
+function obtenerFechaRegistroParaComparar(registro) {
+const id = Number(registro && registro.id);
+if (Number.isFinite(id) && id > 0) return id;
+const partes = String(registro && registro.fecha || '').split('/');
+if (partes.length === 3) {
+const fecha = new Date(Number(partes[2]), Number(partes[1]) - 1, Number(partes[0])).getTime();
+if (Number.isFinite(fecha)) return fecha;
+}
+return 0;
+}
+
+function obtenerUltimasSeriesRegistradas(ejercicio) {
+const nombre = normalizarNombreEjercicioParaRegistro(ejercicio && ejercicio.nombre);
+if (!nombre || !Array.isArray(registrosCloud)) return new Map();
+let registroMasReciente = null;
+let indiceEjercicio = -1;
+let fechaMasReciente = -1;
+registrosCloud.forEach(registro => {
+const ejercicios = Array.isArray(registro && registro.ejercicios) ? registro.ejercicios : [];
+const indice = ejercicios.findIndex(item => normalizarNombreEjercicioParaRegistro(item && item.nombre) === nombre && !item.isCardio);
+if (indice < 0) return;
+const fecha = obtenerFechaRegistroParaComparar(registro);
+if (fecha > fechaMasReciente) {
+fechaMasReciente = fecha;
+registroMasReciente = registro;
+indiceEjercicio = indice;
+}
+});
+const resultado = registroMasReciente && Array.isArray(registroMasReciente.resultados)
+? registroMasReciente.resultados[indiceEjercicio]
+: null;
+const series = Array.isArray(resultado && resultado.series) ? resultado.series : [];
+return new Map(series.map((serie, idx) => [Number(serie.numero) || idx + 1, serie]));
+}
+
+function actualizarValoresRutinaDesdeSesion(sesion) {
+if (!sesion || !sesion.rutina || !Array.isArray(rutinasPersonalizadas[sesion.rutina])) return;
+const rutina = rutinasPersonalizadas[sesion.rutina];
+(sesion.ejercicios || []).forEach((ejercicio, idx) => {
+if (!ejercicio || ejercicio.isCardio) return;
+const resultado = (sesion.resultados || [])[idx];
+const hechas = Array.isArray(resultado && resultado.series)
+? resultado.series.filter(serie => serie.completada === true)
+: [];
+if (!hechas.length) return;
+const nombre = normalizarNombreEjercicioParaRegistro(ejercicio.nombre);
+const plantilla = rutina.find(item => !item.isCardio && normalizarNombreEjercicioParaRegistro(item.nombre) === nombre);
+if (!plantilla || !Array.isArray(plantilla.series)) return;
+hechas.forEach(serieHecha => {
+const numero = Number(serieHecha.numero) || 1;
+const seriePlantilla = plantilla.series[numero - 1];
+if (!seriePlantilla) return;
+if (serieHecha.peso !== undefined && String(serieHecha.peso).trim() !== '') seriePlantilla.peso = serieHecha.peso;
+if (serieHecha.reps !== undefined && String(serieHecha.reps).trim() !== '') seriePlantilla.reps = serieHecha.reps;
+});
+});
+}
+
 function comenzarModoGuiado() {
 const listaEjercicios = rutinasPersonalizadas[rutinaSeleccionadaKey];
 if (!Array.isArray(listaEjercicios) || listaEjercicios.length === 0) {
@@ -2221,14 +2283,26 @@ indiceActual: 0,
 segundosAcumulados: 0,
 inicioTimestamp: Date.now(),
 descansoHasta: null,
-resultados: listaEjercicios.map(ejercicio => ({
+resultados: listaEjercicios.map(ejercicio => {
+const ultimasSeries = ejercicio.isCardio ? new Map() : obtenerUltimasSeriesRegistradas(ejercicio);
+return {
 realizado: false,
 minutos: ejercicio.minutos || '',
 km: ejercicio.km || '',
 series: Array.isArray(ejercicio.series)
-? ejercicio.series.map((serie, serieIdx) => ({ numero: serieIdx + 1, peso: serie.peso || '', reps: serie.reps || '', completada: false }))
+? ejercicio.series.map((serie, serieIdx) => {
+const numero = serieIdx + 1;
+const ultima = ultimasSeries.get(numero);
+return {
+numero,
+peso: ultima && String(ultima.peso || '').trim() !== '' ? ultima.peso : (serie.peso || ''),
+reps: ultima && String(ultima.reps || '').trim() !== '' ? ultima.reps : (serie.reps || ''),
+completada: false
+};
+})
 : []
-}))
+};
+})
 };
 guiadoIndice = 0;
 segundosSesion = 0;
@@ -2503,6 +2577,7 @@ ejercicios: completados.ejercicios,
 resultados: completados.resultados
 };
 registrosCloud.unshift(registroFinal);
+actualizarValoresRutinaDesdeSesion(borradorSesion);
 borradorSesion = null;
 const sincronizado = await guardarTodoEnNube();
 alert(sincronizado
